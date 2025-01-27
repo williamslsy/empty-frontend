@@ -1,15 +1,16 @@
 use cosmwasm_std::{
     entry_point, from_json, to_json_binary, wasm_execute, Addr, Api, Binary, Decimal, Deps,
-    DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128,
+    DepsMut, Empty, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult,
+    Uint128,
 };
-use cw2::{get_contract_version, set_contract_version};
+use cw2::set_contract_version;
 use cw20::Cw20ReceiveMsg;
 
 use astroport::asset::{addr_opt_validate, Asset, AssetInfo};
 use astroport::pair::{QueryMsg as PairQueryMsg, SimulationResponse};
 use astroport::querier::query_pair_info;
 use astroport::router::{
-    ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
+    ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
     SimulateSwapOperationsResponse, SwapOperation, SwapResponseData, MAX_SWAP_OPERATIONS,
 };
 
@@ -259,27 +260,11 @@ pub fn query_config(deps: Deps) -> Result<ConfigResponse, ContractError> {
     Ok(resp)
 }
 
-/// Manages contract migration.
+/// Manages the contract migration.
 #[cfg(not(tarpaulin_include))]
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    let contract_version = get_contract_version(deps.storage)?;
-
-    match contract_version.contract.as_ref() {
-        "astroport-router" => match contract_version.version.as_ref() {
-            "1.1.1" => {}
-            _ => return Err(ContractError::MigrationError {}),
-        },
-        _ => return Err(ContractError::MigrationError {}),
-    };
-
-    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
-    Ok(Response::new()
-        .add_attribute("previous_contract_name", &contract_version.contract)
-        .add_attribute("previous_contract_version", &contract_version.version)
-        .add_attribute("new_contract_name", CONTRACT_NAME)
-        .add_attribute("new_contract_version", CONTRACT_VERSION))
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, ContractError> {
+    unimplemented!()
 }
 
 /// Returns the end result of a simulation for one or multiple swap

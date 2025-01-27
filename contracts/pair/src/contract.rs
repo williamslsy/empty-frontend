@@ -1324,9 +1324,10 @@ pub fn assert_slippage_tolerance(
 }
 
 /// Manages the contract migration.
+#[cfg(not(tarpaulin_include))]
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, ContractError> {
-    unimplemented!("No safe path available for migration from cw20 to tokenfactory LP tokens")
+    unimplemented!()
 }
 
 /// Returns the total amount of assets in the pool as well as the total amount of LP tokens currently minted.
