@@ -21,16 +21,13 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [features]
-# for quicker tests, cargo test --lib
-# for more explicit tests, cargo test --features=backtraces
-backtraces = ["cosmwasm-std/backtraces"]
 library = []
 
 [dependencies]
 integer-sqrt = "0.1"
 astroport.workspace = true
 cw2.workspace = true
-cw20 = "1.1"
+cw20 = "2.0"
 cosmwasm-std = { workspace = true, features = ["cosmwasm_1_1", "stargate"] }
 cw-storage-plus.workspace = true
 thiserror.workspace = true
@@ -38,9 +35,10 @@ cosmwasm-schema.workspace = true
 cw-utils.workspace = true
 
 [dev-dependencies]
+cw-multi-test = "2.3"
 astroport-incentives = { path = "../tokenomics/incentives" }
-cw20-base = { version = "1.1", features = ["library"] }
+cw20-base = { version = "2.0", features = ["library"] }
 astroport-factory = { path = "../factory" }
 proptest = "1.0"
 prost = "0.11.5"
-astroport-test = { path = "../../packages/astroport_test", features = ["cosmwasm_1_1"] }
+astroport-test = { path = "../../packages/astroport_test" }

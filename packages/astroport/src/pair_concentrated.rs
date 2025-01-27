@@ -1,9 +1,8 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Decimal, Decimal256, Uint128, Uint64};
+use cosmwasm_std::{Decimal, Decimal256, Uint128};
 
 use crate::asset::PairInfo;
 use crate::asset::{Asset, AssetInfo};
-use crate::observation::OracleObservation;
 use crate::pair::{
     ConfigResponse, CumulativePricesResponse, FeeShareConfig, PoolResponse,
     ReverseSimulationResponse, SimulationResponse,
@@ -144,16 +143,6 @@ pub enum QueryMsg {
     /// Query LP token virtual price
     #[returns(Decimal256)]
     LpPrice {},
-    /// Returns the balance of the specified asset that was in the pool just preceding the moment
-    /// of the specified block height creation.
-    #[returns(Option<Uint128>)]
-    AssetBalanceAt {
-        asset_info: AssetInfo,
-        block_height: Uint64,
-    },
-    /// Query price from observations
-    #[returns(OracleObservation)]
-    Observe { seconds_ago: u64 },
     /// Returns an estimation of shares received for the given amount of assets
     #[returns(Uint128)]
     SimulateProvide {
@@ -164,6 +153,3 @@ pub enum QueryMsg {
     #[returns(Vec<Asset>)]
     SimulateWithdraw { lp_amount: Uint128 },
 }
-
-#[cw_serde]
-pub struct MigrateMsg {}

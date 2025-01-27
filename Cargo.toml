@@ -10,13 +10,13 @@ members = [
 ]
 
 [workspace.dependencies]
-cosmwasm-std = "1.5"
-cw-storage-plus = "1.2"
-cw2 = "1"
-thiserror = "1.0"
-itertools = "0.12"
-cosmwasm-schema = "1.5"
-cw-utils = "1"
+cosmwasm-std = "2.2"
+cw-storage-plus = "2.0"
+cw2 = "2.0"
+thiserror = "2.0"
+itertools = "0.14.0"
+cosmwasm-schema = "2.2"
+cw-utils = "2.0"
 astroport = { path = "./packages/astroport", version = "5.7.0" }
 
 [profile.release]

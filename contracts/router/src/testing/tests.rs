@@ -1,5 +1,7 @@
-use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::{from_json, to_json_binary, Addr, Coin, ReplyOn, SubMsg, Uint128, WasmMsg};
+use cosmwasm_std::testing::{message_info, mock_env, MOCK_CONTRACT_ADDR};
+use cosmwasm_std::{
+    from_json, to_json_binary, Addr, Coin, MessageInfo, ReplyOn, SubMsg, Uint128, WasmMsg,
+};
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 
 use astroport::asset::{native_asset_info, AssetInfo};
@@ -11,6 +13,10 @@ use astroport::router::{
 use crate::contract::{execute, instantiate, query, AFTER_SWAP_REPLY_ID};
 use crate::error::ContractError;
 use crate::testing::mock_querier::mock_dependencies;
+
+fn mock_info(sender: &str, funds: &[Coin]) -> MessageInfo {
+    message_info(&Addr::unchecked(sender), funds)
+}
 
 #[test]
 fn proper_initialization() {
@@ -118,6 +124,7 @@ fn execute_swap_operations() {
                 id: 0,
                 gas_limit: None,
                 reply_on: ReplyOn::Never,
+                payload: Default::default(),
             },
             SubMsg {
                 msg: WasmMsg::Execute {
@@ -142,6 +149,7 @@ fn execute_swap_operations() {
                 id: 0,
                 gas_limit: None,
                 reply_on: ReplyOn::Never,
+                payload: Default::default(),
             },
             SubMsg {
                 msg: WasmMsg::Execute {
@@ -166,6 +174,7 @@ fn execute_swap_operations() {
                 id: AFTER_SWAP_REPLY_ID,
                 gas_limit: None,
                 reply_on: ReplyOn::Success,
+                payload: Default::default(),
             }
         ]
     );
@@ -236,6 +245,7 @@ fn execute_swap_operations() {
                 id: 0,
                 gas_limit: None,
                 reply_on: ReplyOn::Never,
+                payload: Default::default(),
             },
             SubMsg {
                 msg: WasmMsg::Execute {
@@ -260,6 +270,7 @@ fn execute_swap_operations() {
                 id: 0,
                 gas_limit: None,
                 reply_on: ReplyOn::Never,
+                payload: Default::default(),
             },
             SubMsg {
                 msg: WasmMsg::Execute {
@@ -284,6 +295,7 @@ fn execute_swap_operations() {
                 id: AFTER_SWAP_REPLY_ID,
                 gas_limit: None,
                 reply_on: ReplyOn::Success,
+                payload: Default::default(),
             }
         ]
     );
@@ -360,6 +372,7 @@ fn execute_swap_operation() {
             id: 0,
             gas_limit: None,
             reply_on: ReplyOn::Never,
+            payload: Default::default(),
         }]
     );
 }

@@ -230,6 +230,7 @@ impl Asset {
 
                 Ok(SubMsg {
                     id: reply_id,
+                    payload: Default::default(),
                     msg: inner_msg.into(),
                     gas_limit,
                     reply_on,
@@ -244,6 +245,7 @@ impl Asset {
 
                 Ok(SubMsg {
                     id: reply_id,
+                    payload: Default::default(),
                     msg: bank_msg,
                     gas_limit,
                     reply_on,
@@ -378,6 +380,7 @@ impl<'a> PrimaryKey<'a> for &AssetInfo {
 
     type SuperSuffix = Self;
 
+    // TODO: add differentiation between native and cw20 tokens
     fn key(&self) -> Vec<Key> {
         vec![Key::Ref(self.as_bytes())]
     }
@@ -391,9 +394,11 @@ impl<'a> Prefixer<'a> for &AssetInfo {
 
 impl KeyDeserialize for &AssetInfo {
     type Output = AssetInfo;
+    const KEY_ELEMS: u16 = 1;
 
     #[inline(always)]
     fn from_vec(_value: Vec<u8>) -> StdResult<Self::Output> {
+        // TODO: add deserialization based on implemented key() function
         unimplemented!("Due to lack of knowledge of enum variant in binary there is no way to determine correct AssetInfo")
     }
 }
@@ -838,7 +843,7 @@ impl Decimal256Ext for Decimal256 {
             .checked_div(10u128.pow(self.decimal_places() - precision).into())?
             .try_into()
             .map_err(|o: ConversionOverflowError| {
-                StdError::generic_err(format!("Error converting {}", o.value))
+                StdError::generic_err(format!("Error converting {}", o.source_type))
             })
     }
 
@@ -878,11 +883,15 @@ impl Decimal256Ext for Decimal256 {
 
 #[cfg(test)]
 mod tests {
-    use cosmwasm_std::testing::mock_info;
+    use cosmwasm_std::testing::message_info;
     use cosmwasm_std::{coin, coins};
     use test_case::test_case;
 
     use super::*;
+
+    fn mock_info(sender: &str, coins: &[Coin]) -> MessageInfo {
+        message_info(&Addr::unchecked(sender), coins)
+    }
 
     fn mock_cw20() -> Asset {
         Asset {

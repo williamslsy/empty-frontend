@@ -4,8 +4,7 @@ use std::vec;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     attr, coin, ensure, ensure_eq, from_json, wasm_execute, Addr, Binary, Coin, CosmosMsg, Decimal,
-    Decimal256, DepsMut, Empty, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg,
-    Uint128,
+    Decimal256, DepsMut, Empty, Env, MessageInfo, Reply, Response, StdError, StdResult, Uint128,
 };
 use cw2::{get_contract_version, set_contract_version};
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
@@ -16,9 +15,8 @@ use astroport::asset::AssetInfoExt;
 use astroport::asset::{
     addr_opt_validate, token_asset, Asset, AssetInfo, CoinsExt, PairInfo, MINIMUM_LIQUIDITY_AMOUNT,
 };
-use astroport::common::{claim_ownership, drop_ownership_proposal, propose_new_owner, LP_SUBDENOM};
+use astroport::common::{claim_ownership, drop_ownership_proposal, propose_new_owner};
 use astroport::cosmwasm_ext::{DecimalToInteger, IntegerToDecimal};
-use astroport::observation::{PrecommitObservation, OBSERVATIONS_SIZE};
 use astroport::pair::{
     Cw20HookMsg, ExecuteMsg, FeeShareConfig, InstantiateMsg, ReplyIds, MAX_FEE_SHARE_BPS,
     MIN_TRADE_SIZE,
@@ -27,8 +25,6 @@ use astroport::pair_concentrated::{
     ConcentratedPoolParams, ConcentratedPoolUpdateParams, UpdatePoolParams,
 };
 use astroport::querier::{query_factory_config, query_fee_info, query_native_supply};
-use astroport::token_factory::{tf_burn_msg, tf_create_denom_msg};
-use astroport_circular_buffer::BufferManager;
 use astroport_pcl_common::state::{
     AmpGamma, Config, PoolParams, PoolState, Precisions, PriceState,
 };
@@ -39,10 +35,8 @@ use astroport_pcl_common::utils::{
 use astroport_pcl_common::{calc_d, get_xcp};
 
 use crate::error::ContractError;
-use crate::state::{BALANCES, CONFIG, OBSERVATIONS, OWNERSHIP_PROPOSAL};
-use crate::utils::{
-    accumulate_swap_sizes, calculate_shares, get_assets_with_precision, query_pools,
-};
+use crate::state::{CONFIG, OWNERSHIP_PROPOSAL};
+use crate::utils::{calculate_shares, get_assets_with_precision, query_pools};
 
 /// Contract name that is used for migration.
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -137,31 +131,25 @@ pub fn instantiate(
         tracker_addr: None,
     };
 
-    if config.track_asset_balances {
-        for asset in &config.pair_info.asset_infos {
-            BALANCES.save(deps.storage, asset, &Uint128::zero(), env.block.height)?;
-        }
-    }
-
     CONFIG.save(deps.storage, &config)?;
 
-    BufferManager::init(deps.storage, OBSERVATIONS, OBSERVATIONS_SIZE)?;
+    // TODO: Create LP token
+    // let sub_msg = SubMsg::reply_on_success(
+    //     tf_create_denom_msg(env.contract.address.to_string(), LP_SUBDENOM),
+    //     ReplyIds::CreateDenom as u64,
+    // );
 
-    // Create LP token
-    let sub_msg = SubMsg::reply_on_success(
-        tf_create_denom_msg(env.contract.address.to_string(), LP_SUBDENOM),
-        ReplyIds::CreateDenom as u64,
-    );
+    // Ok(Response::new().add_submessage(sub_msg).add_attribute(
+    //     "asset_balances_tracking".to_owned(),
+    //     if config.track_asset_balances {
+    //         "enabled"
+    //     } else {
+    //         "disabled"
+    //     }
+    //     .to_owned(),
+    // ))
 
-    Ok(Response::new().add_submessage(sub_msg).add_attribute(
-        "asset_balances_tracking".to_owned(),
-        if config.track_asset_balances {
-            "enabled"
-        } else {
-            "disabled"
-        }
-        .to_owned(),
-    ))
+    Ok(Response::new())
 }
 
 /// The entry point to the contract for processing replies from submessages.
@@ -491,20 +479,6 @@ pub fn provide_liquidity(
         auto_stake,
     )?);
 
-    if config.track_asset_balances {
-        for (i, pool) in pools.iter().enumerate() {
-            BALANCES.save(
-                deps.storage,
-                &pool.info,
-                &pool
-                    .amount
-                    .checked_add(deposits[i])?
-                    .to_uint(precisions.get_precision(&pool.info)?)?,
-                env.block.height,
-            )?;
-        }
-    }
-
     accumulate_prices(&env, &mut config, old_real_price);
 
     CONFIG.save(deps.storage, &config)?;
@@ -591,24 +565,11 @@ fn withdraw_liquidity(
             .map(|asset| asset.into_msg(&info.sender))
             .collect::<StdResult<Vec<_>>>()?,
     );
-    messages.push(tf_burn_msg(
-        env.contract.address,
-        coin(amount.u128(), config.pair_info.liquidity_token.to_string()),
-    ));
-
-    if config.track_asset_balances {
-        for (i, pool) in pools.iter().enumerate() {
-            BALANCES.save(
-                deps.storage,
-                &pool.info,
-                &pool
-                    .amount
-                    .to_uint(precisions.get_precision(&pool.info)?)?
-                    .checked_sub(refund_assets[i].amount)?,
-                env.block.height,
-            )?;
-        }
-    }
+    // TODO: cw20 burn
+    // messages.push(tf_burn_msg(
+    //     env.contract.address,
+    //     coin(amount.u128(), config.pair_info.liquidity_token.to_string()),
+    // ));
 
     CONFIG.save(deps.storage, &config)?;
 
@@ -747,40 +708,7 @@ fn swap(
 
     accumulate_prices(&env, &mut config, old_real_price);
 
-    // Store observation from precommit data
-    accumulate_swap_sizes(deps.storage, &env)?;
-
-    // Store time series data in precommit observation.
-    // Skipping small unsafe values which can seriously mess oracle price due to rounding errors.
-    // This data will be reflected in observations in the next action.
-    if offer_asset_dec.amount >= MIN_TRADE_SIZE && swap_result.dy >= MIN_TRADE_SIZE {
-        let (base_amount, quote_amount) = if offer_ind == 0 {
-            (offer_asset.amount, return_amount)
-        } else {
-            (return_amount, offer_asset.amount)
-        };
-        PrecommitObservation::save(deps.storage, &env, base_amount, quote_amount)?;
-    }
-
     CONFIG.save(deps.storage, &config)?;
-
-    if config.track_asset_balances {
-        BALANCES.save(
-            deps.storage,
-            &pools[offer_ind].info,
-            &(pools[offer_ind].amount + offer_asset_dec.amount).to_uint(offer_asset_prec)?,
-            env.block.height,
-        )?;
-        BALANCES.save(
-            deps.storage,
-            &pools[ask_ind].info,
-            &(pools[ask_ind].amount.to_uint(ask_asset_prec)?
-                - return_amount
-                - maker_fee
-                - fee_share_amount),
-            env.block.height,
-        )?;
-    }
 
     Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "swap"),

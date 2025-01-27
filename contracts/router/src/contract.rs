@@ -199,6 +199,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
         Reply {
             id: AFTER_SWAP_REPLY_ID,
             result: SubMsgResult::Ok(..),
+            ..
         } => {
             let reply_data = REPLY_DATA.load(deps.storage)?;
             let receiver_balance = reply_data

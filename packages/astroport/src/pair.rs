@@ -1,11 +1,9 @@
-use crate::observation::OracleObservation;
 use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::{Addr, Binary, Decimal, Decimal256, StdError, Uint128};
+use cw20::Cw20ReceiveMsg;
 
 use crate::asset::{Asset, AssetInfo, PairInfo};
-
 use crate::factory::PairType;
-use cosmwasm_std::{Addr, Binary, Decimal, Decimal256, StdError, Uint128, Uint64};
-use cw20::Cw20ReceiveMsg;
 
 /// The default swap slippage
 pub const DEFAULT_SLIPPAGE: &str = "0.005";
@@ -129,15 +127,6 @@ pub enum QueryMsg {
     /// Returns current D invariant in as a [`u128`] value
     #[returns(Uint128)]
     QueryComputeD {},
-    /// Returns the balance of the specified asset that was in the pool just preceeding the moment of the specified block height creation.
-    #[returns(Option<Uint128>)]
-    AssetBalanceAt {
-        asset_info: AssetInfo,
-        block_height: Uint64,
-    },
-    /// Query price from observations
-    #[returns(OracleObservation)]
-    Observe { seconds_ago: u64 },
     /// Returns an estimation of assets received for the given amount of LP tokens
     #[returns(Vec<Asset>)]
     SimulateWithdraw { lp_amount: Uint128 },
@@ -214,11 +203,6 @@ pub struct CumulativePricesResponse {
     /// The vector contains cumulative prices for each pair of assets in the pool
     pub cumulative_prices: Vec<(AssetInfo, AssetInfo, Uint128)>,
 }
-
-/// This structure describes a migration message.
-/// We currently take no arguments for migrations.
-#[cw_serde]
-pub struct MigrateMsg {}
 
 /// This structure holds XYK pool parameters.
 #[cw_serde]
@@ -301,18 +285,16 @@ impl TryFrom<u64> for ReplyIds {
         match value {
             1 => Ok(ReplyIds::CreateDenom),
             2 => Ok(ReplyIds::InstantiateTrackingContract),
-            _ => Err(StdError::ParseErr {
-                target_type: "ReplyIds".to_string(),
-                msg: "Failed to parse reply".to_string(),
-            }),
+            _ => Err(StdError::generic_err("Invalid ReplyId")),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use cosmwasm_std::{from_json, to_json_binary};
+
+    use super::*;
 
     #[cw_serde]
     pub struct LegacyConfigResponse {

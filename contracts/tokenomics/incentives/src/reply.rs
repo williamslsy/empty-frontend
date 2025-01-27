@@ -19,6 +19,7 @@ pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, Contract
         Reply {
             id: POST_TRANSFER_REPLY_ID,
             result: SubMsgResult::Err(err_msg),
+            ..
         } => Ok(Response::new().add_attribute("transfer_error", err_msg)),
         _ => Err(ContractError::FailedToParseReply {}),
     }

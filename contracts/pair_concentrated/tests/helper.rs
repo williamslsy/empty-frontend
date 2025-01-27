@@ -15,7 +15,6 @@ use itertools::Itertools;
 
 use astroport::asset::{native_asset_info, token_asset_info, Asset, AssetInfo, PairInfo};
 use astroport::factory::{PairConfig, PairType};
-use astroport::observation::OracleObservation;
 use astroport::pair::{
     ConfigResponse, CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, PoolResponse,
     ReverseSimulationResponse, SimulationResponse,
@@ -28,8 +27,7 @@ use astroport_pair_concentrated::queries::query;
 use astroport_pcl_common::state::Config;
 use astroport_test::coins::TestCoin;
 use astroport_test::convert::f64_to_dec;
-use astroport_test::cw_multi_test::{AppBuilder, AppResponse, Contract, ContractWrapper, Executor};
-use astroport_test::modules::stargate::{MockStargate, StargateApp as TestApp};
+use cw_multi_test::{App, AppBuilder, AppResponse, Contract, ContractWrapper, Executor};
 
 const INIT_BALANCE: u128 = u128::MAX;
 
@@ -113,7 +111,7 @@ fn generator() -> Box<dyn Contract<Empty>> {
 #[derivative(Debug)]
 pub struct Helper {
     #[derivative(Debug = "ignore")]
-    pub app: TestApp,
+    pub app: App,
     pub owner: Addr,
     pub assets: HashMap<TestCoin, AssetInfo>,
     pub factory: Addr,
@@ -129,14 +127,12 @@ impl Helper {
         test_coins: Vec<TestCoin>,
         params: ConcentratedPoolParams,
     ) -> AnyResult<Self> {
-        let mut app = AppBuilder::new_custom()
-            .with_stargate(MockStargate::default())
-            .build(|router, _, storage| {
-                router
-                    .bank
-                    .init_balance(storage, owner, init_native_coins(&test_coins))
-                    .unwrap()
-            });
+        let mut app = AppBuilder::new_custom().build(|router, _, storage| {
+            router
+                .bank
+                .init_balance(storage, owner, init_native_coins(&test_coins))
+                .unwrap()
+        });
 
         let token_code_id = app.store_code(token_contract());
 
@@ -482,7 +478,7 @@ impl Helper {
     }
 
     fn init_token(
-        app: &mut TestApp,
+        app: &mut App,
         token_code: u64,
         name: String,
         decimals: u8,
@@ -573,20 +569,6 @@ impl Helper {
             .query_wasm_smart(&self.pair_addr, &QueryMsg::LpPrice {})
     }
 
-    pub fn query_asset_balance_at(
-        &self,
-        asset_info: &AssetInfo,
-        block_height: u64,
-    ) -> StdResult<Option<Uint128>> {
-        self.app.wrap().query_wasm_smart(
-            &self.pair_addr.clone(),
-            &QueryMsg::AssetBalanceAt {
-                asset_info: asset_info.clone(),
-                block_height: block_height.into(),
-            },
-        )
-    }
-
     pub fn update_config(
         &mut self,
         user: &Addr,
@@ -633,16 +615,6 @@ impl Helper {
             },
         )
     }
-
-    pub fn observe_price(&self, seconds_ago: u64) -> StdResult<Decimal> {
-        self.app
-            .wrap()
-            .query_wasm_smart::<OracleObservation>(
-                &self.pair_addr,
-                &QueryMsg::Observe { seconds_ago },
-            )
-            .map(|val| val.price)
-    }
 }
 
 #[derive(Clone, Copy)]
@@ -655,7 +627,7 @@ pub enum SendType {
 pub trait AssetExt {
     fn mock_coin_sent(
         &self,
-        app: &mut TestApp,
+        app: &mut App,
         user: &Addr,
         spender: &Addr,
         typ: SendType,
@@ -665,7 +637,7 @@ pub trait AssetExt {
 impl AssetExt for Asset {
     fn mock_coin_sent(
         &self,
-        app: &mut TestApp,
+        app: &mut App,
         user: &Addr,
         spender: &Addr,
         typ: SendType,
@@ -701,7 +673,7 @@ impl AssetExt for Asset {
 pub trait AssetsExt {
     fn mock_coins_sent(
         &self,
-        app: &mut TestApp,
+        app: &mut App,
         user: &Addr,
         spender: &Addr,
         typ: SendType,
@@ -711,7 +683,7 @@ pub trait AssetsExt {
 impl AssetsExt for &[Asset] {
     fn mock_coins_sent(
         &self,
-        app: &mut TestApp,
+        app: &mut App,
         user: &Addr,
         spender: &Addr,
         typ: SendType,
@@ -728,7 +700,7 @@ pub trait AppExtension {
     fn next_block(&mut self, time: u64);
 }
 
-impl AppExtension for TestApp {
+impl AppExtension for App {
     fn next_block(&mut self, time: u64) {
         self.update_block(|block| {
             block.time = block.time.plus_seconds(time);

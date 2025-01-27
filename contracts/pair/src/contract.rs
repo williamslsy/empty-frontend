@@ -5,10 +5,9 @@ use std::vec;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, coin, ensure_eq, from_json, to_json_binary, wasm_execute, Addr, Binary, Coin, CosmosMsg,
-    CustomMsg, CustomQuery, Decimal, Decimal256, Deps, DepsMut, Empty, Env, Fraction, MessageInfo,
-    QuerierWrapper, Reply, Response, StdError, StdResult, SubMsg, Uint128, Uint256, Uint64,
-    WasmMsg,
+    attr, coin, ensure_eq, from_json, to_json_binary, Addr, Binary, Coin, CosmosMsg, CustomMsg,
+    CustomQuery, Decimal, Decimal256, Deps, DepsMut, Empty, Env, MessageInfo, QuerierWrapper,
+    Reply, Response, StdError, StdResult, Uint128, Uint256, Uint64, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
@@ -18,8 +17,6 @@ use astroport::asset::{
     addr_opt_validate, check_swap_parameters, Asset, AssetInfo, CoinsExt, PairInfo,
     MINIMUM_LIQUIDITY_AMOUNT,
 };
-use astroport::common::LP_SUBDENOM;
-use astroport::incentives::ExecuteMsg as IncentiveExecuteMsg;
 use astroport::pair::{
     ConfigResponse, FeeShareConfig, ReplyIds, XYKPoolConfig, XYKPoolParams, XYKPoolUpdateParams,
     DEFAULT_SLIPPAGE, MAX_ALLOWED_SLIPPAGE, MAX_FEE_SHARE_BPS,
@@ -29,7 +26,6 @@ use astroport::pair::{
     ReverseSimulationResponse, SimulationResponse, TWAP_PRECISION,
 };
 use astroport::querier::{query_factory_config, query_fee_info, query_native_supply};
-use astroport::token_factory::{tf_burn_msg, tf_create_denom_msg, tf_mint_msg};
 use astroport::U256;
 
 use crate::error::ContractError;
@@ -92,11 +88,11 @@ pub fn instantiate(
 
     CONFIG.save(deps.storage, &config)?;
 
-    // Create LP token
-    let sub_msg: SubMsg<_> = SubMsg::reply_on_success(
-        tf_create_denom_msg(env.contract.address.to_string(), LP_SUBDENOM),
-        ReplyIds::CreateDenom as u64,
-    );
+    let sub_msg = todo!("CW20 init");
+    // let sub_msg: SubMsg<_> = SubMsg::reply_on_success(
+    //     tf_create_denom_msg(env.contract.address.to_string(), LP_SUBDENOM),
+    //     ReplyIds::CreateDenom as u64,
+    // );
 
     Ok(Response::new().add_submessage(sub_msg).add_attribute(
         "asset_balances_tracking".to_owned(),
@@ -455,25 +451,27 @@ where
 
     // If no auto-stake - just mint to recipient
     if !auto_stake {
-        return Ok(tf_mint_msg(contract_address, coin, recipient));
+        todo!("mint CW20 token")
+        // return Ok(tf_mint_msg(contract_address, coin, recipient));
     }
 
     // Mint for the pair contract and stake into the Incentives contract
     let incentives_addr = query_factory_config(&querier, &config.factory_addr)?.generator_address;
 
     if let Some(address) = incentives_addr {
-        let mut msgs = tf_mint_msg(contract_address, coin.clone(), contract_address);
-        msgs.push(
-            wasm_execute(
-                address,
-                &IncentiveExecuteMsg::Deposit {
-                    recipient: Some(recipient.to_string()),
-                },
-                vec![coin],
-            )?
-            .into(),
-        );
-        Ok(msgs)
+        todo!("mint CW20 token");
+        // let mut msgs = tf_mint_msg(contract_address, coin.clone(), contract_address);
+        // msgs.push(
+        //     wasm_execute(
+        //         address,
+        //         &IncentiveExecuteMsg::Deposit {
+        //             recipient: Some(recipient.to_string()),
+        //         },
+        //         vec![coin],
+        //     )?
+        //     .into(),
+        // );
+        // Ok(msgs)
     } else {
         Err(ContractError::AutoStakeError {})
     }
@@ -536,10 +534,11 @@ pub fn withdraw_liquidity(
         .map(|asset| asset.into_msg(&info.sender))
         .collect::<StdResult<Vec<_>>>()?;
 
-    messages.push(tf_burn_msg(
-        env.contract.address,
-        coin(amount.u128(), config.pair_info.liquidity_token.to_string()),
-    ));
+    // TODO: burn cw20 token
+    // messages.push(tf_burn_msg(
+    //     env.contract.address,
+    //     coin(amount.u128(), config.pair_info.liquidity_token.to_string()),
+    // ));
 
     Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "withdraw_liquidity"),
@@ -569,7 +568,8 @@ pub fn get_share_in_assets(pools: &[Asset], amount: Uint128, total_share: Uint12
         .iter()
         .map(|a| Asset {
             info: a.info.clone(),
-            amount: a.amount * share_ratio,
+            // amount: a.amount * share_ratio,
+            amount: todo!("multiply Uint128 by Decimal"),
         })
         .collect()
 }
@@ -674,20 +674,21 @@ pub fn swap(
     if let Some(fee_share) = config.fee_share.clone() {
         // Calculate the fee share amount from the full commission amount
         let share_fee_rate = Decimal::from_ratio(fee_share.bps, 10000u16);
-        fee_share_amount = fees_commission_amount * share_fee_rate;
+        todo!("multiply Uint128 by Decimal");
+        // fee_share_amount = fees_commission_amount * share_fee_rate;
 
-        if !fee_share_amount.is_zero() {
-            // Subtract the fee share amount from the commission
-            fees_commission_amount = fees_commission_amount.saturating_sub(fee_share_amount);
-
-            // Build send message for the shared amount
-            let fee_share_msg = Asset {
-                info: ask_pool.info.clone(),
-                amount: fee_share_amount,
-            }
-            .into_msg(fee_share.recipient)?;
-            messages.push(fee_share_msg);
-        }
+        // if !fee_share_amount.is_zero() {
+        //     // Subtract the fee share amount from the commission
+        //     fees_commission_amount = fees_commission_amount.saturating_sub(fee_share_amount);
+        //
+        //     // Build send message for the shared amount
+        //     let fee_share_msg = Asset {
+        //         info: ask_pool.info.clone(),
+        //         amount: fee_share_amount,
+        //     }
+        //     .into_msg(fee_share.recipient)?;
+        //     messages.push(fee_share_msg);
+        // }
     }
 
     // Compute the Maker fee
@@ -864,15 +865,16 @@ pub fn calculate_maker_fee(
     commission_amount: Uint128,
     maker_commission_rate: Decimal,
 ) -> Option<Asset> {
-    let maker_fee: Uint128 = commission_amount * maker_commission_rate;
-    if maker_fee.is_zero() {
-        return None;
-    }
-
-    Some(Asset {
-        info: pool_info.clone(),
-        amount: maker_fee,
-    })
+    todo!("multiply Uint128 by Decimal");
+    // let maker_fee: Uint128 = commission_amount * maker_commission_rate;
+    // if maker_fee.is_zero() {
+    //     return None;
+    // }
+    //
+    // Some(Asset {
+    //     info: pool_info.clone(),
+    //     amount: maker_fee,
+    // })
 }
 
 /// Exposes all the queries available in the contract.
@@ -915,10 +917,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::CumulativePrices {} => to_json_binary(&query_cumulative_prices(deps, env)?),
         QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
-        QueryMsg::AssetBalanceAt {
-            asset_info,
-            block_height,
-        } => to_json_binary(&query_asset_balances_at(deps, asset_info, block_height)?),
         QueryMsg::SimulateWithdraw { lp_amount } => to_json_binary(&query_share(deps, lp_amount)?),
         QueryMsg::SimulateProvide {
             assets,
@@ -1167,14 +1165,20 @@ pub fn compute_swap(
 
     // ask_amount = (ask_pool - cp / (offer_pool + offer_amount))
     let cp: Uint256 = offer_pool * ask_pool;
-    let return_amount: Uint256 = (Decimal256::from_ratio(ask_pool, 1u8)
-        - Decimal256::from_ratio(cp, offer_pool + offer_amount))
-        * Uint256::from(1u8);
+    // TODO: Decimal256 * Uint256 multiplication
+    let return_amount: Uint256 = 0u128.into();
+    // let return_amount: Uint256 = (Decimal256::from_ratio(ask_pool, 1u8)
+    //     - Decimal256::from_ratio(cp, offer_pool + offer_amount))
+    //     * Uint256::from(1u8);
 
     // Calculate spread & commission
-    let spread_amount: Uint256 =
-        (offer_amount * Decimal256::from_ratio(ask_pool, offer_pool)).saturating_sub(return_amount);
-    let commission_amount: Uint256 = return_amount * commission_rate;
+    // TODO: Decimal256 * Uint256 multiplication
+    let spread_amount: Uint256 = 0u128.into();
+    // let spread_amount: Uint256 =
+    //     (offer_amount * Decimal256::from_ratio(ask_pool, offer_pool)).saturating_sub(return_amount);
+    // TODO: Decimal256 * Uint256 multiplication
+    let commission_amount: Uint256 = 0u128.into();
+    // let commission_amount: Uint256 = return_amount * commission_rate;
 
     // The commision (minus the part that goes to the Maker contract) will be absorbed by the pool
     let return_amount: Uint256 = return_amount - commission_amount;
@@ -1208,23 +1212,26 @@ pub fn compute_offer_amount(
     let one_minus_commission = Decimal256::one() - Decimal256::from(commission_rate);
     let inv_one_minus_commission = Decimal256::one() / one_minus_commission;
 
-    let offer_amount: Uint128 = cp
-        .multiply_ratio(
-            Uint256::from(1u8),
-            Uint256::from(
-                ask_pool.checked_sub(
-                    (Uint256::from(ask_amount) * inv_one_minus_commission).try_into()?,
-                )?,
-            ),
-        )
-        .checked_sub(offer_pool.into())?
-        .try_into()?;
+    // TODO: Decimal256 * Uint256 multiplication
+    let offer_amount = 0u8.into();
+    // let offer_amount: Uint128 = cp
+    //     .multiply_ratio(
+    //         Uint256::from(1u8),
+    //         Uint256::from(
+    //             ask_pool.checked_sub(
+    //                 (Uint256::from(ask_amount) * inv_one_minus_commission).try_into()?,
+    //             )?,
+    //         ),
+    //     )
+    //     .checked_sub(offer_pool.into())?
+    //     .try_into()?;
 
-    let before_commission_deduction = Uint256::from(ask_amount) * inv_one_minus_commission;
-    let spread_amount = (offer_amount * Decimal::from_ratio(ask_pool, offer_pool))
-        .saturating_sub(before_commission_deduction.try_into()?);
-    let commission_amount = before_commission_deduction * Decimal256::from(commission_rate);
-    Ok((offer_amount, spread_amount, commission_amount.try_into()?))
+    // TODO: Decimal256 * Uint256 multiplication
+    // let before_commission_deduction = Uint256::from(ask_amount) * inv_one_minus_commission;
+    // let spread_amount = (offer_amount * Decimal::from_ratio(ask_pool, offer_pool))
+    //     .saturating_sub(before_commission_deduction.try_into()?);
+    // let commission_amount = before_commission_deduction * Decimal256::from(commission_rate);
+    Ok((offer_amount, 0u8.into(), 0u8.into()))
 }
 
 /// Returns shares for the provided deposits.
@@ -1340,17 +1347,18 @@ pub fn assert_max_spread(
     }
 
     if let Some(belief_price) = belief_price {
-        let expected_return = offer_amount
-            * belief_price
-                .inv()
-                .ok_or_else(|| StdError::generic_err("Belief price must not be zero!"))?;
-        let spread_amount = expected_return.saturating_sub(return_amount);
-
-        if return_amount < expected_return
-            && Decimal::from_ratio(spread_amount, expected_return) > max_spread
-        {
-            return Err(ContractError::MaxSpreadAssertion {});
-        }
+        // TODO: Decimal * Uint128 multiplication
+        // let expected_return = offer_amount
+        //     * belief_price
+        //         .inv()
+        //         .ok_or_else(|| StdError::generic_err("Belief price must not be zero!"))?;
+        // let spread_amount = expected_return.saturating_sub(return_amount);
+        //
+        // if return_amount < expected_return
+        //     && Decimal::from_ratio(spread_amount, expected_return) > max_spread
+        // {
+        //     return Err(ContractError::MaxSpreadAssertion {});
+        // }
     } else if Decimal::from_ratio(spread_amount, return_amount + spread_amount) > max_spread {
         return Err(ContractError::MaxSpreadAssertion {});
     }

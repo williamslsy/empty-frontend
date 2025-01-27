@@ -180,7 +180,7 @@ fn check_update_owner() {
         .query_wasm_smart(&native_registry_instance, &msg)
         .unwrap();
 
-    assert_eq!(res.owner, new_owner)
+    assert_eq!(res.owner.as_str(), new_owner)
 }
 
 #[test]

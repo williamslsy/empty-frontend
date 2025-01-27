@@ -65,10 +65,16 @@ impl RewardInfoExt for RewardInfo {
         let user_amount = Uint256::from(user_info.amount);
         let u256_result = match user_index_opt {
             Some((_, user_reward_index)) if *user_reward_index > self.index => {
-                self.index * user_amount
+                // TODO: Decimal256 * Uint256 multiplication
+                // self.index * user_amount
+                Uint256::zero()
             }
-            None => self.index * user_amount,
-            Some((_, user_reward_index)) => (self.index - *user_reward_index) * user_amount,
+            // TODO: Decimal256 * Uint256 multiplication
+            // None => self.index * user_amount,
+            None => Uint256::zero(),
+            // TODO: Decimal256 * Uint256 multiplication
+            // Some((_, user_reward_index)) => (self.index - *user_reward_index) * user_amount,
+            Some((_, ..)) => Uint256::zero(),
         };
 
         Ok(u256_result.try_into()?)
@@ -446,7 +452,7 @@ impl PoolInfo {
             self.rewards_to_remove
                 .iter()
                 .map(|(reward, index)| (reward.asset_info().clone(), *index))
-                .group_by(|(_, (_, orphaned_amount))| orphaned_amount.is_zero())
+                .chunk_by(|(_, (_, orphaned_amount))| orphaned_amount.is_zero())
                 .into_iter()
                 .try_for_each(|(is_zero, group)| {
                     if is_zero {
@@ -659,11 +665,15 @@ impl UserInfo {
                                 })
                                 .unwrap_or_default();
 
-                            (finished_index - user_reward_index) * lp_tokens_amount
+                            // TODO: Decimal256 * Uint256 multiplication
+                            // (finished_index - user_reward_index) * lp_tokens_amount
+                            Uint256::zero()
                         } else {
                             // Subsequent finished schedules consider user never claimed rewards
                             // thus their index was 0
-                            finished_index * lp_tokens_amount
+                            // TODO: Decimal256 * Uint256 multiplication
+                            // finished_index * lp_tokens_amount
+                            Uint256::zero()
                         };
 
                         Ok(reward_info.with_balance(Uint128::try_from(amount)?))

@@ -67,7 +67,7 @@ pub fn claim_rewards(
     // This allows to reduce number of output messages thus reducing total gas cost.
     let mut messages = external_rewards
         .into_iter()
-        .group_by(|asset| asset.info.clone())
+        .chunk_by(|asset| asset.info.clone())
         .into_iter()
         .map(|(info, assets)| {
             let amount: Uint128 = assets.into_iter().map(|asset| asset.amount).sum();

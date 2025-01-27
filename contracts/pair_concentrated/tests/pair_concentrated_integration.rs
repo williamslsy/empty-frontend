@@ -3,13 +3,11 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{Addr, Decimal, Decimal256, StdError, Uint128};
+use cw_multi_test::Executor;
 use itertools::{max, Itertools};
 
-use astroport::asset::{
-    native_asset_info, Asset, AssetInfo, AssetInfoExt, MINIMUM_LIQUIDITY_AMOUNT,
-};
-use astroport::cosmwasm_ext::{AbsDiff, IntegerToDecimal};
-use astroport::observation::OracleObservation;
+use astroport::asset::{native_asset_info, AssetInfoExt, MINIMUM_LIQUIDITY_AMOUNT};
+use astroport::cosmwasm_ext::IntegerToDecimal;
 use astroport::pair::{ExecuteMsg, PoolResponse, MAX_FEE_SHARE_BPS};
 use astroport::pair_concentrated::{
     ConcentratedPoolParams, ConcentratedPoolUpdateParams, PromoteParams, QueryMsg, UpdatePoolParams,
@@ -19,67 +17,10 @@ use astroport_pcl_common::consts::{AMP_MAX, AMP_MIN, MA_HALF_TIME_LIMITS};
 use astroport_pcl_common::error::PclError;
 use astroport_test::coins::TestCoin;
 use astroport_test::convert::{dec_to_f64, f64_to_dec};
-use astroport_test::cw_multi_test::Executor;
 
 use crate::helper::{common_pcl_params, AppExtension, Helper};
 
 mod helper;
-
-#[test]
-fn check_observe_queries() {
-    let owner = Addr::unchecked("owner");
-
-    let test_coins = vec![TestCoin::native("uluna"), TestCoin::native("uusdc")];
-
-    let mut helper = Helper::new(&owner, test_coins.clone(), common_pcl_params()).unwrap();
-
-    let user = Addr::unchecked("user");
-    let offer_asset = helper.assets[&test_coins[0]].with_balance(100_000000u128);
-    helper.give_me_money(&[offer_asset.clone()], &user);
-
-    let assets = vec![
-        helper.assets[&test_coins[0]].with_balance(100_000_000000u128),
-        helper.assets[&test_coins[1]].with_balance(100_000_000000u128),
-    ];
-    helper.provide_liquidity(&owner, &assets).unwrap();
-
-    let d = helper.query_d().unwrap();
-    assert_eq!(dec_to_f64(d), 200000f64);
-
-    assert_eq!(0, helper.coin_balance(&test_coins[1], &user));
-    helper.swap(&user, &offer_asset, None).unwrap();
-    assert_eq!(0, helper.coin_balance(&test_coins[0], &user));
-    assert_eq!(99_737929, helper.coin_balance(&test_coins[1], &user));
-
-    helper.app.next_block(1000);
-
-    let user2 = Addr::unchecked("user2");
-    let offer_asset = helper.assets[&test_coins[1]].with_balance(100_000000u128);
-    helper.give_me_money(&[offer_asset.clone()], &user2);
-    helper.swap(&user2, &offer_asset, None).unwrap();
-    assert_eq!(0, helper.coin_balance(&test_coins[1], &user2));
-    assert_eq!(99_741246, helper.coin_balance(&test_coins[0], &user2));
-
-    let d = helper.query_d().unwrap();
-    assert_eq!(dec_to_f64(d), 200000.260415);
-
-    let res: OracleObservation = helper
-        .app
-        .wrap()
-        .query_wasm_smart(
-            helper.pair_addr.to_string(),
-            &QueryMsg::Observe { seconds_ago: 0 },
-        )
-        .unwrap();
-
-    assert_eq!(
-        res,
-        OracleObservation {
-            timestamp: helper.app.block_info().time.seconds(),
-            price: Decimal::from_str("1.002627596167552265").unwrap()
-        }
-    );
-}
 
 #[test]
 fn check_wrong_initialization() {
@@ -706,37 +647,6 @@ fn check_swaps_simple() {
 
     let d = helper.query_d().unwrap();
     assert_eq!(dec_to_f64(d), 200000.260415);
-
-    let price1 = helper.observe_price(0).unwrap();
-    helper.app.next_block(10);
-    // Swapping the lowest amount possible which results in positive return amount
-    helper
-        .swap(
-            &user,
-            &helper.assets[&test_coins[1]].with_balance(2u128),
-            None,
-        )
-        .unwrap();
-    let price2 = helper.observe_price(0).unwrap();
-    // With such a small swap size contract doesn't store observation
-    assert_eq!(price1, price2);
-
-    helper.app.next_block(10);
-    // Swap the smallest possible amount which gets observation saved
-    helper
-        .swap(
-            &user,
-            &helper.assets[&test_coins[1]].with_balance(1005u128),
-            None,
-        )
-        .unwrap();
-    let price3 = helper.observe_price(0).unwrap();
-    // Prove that price didn't jump that much
-    let diff = price3.diff(price2);
-    assert!(
-        diff / price2 < f64_to_dec(0.005),
-        "price jumped from {price2} to {price3} which is more than 0.5%"
-    );
 }
 
 #[test]
@@ -1111,133 +1021,6 @@ fn query_d_test() {
 }
 
 #[test]
-fn asset_balances_tracking_with_in_params() {
-    let owner = Addr::unchecked("owner");
-    let test_coins = vec![TestCoin::native("uluna"), TestCoin::native("uusd")];
-
-    let params = ConcentratedPoolParams {
-        track_asset_balances: Some(true),
-        ..common_pcl_params()
-    };
-
-    // Instantiate pair without asset balances tracking
-    let mut helper = Helper::new(&owner, test_coins.clone(), params).unwrap();
-
-    let assets = vec![
-        helper.assets[&test_coins[0]].with_balance(5_000000u128),
-        helper.assets[&test_coins[1]].with_balance(5_000000u128),
-    ];
-
-    // Check that asset balances were not tracked before instantiation
-    // The query AssetBalanceAt returns None for this case
-    let res = helper
-        .query_asset_balance_at(&assets[0].info, helper.app.block_info().height)
-        .unwrap();
-    assert!(res.is_none());
-
-    let res = helper
-        .query_asset_balance_at(&assets[1].info, helper.app.block_info().height)
-        .unwrap();
-    assert!(res.is_none());
-
-    // Check that asset balances were not tracked before instantiation
-    // The query AssetBalanceAt returns None for this case
-    let res = helper
-        .query_asset_balance_at(&assets[0].info, helper.app.block_info().height)
-        .unwrap();
-    assert!(res.is_none());
-
-    let res = helper
-        .query_asset_balance_at(&assets[1].info, helper.app.block_info().height)
-        .unwrap();
-    assert!(res.is_none());
-
-    // Check that asset balances had zero balances before next block upon instantiation
-    helper.app.update_block(|b| b.height += 1);
-
-    let res = helper
-        .query_asset_balance_at(&assets[0].info, helper.app.block_info().height)
-        .unwrap();
-    assert!(res.unwrap().is_zero());
-
-    let res = helper
-        .query_asset_balance_at(&assets[1].info, helper.app.block_info().height)
-        .unwrap();
-    assert!(res.unwrap().is_zero());
-
-    // Provide liquidity
-    helper
-        .provide_liquidity(
-            &owner,
-            &[
-                assets[0].info.with_balance(999_000000u128),
-                assets[1].info.with_balance(1000_000000u128),
-            ],
-        )
-        .unwrap();
-
-    assert_eq!(
-        helper.native_balance(&helper.lp_token, &owner),
-        999_498998u128
-    );
-
-    // Check that asset balances changed after providing liquidity
-    helper.app.update_block(|b| b.height += 1);
-    let res = helper
-        .query_asset_balance_at(&assets[0].info, helper.app.block_info().height)
-        .unwrap();
-    assert_eq!(res.unwrap(), Uint128::new(999_000000));
-
-    let res = helper
-        .query_asset_balance_at(&assets[1].info, helper.app.block_info().height)
-        .unwrap();
-    assert_eq!(res.unwrap(), Uint128::new(1000_000000));
-
-    // Swap
-    helper
-        .swap(
-            &owner,
-            &Asset {
-                info: AssetInfo::NativeToken {
-                    denom: "uusd".to_owned(),
-                },
-                amount: Uint128::new(1_000000),
-            },
-            None,
-        )
-        .unwrap();
-
-    // Check that asset balances changed after swapping
-    helper.app.update_block(|b| b.height += 1);
-    let res = helper
-        .query_asset_balance_at(&assets[0].info, helper.app.block_info().height)
-        .unwrap();
-    assert_eq!(res.unwrap(), Uint128::new(998_001335));
-
-    let res = helper
-        .query_asset_balance_at(&assets[1].info, helper.app.block_info().height)
-        .unwrap();
-    assert_eq!(res.unwrap(), Uint128::new(1001_000000));
-
-    // Withdraw liquidity
-    helper
-        .withdraw_liquidity(&owner, 500_000000, vec![])
-        .unwrap();
-
-    // Check that asset balances changed after withdrawing
-    helper.app.update_block(|b| b.height += 1);
-    let res = helper
-        .query_asset_balance_at(&assets[0].info, helper.app.block_info().height)
-        .unwrap();
-    assert_eq!(res.unwrap(), Uint128::new(498_751043));
-
-    let res = helper
-        .query_asset_balance_at(&assets[1].info, helper.app.block_info().height)
-        .unwrap();
-    assert_eq!(res.unwrap(), Uint128::new(500_249625));
-}
-
-#[test]
 fn provides_and_swaps_and_withdraw() {
     let owner = Addr::unchecked("owner");
     let half = Decimal::from_ratio(1u8, 2u8);
@@ -1568,7 +1351,7 @@ fn check_correct_fee_share() {
     let config = helper.query_config().unwrap();
     let fee_share = config.fee_share.unwrap();
     assert_eq!(fee_share.bps, 1000u16);
-    assert_eq!(fee_share.recipient, share_recipient.to_string());
+    assert_eq!(fee_share.recipient, share_recipient);
 
     helper.app.next_block(1000);
 

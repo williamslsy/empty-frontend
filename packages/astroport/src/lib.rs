@@ -8,20 +8,13 @@ pub mod common;
 pub mod cosmwasm_ext;
 pub mod factory;
 pub mod native_coin_registry;
-pub mod observation;
 pub mod pair;
 pub mod pair_concentrated;
 pub mod querier;
 pub mod router;
-pub mod token_factory;
 pub mod vesting;
 
-#[cfg(test)]
-mod mock_querier;
-
 pub mod incentives;
-#[cfg(test)]
-mod testing;
 
 #[allow(clippy::all)]
 mod uints {
@@ -55,11 +48,7 @@ mod decimal_checked_ops {
             let multiply_ratio =
                 other.full_mul(self.numerator()) / Uint256::from(self.denominator());
             if multiply_ratio > Uint256::from(Uint128::MAX) {
-                Err(OverflowError::new(
-                    cosmwasm_std::OverflowOperation::Mul,
-                    self,
-                    other,
-                ))
+                Err(OverflowError::new(cosmwasm_std::OverflowOperation::Mul))
             } else {
                 Ok(multiply_ratio.try_into().unwrap())
             }

@@ -6,8 +6,7 @@ use cw20::MinterResponse;
 
 use astroport::asset::{AssetInfo, PairInfo};
 use astroport::factory::{PairConfig, PairType, QueryMsg};
-use astroport_test::cw_multi_test::{AppResponse, ContractWrapper, Executor};
-use astroport_test::modules::stargate::StargateApp as App;
+use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
 
 pub struct FactoryHelper {
     pub owner: Addr,
@@ -26,7 +25,7 @@ impl FactoryHelper {
 
         let cw20_token_code_id = router.store_code(astro_token_contract);
 
-        let msg = astroport::token::InstantiateMsg {
+        let msg = cw20_base::msg::InstantiateMsg {
             name: String::from("Astro token"),
             symbol: String::from("ASTRO"),
             decimals: 6,
@@ -98,6 +97,7 @@ impl FactoryHelper {
             owner: owner.to_string(),
             whitelist_code_id: 0,
             coin_registry_address: "coin_registry".to_string(),
+            tracker_config: None,
         };
 
         let factory = router
@@ -153,7 +153,7 @@ pub fn instantiate_token(
     token_name: &str,
     decimals: Option<u8>,
 ) -> Addr {
-    let init_msg = astroport::token::InstantiateMsg {
+    let init_msg = cw20_base::msg::InstantiateMsg {
         name: token_name.to_string(),
         symbol: token_name.to_string(),
         decimals: decimals.unwrap_or(6),

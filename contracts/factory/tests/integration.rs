@@ -1,27 +1,20 @@
 #![cfg(not(tarpaulin_include))]
 
-mod factory_helper;
-
 use cosmwasm_std::{attr, Addr, StdError};
+use cw_multi_test::{App, ContractWrapper, Executor};
 
 use astroport::asset::{AssetInfo, PairInfo};
 use astroport::factory::{
     ConfigResponse, ExecuteMsg, FeeInfoResponse, InstantiateMsg, PairConfig, PairType, QueryMsg,
     TrackerConfig,
 };
+use astroport_factory::error::ContractError;
 
 use crate::factory_helper::{instantiate_token, FactoryHelper};
-use astroport_factory::error::ContractError;
-use astroport_test::cw_multi_test::{AppBuilder, ContractWrapper, Executor};
-use astroport_test::modules::stargate::{MockStargate, StargateApp as TestApp};
 
-fn mock_app() -> TestApp {
-    AppBuilder::new_custom()
-        .with_stargate(MockStargate::default())
-        .build(|_, _, _| {})
-}
+mod factory_helper;
 
-fn store_factory_code(app: &mut TestApp) -> u64 {
+fn store_factory_code(app: &mut App) -> u64 {
     let factory_contract = Box::new(
         ContractWrapper::new_with_empty(
             astroport_factory::contract::execute,
@@ -36,7 +29,7 @@ fn store_factory_code(app: &mut TestApp) -> u64 {
 
 #[test]
 fn proper_initialization() {
-    let mut app = mock_app();
+    let mut app = App::default();
 
     let owner = Addr::unchecked("owner");
 
@@ -87,7 +80,7 @@ fn proper_initialization() {
 
 #[test]
 fn update_config() {
-    let mut app = mock_app();
+    let mut app = App::default();
     let owner = Addr::unchecked("owner");
     let mut helper = FactoryHelper::init(&mut app, &owner);
 
@@ -133,7 +126,7 @@ fn update_config() {
 
 #[test]
 fn test_create_pair() {
-    let mut app = mock_app();
+    let mut app = App::default();
     let owner = Addr::unchecked("owner");
     let mut helper = FactoryHelper::init(&mut app, &owner);
 
@@ -261,7 +254,7 @@ fn test_create_pair() {
 
 #[test]
 fn check_update_owner() {
-    let mut app = mock_app();
+    let mut app = App::default();
     let owner = Addr::unchecked("owner");
     let helper = FactoryHelper::init(&mut app, &owner);
 
@@ -363,12 +356,12 @@ fn check_update_owner() {
     let msg = QueryMsg::Config {};
     let res: ConfigResponse = app.wrap().query_wasm_smart(&helper.factory, &msg).unwrap();
 
-    assert_eq!(res.owner, new_owner)
+    assert_eq!(res.owner.as_str(), new_owner)
 }
 
 #[test]
 fn test_create_permissioned_pair() {
-    let mut app = mock_app();
+    let mut app = App::default();
     let owner = Addr::unchecked("owner");
     let mut helper = FactoryHelper::init(&mut app, &owner);
 
@@ -402,7 +395,7 @@ fn test_create_permissioned_pair() {
 
 #[test]
 fn tracker_config() {
-    let mut app = mock_app();
+    let mut app = App::default();
     let owner = Addr::unchecked("owner");
     let mut helper = FactoryHelper::init(&mut app, &owner);
 

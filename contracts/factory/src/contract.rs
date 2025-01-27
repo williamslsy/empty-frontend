@@ -323,6 +323,7 @@ pub fn execute_create_pair(
 
     let sub_msg: Vec<SubMsg> = vec![SubMsg {
         id: INSTANTIATE_PAIR_REPLY_ID,
+        payload: Default::default(),
         msg: WasmMsg::Instantiate {
             admin: Some(config.owner.to_string()),
             code_id: pair_config.code_id,
@@ -360,6 +361,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
                 SubMsgResult::Ok(SubMsgResponse {
                     data: Some(data), ..
                 }),
+            ..
         } => {
             let tmp = TMP_PAIR_INFO.load(deps.storage)?;
             if PAIRS.has(deps.storage, &tmp.pair_key) {

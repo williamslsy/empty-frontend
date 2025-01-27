@@ -1,16 +1,14 @@
+use cosmwasm_std::{
+    from_json, Addr, CustomQuery, Decimal, QuerierWrapper, StdError, StdResult, Uint128,
+};
+use cw20::{BalanceResponse as Cw20BalanceResponse, Cw20QueryMsg, TokenInfoResponse};
+
 use crate::asset::{Asset, AssetInfo, PairInfo};
 use crate::factory::{
     Config as FactoryConfig, FeeInfoResponse, PairType, PairsResponse, QueryMsg as FactoryQueryMsg,
     TrackerConfig,
 };
 use crate::pair::{QueryMsg as PairQueryMsg, ReverseSimulationResponse, SimulationResponse};
-
-use cosmwasm_std::{
-    from_json, Addr, AllBalanceResponse, BankQuery, Coin, CustomQuery, Decimal, QuerierWrapper,
-    QueryRequest, StdError, StdResult, Uint128,
-};
-
-use cw20::{BalanceResponse as Cw20BalanceResponse, Cw20QueryMsg, TokenInfoResponse};
 
 /// Returns a native token's balance for a specific account.
 ///
@@ -26,17 +24,6 @@ where
     querier
         .query_balance(account_addr, denom)
         .map(|coin| coin.amount)
-}
-
-/// Returns the total balances for all coins at a specified account address.
-///
-/// * **account_addr** address for which we query balances.
-pub fn query_all_balances(querier: &QuerierWrapper, account_addr: Addr) -> StdResult<Vec<Coin>> {
-    let all_balances: AllBalanceResponse =
-        querier.query(&QueryRequest::Bank(BankQuery::AllBalances {
-            address: String::from(account_addr),
-        }))?;
-    Ok(all_balances.amount)
 }
 
 /// Returns a token balance for an account.

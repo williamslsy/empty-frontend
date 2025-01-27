@@ -9,7 +9,7 @@ use astroport::incentives::{
     EPOCH_LENGTH, MAX_REWARD_TOKENS,
 };
 use astroport_incentives::error::ContractError;
-use astroport_test::cw_multi_test::Executor;
+use cw_multi_test::Executor;
 
 use crate::helper::{assert_rewards, dec256_to_u128_floor, Helper, TestAddr};
 
@@ -2088,7 +2088,7 @@ fn test_change_ownership() {
         )
         .unwrap();
 
-    assert_eq!(helper.query_config().owner.to_string(), new_owner)
+    assert_eq!(helper.query_config().owner, new_owner)
 }
 
 #[test]

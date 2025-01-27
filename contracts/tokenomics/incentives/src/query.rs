@@ -188,7 +188,7 @@ pub fn query_pending_rewards(
 
     let aggregated = outstanding_rewards
         .into_iter()
-        .group_by(|asset| asset.info.clone())
+        .chunk_by(|asset| asset.info.clone())
         .into_iter()
         .map(|(info, assets)| {
             let amount: Uint128 = assets.into_iter().map(|asset| asset.amount).sum();

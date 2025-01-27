@@ -387,7 +387,7 @@ pub struct Precisions(Vec<(String, u8)>);
 
 impl<'a> Precisions {
     /// Stores map of AssetInfo (as String) -> precision
-    pub const PRECISIONS: Map<'a, String, u8> = Map::new("precisions");
+    pub const PRECISIONS: Map<&'a str, u8> = Map::new("precisions");
     pub fn new(storage: &dyn Storage) -> StdResult<Self> {
         let items = Self::PRECISIONS
             .range(storage, None, None, Order::Ascending)
@@ -404,7 +404,7 @@ impl<'a> Precisions {
     ) -> StdResult<()> {
         for asset_info in asset_infos {
             let precision = asset_info.decimals(&deps.querier, factory_addr)?;
-            Self::PRECISIONS.save(deps.storage, asset_info.to_string(), &precision)?;
+            Self::PRECISIONS.save(deps.storage, &asset_info.to_string(), &precision)?;
         }
 
         Ok(())

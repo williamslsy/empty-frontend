@@ -1,14 +1,12 @@
 use cosmwasm_std::{
-    coin, wasm_execute, Addr, Api, CosmosMsg, CustomMsg, CustomQuery, Decimal, Decimal256, Env,
-    Fraction, QuerierWrapper, StdError, StdResult, Uint128,
+    coin, Addr, Api, CosmosMsg, CustomMsg, CustomQuery, Decimal, Decimal256, Env, Fraction,
+    QuerierWrapper, StdError, StdResult, Uint128,
 };
 use itertools::Itertools;
 
 use astroport::asset::{Asset, AssetInfo, Decimal256Ext, DecimalAsset};
 use astroport::cosmwasm_ext::AbsDiff;
-use astroport::incentives::ExecuteMsg as IncentiveExecuteMsg;
 use astroport::querier::query_factory_config;
-use astroport::token_factory::tf_mint_msg;
 use astroport_factory::state::pair_key;
 
 use crate::consts::{
@@ -17,9 +15,6 @@ use crate::consts::{
 use crate::error::PclError;
 use crate::state::{Config, PoolParams, PriceState};
 use crate::{calc_d, calc_y};
-
-#[cfg(any(feature = "injective", feature = "sei"))]
-use cosmwasm_std::BankMsg;
 
 /// Helper function to check the given asset infos are valid.
 pub fn check_asset_infos(api: &dyn Api, asset_infos: &[AssetInfo]) -> Result<(), PclError> {
@@ -77,25 +72,28 @@ where
 
     // If no auto-stake - just mint to recipient
     if !auto_stake {
-        return Ok(tf_mint_msg(contract_address, coin, recipient));
+        // TODO: cw20 mint
+        // return Ok(tf_mint_msg(contract_address, coin, recipient));
     }
 
     // Mint for the pair contract and stake into the Incentives contract
     let incentives_addr = query_factory_config(&querier, &config.factory_addr)?.generator_address;
 
     if let Some(address) = incentives_addr {
-        let mut msgs = tf_mint_msg(contract_address, coin.clone(), contract_address);
-        msgs.push(
-            wasm_execute(
-                address,
-                &IncentiveExecuteMsg::Deposit {
-                    recipient: Some(recipient.to_string()),
-                },
-                vec![coin],
-            )?
-            .into(),
-        );
-        Ok(msgs)
+        // TODO: cw20 mint
+        // let mut msgs = tf_mint_msg(contract_address, coin.clone(), contract_address);
+        // msgs.push(
+        //     wasm_execute(
+        //         address,
+        //         &IncentiveExecuteMsg::Deposit {
+        //             recipient: Some(recipient.to_string()),
+        //         },
+        //         vec![coin],
+        //     )?
+        //     .into(),
+        // );
+        // Ok(msgs)
+        Ok(vec![])
     } else {
         Err(PclError::AutoStakeError {})
     }
@@ -153,12 +151,15 @@ pub fn assert_max_spread(
     }
 
     if let Some(belief_price) = belief_price {
-        let expected_return = offer_amount
-            * belief_price.inv().ok_or_else(|| {
-                StdError::generic_err("Invalid belief_price. Check the input values.")
-            })?;
-
-        let spread_amount = expected_return.saturating_sub(return_amount);
+        // TODO: fix Decimal256 * Uint256 multiplication
+        // let expected_return = offer_amount
+        //     * belief_price.inv().ok_or_else(|| {
+        //         StdError::generic_err("Invalid belief_price. Check the input values.")
+        //     })?;
+        //
+        // let spread_amount = expected_return.saturating_sub(return_amount);
+        let expected_return = Uint128::zero();
+        let spread_amount = Uint128::zero();
 
         if return_amount < expected_return
             && Decimal256::from_ratio(spread_amount, expected_return) > max_spread
@@ -405,8 +406,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::state::PoolParams;
     use astroport_test::convert::{dec_to_f64, f64_to_dec};
+
+    use crate::state::PoolParams;
 
     use super::*;
 

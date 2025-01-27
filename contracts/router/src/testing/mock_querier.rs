@@ -138,7 +138,7 @@ impl WasmMockQuerier {
                 match self.astroport_factory_querier.pairs.get(&key) {
                     Some(v) => SystemResult::Ok(ContractResult::from(to_json_binary(&PairInfo {
                         contract_addr: Addr::unchecked(v),
-                        liquidity_token: Addr::unchecked("liquidity"),
+                        liquidity_token: "lp".to_string(),
                         asset_infos: vec![
                             AssetInfo::NativeToken {
                                 denom: "uusd".to_string(),
@@ -225,7 +225,9 @@ impl WasmMockQuerier {
 
     pub fn with_balance(&mut self, balances: &[(&String, &[Coin])]) {
         for (addr, balance) in balances {
-            self.base.update_balance(addr.as_str(), balance.to_vec());
+            self.base
+                .bank
+                .update_balance(addr.as_str(), balance.to_vec());
         }
     }
 

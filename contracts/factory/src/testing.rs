@@ -1,8 +1,17 @@
+use cosmwasm_std::testing::{message_info, mock_env, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, from_json, to_json_binary, Addr, Reply, ReplyOn, SubMsg, SubMsgResponse, SubMsgResult,
-    WasmMsg,
+    attr, from_json, to_json_binary, Addr, Coin, MessageInfo, Reply, ReplyOn, SubMsg,
+    SubMsgResponse, SubMsgResult, WasmMsg,
 };
+use prost::Message;
 
+use astroport::asset::{AssetInfo, PairInfo};
+use astroport::factory::{
+    ConfigResponse, ExecuteMsg, InstantiateMsg, PairConfig, PairType, PairsResponse, QueryMsg,
+};
+use astroport::pair::InstantiateMsg as PairInstantiateMsg;
+
+use crate::contract::reply;
 use crate::mock_querier::mock_dependencies;
 use crate::state::CONFIG;
 use crate::{
@@ -10,23 +19,16 @@ use crate::{
     error::ContractError,
 };
 
-use astroport::asset::{AssetInfo, PairInfo};
-use astroport::factory::{
-    ConfigResponse, ExecuteMsg, InstantiateMsg, PairConfig, PairType, PairsResponse, QueryMsg,
-};
-
-use crate::contract::reply;
-use astroport::pair::InstantiateMsg as PairInstantiateMsg;
-use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
-
-use prost::Message;
-
 #[derive(Clone, PartialEq, Message)]
 struct MsgInstantiateContractResponse {
     #[prost(string, tag = "1")]
     pub contract_address: String,
     #[prost(bytes, tag = "2")]
     pub data: Vec<u8>,
+}
+
+fn mock_info(sender: &str, funds: &[Coin]) -> MessageInfo {
+    message_info(&Addr::unchecked(sender), funds)
 }
 
 #[test]
@@ -196,14 +198,14 @@ fn update_config() {
     let query_res = query(deps.as_ref(), env, QueryMsg::Config {}).unwrap();
     let config_res: ConfigResponse = from_json(&query_res).unwrap();
     assert_eq!(200u64, config_res.token_code_id);
-    assert_eq!(owner, config_res.owner);
+    assert_eq!(owner, config_res.owner.as_str());
     assert_eq!(
         String::from("new_fee_addr"),
-        config_res.fee_address.unwrap()
+        config_res.fee_address.unwrap().as_str()
     );
     assert_eq!(
         String::from("new_generator_addr"),
-        config_res.generator_address.unwrap()
+        config_res.generator_address.unwrap().as_str()
     );
 
     // Unauthorized err
@@ -298,7 +300,7 @@ fn update_owner() {
     // Let's query the state
     let config: ConfigResponse =
         from_json(&query(deps.as_ref(), env.clone(), QueryMsg::Config {}).unwrap()).unwrap();
-    assert_eq!(new_owner, config.owner);
+    assert_eq!(new_owner, config.owner.as_str());
 }
 
 #[test]
@@ -513,7 +515,8 @@ fn create_pair() {
             .into(),
             id: 1,
             gas_limit: None,
-            reply_on: ReplyOn::Success
+            reply_on: ReplyOn::Success,
+            payload: Default::default(),
         }]
     );
 }
@@ -590,9 +593,12 @@ fn register() {
 
     let reply_msg = Reply {
         id: 1,
+        payload: Default::default(),
+        gas_used: 0,
         result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: Some(encoded_instantiate_reply.into()),
+            msg_responses: vec![],
         }),
     };
 
@@ -667,9 +673,12 @@ fn register() {
 
     let reply_msg = Reply {
         id: 1,
+        payload: Default::default(),
+        gas_used: 0,
         result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: Some(encoded_instantiate_reply.into()),
+            msg_responses: vec![],
         }),
     };
 

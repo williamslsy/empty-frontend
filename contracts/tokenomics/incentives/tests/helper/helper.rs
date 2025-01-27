@@ -6,11 +6,14 @@ use std::collections::HashMap;
 use anyhow::Result as AnyResult;
 use cosmwasm_std::testing::{mock_env, MockApi, MockStorage};
 use cosmwasm_std::{
-    to_json_binary, Addr, Api, BlockInfo, CanonicalAddr, Coin, Decimal256, Empty, Env, GovMsg,
-    IbcMsg, IbcQuery, RecoverPubkeyError, StdError, StdResult, Storage, Timestamp, Uint128,
-    VerificationError,
+    to_json_binary, Addr, Api, BlockInfo, CanonicalAddr, Coin, Decimal256, Empty, Env,
+    RecoverPubkeyError, StdError, StdResult, Storage, Timestamp, Uint128, VerificationError,
 };
 use cw20::MinterResponse;
+use cw_multi_test::{
+    AddressGenerator, App, AppBuilder, AppResponse, BankKeeper, Contract, ContractWrapper,
+    Executor, FailingModule, WasmKeeper,
+};
 use itertools::Itertools;
 
 use astroport::asset::{Asset, AssetInfo, AssetInfoExt, PairInfo};
@@ -21,11 +24,6 @@ use astroport::incentives::{
 };
 use astroport::pair::StablePoolParams;
 use astroport::{factory, native_coin_registry, pair};
-use astroport_test::cw_multi_test::{
-    AddressGenerator, App, AppBuilder, AppResponse, BankKeeper, Contract, ContractWrapper,
-    DistributionKeeper, Executor, FailingModule, StakeKeeper, WasmKeeper,
-};
-use astroport_test::modules::stargate::MockStargate;
 
 use crate::helper::broken_cw20;
 
@@ -201,11 +199,6 @@ pub type TestApp<ExecC = Empty, QueryC = Empty> = App<
     MockStorage,
     FailingModule<ExecC, QueryC, Empty>,
     WasmKeeper<ExecC, QueryC>,
-    StakeKeeper,
-    DistributionKeeper,
-    FailingModule<IbcMsg, IbcQuery, Empty>,
-    FailingModule<GovMsg, Empty, Empty>,
-    MockStargate,
 >;
 
 pub struct Helper {
@@ -221,7 +214,6 @@ pub struct Helper {
 impl Helper {
     pub fn new(owner: &str, astro: &AssetInfo) -> AnyResult<Self> {
         let mut app = AppBuilder::new()
-            .with_stargate(MockStargate::default())
             .with_wasm(WasmKeeper::new().with_address_generator(TestAddr))
             .with_api(TestApi::new())
             .with_block(BlockInfo {
