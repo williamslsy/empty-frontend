@@ -6,7 +6,7 @@ use itertools::Itertools;
 use astroport::asset::{Asset, Decimal256Ext, DecimalAsset, MINIMUM_LIQUIDITY_AMOUNT};
 use astroport::cosmwasm_ext::{AbsDiff, DecimalToInteger, IntegerToDecimal};
 use astroport::pair::MIN_TRADE_SIZE;
-use astroport::querier::query_native_supply;
+use astroport::querier::query_supply;
 use astroport_pcl_common::state::{Config, Precisions};
 use astroport_pcl_common::utils::{
     assert_slippage_tolerance, calc_provide_fee, check_assets, check_pair_registered,
@@ -25,7 +25,7 @@ pub(crate) fn pool_info(
         .pair_info
         .query_pools(&querier, &config.pair_info.contract_addr)?;
 
-    let total_share = query_native_supply(&querier, config.pair_info.liquidity_token.to_string())?;
+    let total_share = query_supply(&querier, config.pair_info.liquidity_token.to_string())?;
 
     Ok((pools, total_share))
 }

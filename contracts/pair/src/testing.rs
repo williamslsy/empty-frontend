@@ -79,23 +79,10 @@ fn proper_initialization() {
     };
 
     let sender = "addr0000";
-    // We can just call .unwrap() to assert this was a success
     let env = mock_env();
     let info = mock_info(sender, &[]);
     let res = instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
-    assert_eq!(
-        res.messages,
-        vec![SubMsg {
-            msg: CosmosMsg::Stargate {
-                type_url: "todo".to_string(),
-                value: Default::default()
-            },
-            id: 1,
-            gas_limit: None,
-            reply_on: ReplyOn::Success,
-            payload: Default::default(),
-        },]
-    );
+    assert_eq!(res.messages, vec![]);
 
     let denom = format!("factory/{}/{}", env.contract.address, "astroport/share");
 

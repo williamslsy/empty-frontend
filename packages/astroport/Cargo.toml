@@ -14,15 +14,13 @@ homepage = "https://astroport.fi"
 
 [dependencies]
 cw20 = "2.0"
-cosmwasm-std = { workspace = true, features = ["cosmwasm_1_1", "stargate"] }
+cosmwasm-std.workspace = true
 uint = "0.10"
 cw-storage-plus.workspace = true
 itertools.workspace = true
 cosmwasm-schema.workspace = true
 cw-utils.workspace = true
 cw-asset = "4.0"
-prost = "0.11.5"
-cosmos-sdk-proto = { version = "0.19.0", default-features = false }
 
 [dev-dependencies]
 test-case = "3.1.0"

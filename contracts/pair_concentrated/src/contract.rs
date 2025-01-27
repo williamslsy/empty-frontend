@@ -24,7 +24,7 @@ use astroport::pair::{
 use astroport::pair_concentrated::{
     ConcentratedPoolParams, ConcentratedPoolUpdateParams, UpdatePoolParams,
 };
-use astroport::querier::{query_factory_config, query_fee_info, query_native_supply};
+use astroport::querier::{query_factory_config, query_fee_info, query_supply};
 use astroport_pcl_common::state::{
     AmpGamma, Config, PoolParams, PoolState, Precisions, PriceState,
 };
@@ -394,7 +394,7 @@ pub fn provide_liquidity(
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
 
-    let total_share = query_native_supply(&deps.querier, &config.pair_info.liquidity_token)?
+    let total_share = query_supply(&deps.querier, &config.pair_info.liquidity_token)?
         .to_decimal256(LP_TOKEN_PRECISION)?;
 
     let precisions = Precisions::new(deps.storage)?;
@@ -522,7 +522,7 @@ fn withdraw_liquidity(
         &precisions,
     )?;
 
-    let total_share = query_native_supply(&deps.querier, &config.pair_info.liquidity_token)?;
+    let total_share = query_supply(&deps.querier, &config.pair_info.liquidity_token)?;
     let mut messages = vec![];
 
     let refund_assets =
@@ -655,7 +655,7 @@ fn swap(
         spread_amount,
     )?;
 
-    let total_share = query_native_supply(&deps.querier, &config.pair_info.liquidity_token)?
+    let total_share = query_supply(&deps.querier, &config.pair_info.liquidity_token)?
         .to_decimal256(LP_TOKEN_PRECISION)?;
 
     // Skip very small trade sizes which could significantly mess up the price due to rounding errors,

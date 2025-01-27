@@ -25,7 +25,7 @@ use astroport::pair::{
     CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PoolResponse, QueryMsg,
     ReverseSimulationResponse, SimulationResponse, TWAP_PRECISION,
 };
-use astroport::querier::{query_factory_config, query_fee_info, query_native_supply};
+use astroport::querier::{query_factory_config, query_fee_info, query_supply};
 use astroport::U256;
 
 use crate::error::ContractError;
@@ -339,7 +339,7 @@ pub fn provide_liquidity(
         }
     }
 
-    let total_share = query_native_supply(&deps.querier, &config.pair_info.liquidity_token)?;
+    let total_share = query_supply(&deps.querier, &config.pair_info.liquidity_token)?;
     let share = calculate_shares(&deposits, &pools, total_share, slippage_tolerance)?;
 
     if total_share.is_zero() {
@@ -1053,7 +1053,7 @@ fn query_simulate_provide(
     let deposits = get_deposits_from_assets(deps, &assets, &pools)
         .map_err(|e| StdError::generic_err(e.to_string()))?;
 
-    let total_share = query_native_supply(&deps.querier, &config.pair_info.liquidity_token)?;
+    let total_share = query_supply(&deps.querier, &config.pair_info.liquidity_token)?;
     let share = calculate_shares(&deposits, &pools, total_share, slippage_tolerance)
         .map_err(|e| StdError::generic_err(e.to_string()))?;
 
@@ -1335,7 +1335,7 @@ pub fn pool_info(querier: QuerierWrapper, config: &Config) -> StdResult<(Vec<Ass
     let pools = config
         .pair_info
         .query_pools(&querier, &config.pair_info.contract_addr)?;
-    let total_share = query_native_supply(&querier, &config.pair_info.liquidity_token)?;
+    let total_share = query_supply(&querier, &config.pair_info.liquidity_token)?;
 
     Ok((pools, total_share))
 }
