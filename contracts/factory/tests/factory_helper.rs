@@ -26,7 +26,7 @@ impl FactoryHelper {
 
         let cw20_token_code_id = router.store_code(astro_token_contract);
 
-        let msg = astroport::token::InstantiateMsg {
+        let msg = cw20_base::msg::InstantiateMsg {
             name: String::from("Astro token"),
             symbol: String::from("ASTRO"),
             decimals: 6,
@@ -197,7 +197,7 @@ pub fn instantiate_token(
     token_name: &str,
     decimals: Option<u8>,
 ) -> Addr {
-    let init_msg = astroport::token::InstantiateMsg {
+    let init_msg = cw20_base::msg::InstantiateMsg {
         name: token_name.to_string(),
         symbol: token_name.to_string(),
         decimals: decimals.unwrap_or(6),
