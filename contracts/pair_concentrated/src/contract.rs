@@ -3,7 +3,7 @@ use std::vec;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, coin, ensure, ensure_eq, from_json, wasm_execute, Addr, Binary, Coin, CosmosMsg, Decimal,
+    attr, ensure, ensure_eq, from_json, wasm_execute, Addr, Binary, Coin, CosmosMsg, Decimal,
     Decimal256, DepsMut, Empty, Env, MessageInfo, Reply, Response, StdError, StdResult, Uint128,
 };
 use cw2::{get_contract_version, set_contract_version};
@@ -126,9 +126,7 @@ pub fn instantiate(
         pool_params,
         pool_state,
         owner: None,
-        track_asset_balances: params.track_asset_balances.unwrap_or_default(),
         fee_share: None,
-        tracker_addr: None,
     };
 
     CONFIG.save(deps.storage, &config)?;
@@ -271,7 +269,7 @@ pub fn execute(
             ..
         } => {
             offer_asset.info.check(deps.api)?;
-            if !offer_asset.is_native_token() {
+            if !offer_asset.info.is_native_token() {
                 return Err(ContractError::Cw20DirectSwap {});
             }
             offer_asset.assert_sent_native_token_balance(&info)?;
@@ -329,7 +327,8 @@ pub fn execute(
             })
             .map_err(Into::into)
         }
-        ExecuteMsg::WithdrawLiquidity { assets, .. } => withdraw_liquidity(deps, env, info, assets),
+        // TODO: handle withdraw slippage
+        ExecuteMsg::WithdrawLiquidity { .. } => withdraw_liquidity(deps, env, info),
     }
 }
 
@@ -504,7 +503,6 @@ fn withdraw_liquidity(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    assets: Vec<Asset>,
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
 
@@ -527,12 +525,8 @@ fn withdraw_liquidity(
     let total_share = query_native_supply(&deps.querier, &config.pair_info.liquidity_token)?;
     let mut messages = vec![];
 
-    let refund_assets = if assets.is_empty() {
-        // Usual withdraw (balanced)
-        get_share_in_assets(&pools, amount.saturating_sub(Uint128::one()), total_share)
-    } else {
-        return Err(StdError::generic_err("Imbalanced withdraw is currently disabled").into());
-    };
+    let refund_assets =
+        get_share_in_assets(&pools, amount.saturating_sub(Uint128::one()), total_share);
 
     // decrease XCP
     let mut xs = pools.iter().map(|a| a.amount).collect_vec();

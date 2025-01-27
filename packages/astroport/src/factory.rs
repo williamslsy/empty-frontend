@@ -1,8 +1,9 @@
-use crate::asset::{AssetInfo, PairInfo};
+use std::fmt::{Display, Formatter, Result};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary};
-use std::fmt::{Display, Formatter, Result};
+
+use crate::asset::{AssetInfo, PairInfo};
 
 const MAX_TOTAL_FEE_BPS: u16 = 10_000;
 const MAX_MAKER_FEE_BPS: u16 = 10_000;
@@ -15,11 +16,9 @@ pub struct Config {
     /// CW20 token contract code identifier
     pub token_code_id: u64,
     /// Incentives contract address
-    pub generator_address: Option<Addr>,
+    pub incentives_address: Option<Addr>,
     /// Contract address to send governance fees to (the Maker contract)
     pub fee_address: Option<Addr>,
-    /// CW1 whitelist contract code id used to store 3rd party incentives staking rewards
-    pub whitelist_code_id: u64,
     /// The address of the contract that contains the coins with their precision
     pub coin_registry_address: Addr,
 }
@@ -27,9 +26,9 @@ pub struct Config {
 /// This enum describes available pair types.
 /// ## Available pool types
 /// ```
-/// # use astroport::factory::PairType::{Custom, Stable, Xyk};
+/// # use astroport::factory::PairType::{Custom, Concentrated, Xyk};
 /// Xyk {};
-/// Stable {};
+/// Concentrated {};
 /// Custom(String::from("Custom"));
 /// ```
 #[derive(Eq)]
@@ -37,8 +36,8 @@ pub struct Config {
 pub enum PairType {
     /// XYK pair type
     Xyk {},
-    /// Stable pair type
-    Stable {},
+    /// Concentrated liquidity type
+    Concentrated {},
     /// Custom pair type
     Custom(String),
 }
@@ -48,7 +47,7 @@ impl Display for PairType {
     fn fmt(&self, fmt: &mut Formatter) -> Result {
         match self {
             PairType::Xyk {} => fmt.write_str("xyk"),
-            PairType::Stable {} => fmt.write_str("stable"),
+            PairType::Concentrated {} => fmt.write_str("concentrated"),
             PairType::Custom(pair_type) => fmt.write_str(format!("custom-{}", pair_type).as_str()),
         }
     }
@@ -98,15 +97,11 @@ pub struct InstantiateMsg {
     /// Contract address to send governance fees to (the Maker)
     pub fee_address: Option<String>,
     /// Address of contract that is used to auto_stake LP tokens once someone provides liquidity in a pool
-    pub generator_address: Option<String>,
+    pub incentives_address: Option<String>,
     /// Address of owner that is allowed to change factory contract parameters
     pub owner: String,
-    /// CW1 whitelist contract code id used to store 3rd party rewards for staking Astroport LP tokens
-    pub whitelist_code_id: u64,
     /// The address of the contract that contains the coins and their accuracy
     pub coin_registry_address: String,
-    /// Config for the tracking contract
-    pub tracker_config: Option<TrackerConfig>,
 }
 
 /// This structure describes the execute messages of the contract.
@@ -119,17 +114,9 @@ pub enum ExecuteMsg {
         /// Contract address to send governance fees to (the Maker)
         fee_address: Option<String>,
         /// Contract address where Lp tokens can be auto_staked after someone provides liquidity in an incentivized Astroport pool
-        generator_address: Option<String>,
-        /// CW1 whitelist contract code id used to store 3rd party rewards for staking Astroport LP tokens
-        whitelist_code_id: Option<u64>,
+        incentives_address: Option<String>,
         /// The address of the contract that contains the coins and their accuracy
         coin_registry_address: Option<String>,
-    },
-    UpdateTrackerConfig {
-        /// Tracking contract code id
-        tracker_code_id: u64,
-        /// Token factory module address
-        token_factory_addr: Option<String>,
     },
     /// UpdatePairConfig updates the config for a pair type.
     UpdatePairConfig {
@@ -194,13 +181,6 @@ pub enum QueryMsg {
     /// Returns a vector that contains blacklisted pair types
     #[returns(Vec<PairType>)]
     BlacklistedPairTypes {},
-    #[returns(TrackerConfig)]
-    TrackerConfig {},
-}
-
-#[cw_serde]
-pub struct MigrateMsg {
-    pub tracker_config: Option<TrackerConfig>,
 }
 
 /// A custom struct for each query response that returns general contract settings/configs.
@@ -215,9 +195,7 @@ pub struct ConfigResponse {
     /// Address of contract to send governance fees to (the Maker)
     pub fee_address: Option<Addr>,
     /// Address of contract used to auto_stake LP tokens for Astroport pairs that are incentivized
-    pub generator_address: Option<Addr>,
-    /// CW1 whitelist contract code id used to store 3rd party rewards for staking Astroport LP tokens
-    pub whitelist_code_id: u64,
+    pub incentives_address: Option<Addr>,
     /// The address of the contract that contains the coins and their accuracy
     pub coin_registry_address: Addr,
 }
@@ -238,21 +216,4 @@ pub struct FeeInfoResponse {
     pub total_fee_bps: u16,
     /// Amount of fees (in bps) sent to the Maker contract
     pub maker_fee_bps: u16,
-}
-
-/// This is an enum used for setting and removing a contract address.
-#[cw_serde]
-pub enum UpdateAddr {
-    /// Sets a new contract address.
-    Set(String),
-    /// Removes a contract address.
-    Remove {},
-}
-
-#[cw_serde]
-pub struct TrackerConfig {
-    /// Tracking contract code id
-    pub code_id: u64,
-    /// Token factory module address
-    pub token_factory_addr: String,
 }

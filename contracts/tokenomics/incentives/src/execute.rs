@@ -78,7 +78,6 @@ pub fn execute(
             let maybe_lp = Asset::cw20(info.sender, cw20msg.amount);
             let recipient = match from_json(&cw20msg.msg)? {
                 Cw20Msg::Deposit { recipient } => recipient,
-                Cw20Msg::DepositFor(recipient) => Some(recipient),
             };
 
             deposit(

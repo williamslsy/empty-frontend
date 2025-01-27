@@ -12,17 +12,12 @@ use cw_storage_plus::{Key, KeyDeserialize, Prefixer, PrimaryKey};
 use cw_utils::must_pay;
 use itertools::Itertools;
 
-use crate::cosmwasm_ext::DecimalToInteger;
 use crate::factory::PairType;
 use crate::pair::QueryMsg as PairQueryMsg;
 use crate::querier::{
     query_balance, query_token_balance, query_token_precision, query_token_symbol,
 };
 
-/// UST token denomination
-pub const UUSD_DENOM: &str = "uusd";
-/// LUNA token denomination
-pub const ULUNA_DENOM: &str = "uluna";
 /// Minimum initial LP share
 pub const MINIMUM_LIQUIDITY_AMOUNT: Uint128 = Uint128::new(1_000);
 /// Maximum denom length
@@ -42,15 +37,6 @@ pub struct Asset {
 pub struct DecimalAsset {
     pub info: AssetInfo,
     pub amount: Decimal256,
-}
-
-impl DecimalAsset {
-    pub fn into_asset(self, precision: impl Into<u32>) -> StdResult<Asset> {
-        Ok(Asset {
-            info: self.info,
-            amount: self.amount.to_uint(precision)?,
-        })
-    }
 }
 
 impl fmt::Display for Asset {
@@ -170,11 +156,6 @@ impl Asset {
     /// address validation.
     pub fn cw20_unchecked<A: Into<String>, B: Into<Uint128>>(contract_addr: A, amount: B) -> Self {
         token_asset(Addr::unchecked(contract_addr.into()), amount.into())
-    }
-
-    /// Returns true if the token is native. Otherwise returns false.
-    pub fn is_native_token(&self) -> bool {
-        self.info.is_native_token()
     }
 
     /// For native tokens of type [`AssetInfo`] uses the default method [`BankMsg::Send`] to send a
@@ -380,7 +361,6 @@ impl<'a> PrimaryKey<'a> for &AssetInfo {
 
     type SuperSuffix = Self;
 
-    // TODO: add differentiation between native and cw20 tokens
     fn key(&self) -> Vec<Key> {
         vec![Key::Ref(self.as_bytes())]
     }
@@ -491,14 +471,6 @@ impl AssetInfo {
     pub fn is_native_token(&self) -> bool {
         match self {
             AssetInfo::NativeToken { .. } => true,
-            AssetInfo::Token { .. } => false,
-        }
-    }
-
-    /// Checks whether the native coin is IBCed token or not.
-    pub fn is_ibc(&self) -> bool {
-        match self {
-            AssetInfo::NativeToken { denom } => denom.to_lowercase().starts_with("ibc/"),
             AssetInfo::Token { .. } => false,
         }
     }

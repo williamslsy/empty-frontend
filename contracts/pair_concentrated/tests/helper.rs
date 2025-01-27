@@ -10,6 +10,7 @@ use cosmwasm_std::{
     Uint128,
 };
 use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg};
+use cw_multi_test::{App, AppBuilder, AppResponse, Contract, ContractWrapper, Executor};
 use derivative::Derivative;
 use itertools::Itertools;
 
@@ -27,7 +28,6 @@ use astroport_pair_concentrated::queries::query;
 use astroport_pcl_common::state::Config;
 use astroport_test::coins::TestCoin;
 use astroport_test::convert::f64_to_dec;
-use cw_multi_test::{App, AppBuilder, AppResponse, Contract, ContractWrapper, Executor};
 
 const INIT_BALANCE: u128 = u128::MAX;
 
@@ -42,7 +42,6 @@ pub fn common_pcl_params() -> ConcentratedPoolParams {
         min_price_scale_delta: f64_to_dec(0.000146),
         price_scale: Decimal::one(),
         ma_half_time: 600,
-        track_asset_balances: None,
         fee_share: None,
     }
 }
@@ -204,11 +203,9 @@ impl Helper {
                 permissioned: false,
             }],
             token_code_id,
-            generator_address: None,
+            incentives_address: None,
             owner: owner.to_string(),
-            whitelist_code_id: 234u64,
             coin_registry_address: coin_registry_address.to_string(),
-            tracker_config: None,
         };
 
         let factory = app.instantiate_contract(
@@ -246,8 +243,7 @@ impl Helper {
             &astroport::factory::ExecuteMsg::UpdateConfig {
                 token_code_id: None,
                 fee_address: None,
-                generator_address: Some(generator_address.to_string()),
-                whitelist_code_id: None,
+                incentives_address: Some(generator_address.to_string()),
                 coin_registry_address: None,
             },
             &[],
@@ -358,17 +354,11 @@ impl Helper {
             .execute_contract(sender.clone(), self.pair_addr.clone(), &msg, &funds)
     }
 
-    pub fn withdraw_liquidity(
-        &mut self,
-        sender: &Addr,
-        amount: u128,
-        assets: Vec<Asset>,
-    ) -> AnyResult<AppResponse> {
+    pub fn withdraw_liquidity(&mut self, sender: &Addr, amount: u128) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
             self.pair_addr.clone(),
             &ExecuteMsg::WithdrawLiquidity {
-                assets,
                 min_assets_to_receive: None,
             },
             &[coin(amount, self.lp_token.to_string())],

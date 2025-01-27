@@ -288,23 +288,8 @@ fn provide_and_withdraw() {
         helper.native_balance(&helper.lp_token, &user5)
     );
 
-    // check that imbalanced withdraw is currently disabled
-    let withdraw_assets = vec![
-        helper.assets[&test_coins[0]].with_balance(10_000_000000u128),
-        helper.assets[&test_coins[1]].with_balance(5_000_000000u128),
-    ];
-    let err = helper
-        .withdraw_liquidity(&user1, 7071_067711, withdraw_assets)
-        .unwrap_err();
-    assert_eq!(
-        err.root_cause().to_string(),
-        "Generic error: Imbalanced withdraw is currently disabled"
-    );
-
     // user1 withdraws 1/10 of his LP tokens
-    helper
-        .withdraw_liquidity(&user1, 7071_067711, vec![])
-        .unwrap();
+    helper.withdraw_liquidity(&user1, 7071_067711).unwrap();
 
     assert_eq!(
         70710_677118 - 7071_067711,
@@ -314,9 +299,7 @@ fn provide_and_withdraw() {
     assert_eq!(5330_688045, helper.coin_balance(&test_coins[1], &user1));
 
     // user2 withdraws half
-    helper
-        .withdraw_liquidity(&user2, 35355_339059, vec![])
-        .unwrap();
+    helper.withdraw_liquidity(&user2, 35355_339059).unwrap();
 
     assert_eq!(
         70710_677118 + MINIMUM_LIQUIDITY_AMOUNT.u128() - 35355_339059,
@@ -416,7 +399,7 @@ fn provide_with_different_precision() {
         assert_eq!(0, helper.coin_balance(&test_coins[0], &user));
         assert_eq!(0, helper.coin_balance(&test_coins[1], &user));
 
-        helper.withdraw_liquidity(&user, lp_amount, vec![]).unwrap();
+        helper.withdraw_liquidity(&user, lp_amount).unwrap();
 
         assert_eq!(0, helper.native_balance(&helper.lp_token, &user));
         assert!(
@@ -727,9 +710,7 @@ fn provides_and_swaps() {
     helper.give_me_money(&[offer_asset.clone()], &user);
     helper.swap(&user, &offer_asset, None).unwrap();
 
-    helper
-        .withdraw_liquidity(&provider, 999_999354, vec![])
-        .unwrap();
+    helper.withdraw_liquidity(&provider, 999_999354).unwrap();
 
     let offer_asset = helper.assets[&test_coins[0]].with_balance(100_000000u128);
     helper.give_me_money(&[offer_asset.clone()], &user);
@@ -1070,9 +1051,7 @@ fn provides_and_swaps_and_withdraw() {
     assert_eq!(res.total_share.u128(), 141_421_356_237u128);
     let owner_balance = helper.native_balance(&helper.lp_token, &owner);
 
-    helper
-        .withdraw_liquidity(&owner, owner_balance, vec![])
-        .unwrap();
+    helper.withdraw_liquidity(&owner, owner_balance).unwrap();
     let res: PoolResponse = helper
         .app
         .wrap()
@@ -1136,9 +1115,7 @@ fn provide_withdraw_provide() {
     helper.app.next_block(600);
     // Withdraw all
     let lp_amount = helper.native_balance(&helper.lp_token, &owner);
-    helper
-        .withdraw_liquidity(&owner, lp_amount, vec![])
-        .unwrap();
+    helper.withdraw_liquidity(&owner, lp_amount).unwrap();
 
     // Provide again
     helper
@@ -1407,9 +1384,7 @@ fn check_correct_fee_share() {
         Decimal256::from_str("0.998842355796925899").unwrap()
     );
 
-    helper
-        .withdraw_liquidity(&provider, 999_999354, vec![])
-        .unwrap();
+    helper.withdraw_liquidity(&provider, 999_999354).unwrap();
 
     let offer_asset = helper.assets[&test_coins[0]].with_balance(100_000000u128);
     helper.give_me_money(&[offer_asset.clone()], &user);
@@ -1611,7 +1586,6 @@ fn check_lsd_swaps_with_price_update() {
         min_price_scale_delta: f64_to_dec(0.0000055),
         price_scale: f64_to_dec(price_scale),
         ma_half_time: 600,
-        track_asset_balances: None,
         fee_share: None,
     };
     let mut helper = Helper::new(&owner, test_coins.clone(), params).unwrap();

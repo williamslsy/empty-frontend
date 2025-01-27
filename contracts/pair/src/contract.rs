@@ -18,8 +18,8 @@ use astroport::asset::{
     MINIMUM_LIQUIDITY_AMOUNT,
 };
 use astroport::pair::{
-    ConfigResponse, FeeShareConfig, ReplyIds, XYKPoolConfig, XYKPoolParams, XYKPoolUpdateParams,
-    DEFAULT_SLIPPAGE, MAX_ALLOWED_SLIPPAGE, MAX_FEE_SHARE_BPS,
+    ConfigResponse, FeeShareConfig, ReplyIds, XYKPoolConfig, XYKPoolUpdateParams, DEFAULT_SLIPPAGE,
+    MAX_ALLOWED_SLIPPAGE, MAX_FEE_SHARE_BPS,
 };
 use astroport::pair::{
     CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PoolResponse, QueryMsg,
@@ -29,7 +29,7 @@ use astroport::querier::{query_factory_config, query_fee_info, query_native_supp
 use astroport::U256;
 
 use crate::error::ContractError;
-use crate::state::{Config, BALANCES, CONFIG};
+use crate::state::{Config, CONFIG};
 
 /// Contract name that is used for migration.
 const CONTRACT_NAME: &str = "astroport-pair";
@@ -55,13 +55,6 @@ pub fn instantiate(
         return Err(ContractError::DoublingAssets {});
     }
 
-    let mut track_asset_balances = false;
-
-    if let Some(init_params) = msg.init_params {
-        let params: XYKPoolParams = from_json(init_params)?;
-        track_asset_balances = params.track_asset_balances.unwrap_or_default();
-    }
-
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let config = Config {
@@ -75,16 +68,8 @@ pub fn instantiate(
         block_time_last: 0,
         price0_cumulative_last: Uint128::zero(),
         price1_cumulative_last: Uint128::zero(),
-        track_asset_balances,
         fee_share: None,
-        tracker_addr: None,
     };
-
-    if track_asset_balances {
-        for asset in &config.pair_info.asset_infos {
-            BALANCES.save(deps.storage, asset, &Uint128::zero(), env.block.height)?;
-        }
-    }
 
     CONFIG.save(deps.storage, &config)?;
 
@@ -94,15 +79,7 @@ pub fn instantiate(
     //     ReplyIds::CreateDenom as u64,
     // );
 
-    Ok(Response::new().add_submessage(sub_msg).add_attribute(
-        "asset_balances_tracking".to_owned(),
-        if config.track_asset_balances {
-            "enabled"
-        } else {
-            "disabled"
-        }
-        .to_owned(),
-    ))
+    Ok(Response::new().add_submessage(sub_msg))
 }
 
 /// The entry point to the contract for processing replies from submessages.
@@ -226,7 +203,7 @@ pub fn execute(
             ..
         } => {
             offer_asset.info.check(deps.api)?;
-            if !offer_asset.is_native_token() {
+            if !offer_asset.info.is_native_token() {
                 return Err(ContractError::Cw20DirectSwap {});
             }
 
@@ -245,9 +222,8 @@ pub fn execute(
         }
         ExecuteMsg::UpdateConfig { params } => update_config(deps, info, params),
         ExecuteMsg::WithdrawLiquidity {
-            assets,
             min_assets_to_receive,
-        } => withdraw_liquidity(deps, env, info, assets, min_assets_to_receive),
+        } => withdraw_liquidity(deps, env, info, min_assets_to_receive),
         _ => Err(ContractError::NonSupported {}),
     }
 }
@@ -397,17 +373,6 @@ pub fn provide_liquidity(
         auto_stake,
     )?);
 
-    if config.track_asset_balances {
-        for (i, pool) in pools.iter().enumerate() {
-            BALANCES.save(
-                deps.storage,
-                &pool.info,
-                &pool.amount.checked_add(deposits[i])?,
-                env.block.height,
-            )?;
-        }
-    }
-
     // Accumulate prices for the assets in the pool
     if let Some((price0_cumulative_new, price1_cumulative_new, block_time)) =
         accumulate_prices(env, &config, pools[0].amount, pools[1].amount)?
@@ -456,7 +421,7 @@ where
     }
 
     // Mint for the pair contract and stake into the Incentives contract
-    let incentives_addr = query_factory_config(&querier, &config.factory_addr)?.generator_address;
+    let incentives_addr = query_factory_config(&querier, &config.factory_addr)?.incentives_address;
 
     if let Some(address) = incentives_addr {
         todo!("mint CW20 token");
@@ -482,7 +447,6 @@ pub fn withdraw_liquidity(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    assets: Vec<Asset>,
     min_assets_to_receive: Option<Vec<Asset>>,
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage).unwrap();
@@ -497,25 +461,9 @@ pub fn withdraw_liquidity(
 
     let (pools, total_share) = pool_info(deps.querier, &config)?;
 
-    let refund_assets = if assets.is_empty() {
-        // Usual withdraw (balanced)
-        get_share_in_assets(&pools, amount, total_share)
-    } else {
-        return Err(StdError::generic_err("Imbalanced withdraw is currently disabled").into());
-    };
+    let refund_assets = get_share_in_assets(&pools, amount, total_share);
 
     ensure_min_assets_to_receive(&config, refund_assets.clone(), min_assets_to_receive)?;
-
-    if config.track_asset_balances {
-        for (i, pool) in pools.iter().enumerate() {
-            BALANCES.save(
-                deps.storage,
-                &pool.info,
-                &(pool.amount - refund_assets[i].amount),
-                env.block.height,
-            )?;
-        }
-    }
 
     // Accumulate prices for the pair assets
     if let Some((price0_cumulative_new, price1_cumulative_new, block_time)) =
@@ -702,21 +650,6 @@ pub fn swap(
             maker_fee_amount = f.amount;
             messages.push(f.into_msg(fee_address)?);
         }
-    }
-
-    if config.track_asset_balances {
-        BALANCES.save(
-            deps.storage,
-            &offer_pool.info,
-            &(offer_pool.amount + offer_amount),
-            env.block.height,
-        )?;
-        BALANCES.save(
-            deps.storage,
-            &ask_pool.info,
-            &(ask_pool.amount - return_amount - maker_fee_amount - fee_share_amount),
-            env.block.height,
-        )?;
     }
 
     // Accumulate prices for the assets in the pool
@@ -1092,12 +1025,10 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     Ok(ConfigResponse {
         block_time_last: config.block_time_last,
         params: Some(to_json_binary(&XYKPoolConfig {
-            track_asset_balances: config.track_asset_balances,
             fee_share: config.fee_share,
         })?),
         owner: factory_config.owner,
         factory_addr: config.factory_addr,
-        tracker_addr: config.tracker_addr,
     })
 }
 
@@ -1127,17 +1058,6 @@ fn query_simulate_provide(
         .map_err(|e| StdError::generic_err(e.to_string()))?;
 
     Ok(share)
-}
-
-/// Returns the balance of the specified asset that was in the pool
-/// just preceeding the moment of the specified block height creation.
-/// It will return None (null) if the balance was not tracked up to the specified block height
-pub fn query_asset_balances_at(
-    deps: Deps,
-    asset_info: AssetInfo,
-    block_height: Uint64,
-) -> StdResult<Option<Uint128>> {
-    BALANCES.may_load_at_height(deps.storage, &asset_info, block_height.u64())
 }
 
 /// Returns the result of a swap.

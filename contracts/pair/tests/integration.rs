@@ -12,8 +12,8 @@ use astroport::factory::{
 };
 use astroport::pair::{
     ConfigResponse, CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, FeeShareConfig,
-    InstantiateMsg, PoolResponse, QueryMsg, XYKPoolConfig, XYKPoolParams, XYKPoolUpdateParams,
-    MAX_FEE_SHARE_BPS, TWAP_PRECISION,
+    InstantiateMsg, PoolResponse, QueryMsg, XYKPoolConfig, XYKPoolUpdateParams, MAX_FEE_SHARE_BPS,
+    TWAP_PRECISION,
 };
 use astroport_pair::error::ContractError;
 
@@ -88,11 +88,9 @@ fn instantiate_pair(mut router: &mut App, owner: &Addr) -> Addr {
             permissioned: false,
         }],
         token_code_id: token_contract_code_id,
-        generator_address: Some(String::from("generator")),
+        incentives_address: Some(String::from("generator")),
         owner: owner.to_string(),
-        whitelist_code_id: 234u64,
         coin_registry_address: "coin_registry".to_string(),
-        tracker_config: None,
     };
 
     let factory_instance = router
@@ -341,7 +339,6 @@ fn test_provide_and_withdraw_liquidity() {
     );
 
     let msg = ExecuteMsg::WithdrawLiquidity {
-        assets: vec![],
         min_assets_to_receive: None,
     };
     // Try to send withdraw liquidity with uluna token
@@ -375,7 +372,6 @@ fn test_provide_and_withdraw_liquidity() {
             alice_address.clone(),
             pair_instance.clone(),
             &ExecuteMsg::WithdrawLiquidity {
-                assets: vec![],
                 min_assets_to_receive: Some(
                     min_assets_to_receive
                         .iter()
@@ -416,7 +412,6 @@ fn test_provide_and_withdraw_liquidity() {
             alice_address.clone(),
             pair_instance.clone(),
             &ExecuteMsg::WithdrawLiquidity {
-                assets: vec![],
                 min_assets_to_receive: Some(min_assets_to_receive),
             },
             &[coin(100u128, lp_token.clone())],
@@ -448,16 +443,9 @@ fn test_provide_and_withdraw_liquidity() {
         config.clone(),
         ConfigResponse {
             block_time_last: router.block_info().time.seconds(),
-            params: Some(
-                to_json_binary(&XYKPoolConfig {
-                    track_asset_balances: false,
-                    fee_share: None,
-                })
-                .unwrap()
-            ),
+            params: Some(to_json_binary(&XYKPoolConfig { fee_share: None }).unwrap()),
             owner,
             factory_addr: config.factory_addr,
-            tracker_addr: config.tracker_addr,
         }
     )
 }
@@ -600,11 +588,9 @@ fn test_compatibility_of_tokens_with_different_precision() {
             permissioned: false,
         }],
         token_code_id,
-        generator_address: Some(String::from("generator")),
+        incentives_address: Some(String::from("generator")),
         owner: owner.to_string(),
-        whitelist_code_id: 234u64,
         coin_registry_address: "coin_registry".to_string(),
-        tracker_config: None,
     };
 
     let factory_instance = app
@@ -984,11 +970,9 @@ fn update_pair_config() {
         fee_address: None,
         pair_configs: vec![],
         token_code_id: token_contract_code_id,
-        generator_address: Some(String::from("generator")),
+        incentives_address: Some(String::from("generator")),
         owner: owner.to_string(),
-        whitelist_code_id: 234u64,
         coin_registry_address: "coin_registry".to_string(),
-        tracker_config: None,
     };
 
     let factory_instance = router
@@ -1037,16 +1021,9 @@ fn update_pair_config() {
         res,
         ConfigResponse {
             block_time_last: 0,
-            params: Some(
-                to_json_binary(&XYKPoolConfig {
-                    track_asset_balances: false,
-                    fee_share: None,
-                })
-                .unwrap()
-            ),
+            params: Some(to_json_binary(&XYKPoolConfig { fee_share: None }).unwrap()),
             owner: Addr::unchecked("owner"),
             factory_addr: Addr::unchecked("contract0"),
-            tracker_addr: None
         }
     );
 }
@@ -1077,11 +1054,9 @@ fn enable_disable_fee_sharing() {
         fee_address: None,
         pair_configs: vec![],
         token_code_id: token_contract_code_id,
-        generator_address: Some(String::from("generator")),
+        incentives_address: Some(String::from("generator")),
         owner: owner.to_string(),
-        whitelist_code_id: 234u64,
         coin_registry_address: "coin_registry".to_string(),
-        tracker_config: None,
     };
 
     let factory_instance = router
@@ -1130,16 +1105,9 @@ fn enable_disable_fee_sharing() {
         res,
         ConfigResponse {
             block_time_last: 0,
-            params: Some(
-                to_json_binary(&XYKPoolConfig {
-                    track_asset_balances: false,
-                    fee_share: None,
-                })
-                .unwrap()
-            ),
+            params: Some(to_json_binary(&XYKPoolConfig { fee_share: None }).unwrap()),
             owner: Addr::unchecked("owner"),
             factory_addr: Addr::unchecked("contract0"),
-            tracker_addr: None
         }
     );
 
@@ -1202,7 +1170,6 @@ fn enable_disable_fee_sharing() {
             block_time_last: 0,
             params: Some(
                 to_json_binary(&XYKPoolConfig {
-                    track_asset_balances: false,
                     fee_share: Some(FeeShareConfig {
                         bps: fee_share_bps,
                         recipient: Addr::unchecked(fee_share_contract),
@@ -1212,7 +1179,6 @@ fn enable_disable_fee_sharing() {
             ),
             owner: Addr::unchecked("owner"),
             factory_addr: Addr::unchecked("contract0"),
-            tracker_addr: None
         }
     );
 
@@ -1233,16 +1199,9 @@ fn enable_disable_fee_sharing() {
         res,
         ConfigResponse {
             block_time_last: 0,
-            params: Some(
-                to_json_binary(&XYKPoolConfig {
-                    track_asset_balances: false,
-                    fee_share: None,
-                })
-                .unwrap()
-            ),
+            params: Some(to_json_binary(&XYKPoolConfig { fee_share: None }).unwrap()),
             owner: Addr::unchecked("owner"),
             factory_addr: Addr::unchecked("contract0"),
-            tracker_addr: None
         }
     );
 }
@@ -1310,11 +1269,9 @@ fn provide_liquidity_with_autostaking_to_generator() {
             permissioned: false,
         }],
         token_code_id: token_contract_code_id,
-        generator_address: None,
+        incentives_address: None,
         owner: owner.to_string(),
-        whitelist_code_id: 234u64,
         coin_registry_address: "coin_registry".to_string(),
-        tracker_config: None,
     };
 
     let factory_instance = router
@@ -1353,8 +1310,7 @@ fn provide_liquidity_with_autostaking_to_generator() {
             &astroport::factory::ExecuteMsg::UpdateConfig {
                 token_code_id: None,
                 fee_address: None,
-                generator_address: Some(generator_instance.to_string()),
-                whitelist_code_id: None,
+                incentives_address: Some(generator_instance.to_string()),
                 coin_registry_address: None,
             },
             &[],
@@ -1371,12 +1327,7 @@ fn provide_liquidity_with_autostaking_to_generator() {
             },
         ],
         pair_type: PairType::Xyk {},
-        init_params: Some(
-            to_json_binary(&XYKPoolParams {
-                track_asset_balances: Some(true),
-            })
-            .unwrap(),
-        ),
+        init_params: None,
     };
 
     router
@@ -1536,30 +1487,6 @@ fn test_imbalanced_withdraw_is_disabled() {
     router
         .execute_contract(alice_address.clone(), pair_instance.clone(), &msg, &coins)
         .unwrap();
-
-    // Check that imbalanced withdraw is currently disabled
-    let msg_imbalance = ExecuteMsg::WithdrawLiquidity {
-        assets: vec![Asset {
-            info: AssetInfo::NativeToken {
-                denom: "uusd".to_string(),
-            },
-            amount: Uint128::from(100u8),
-        }],
-        min_assets_to_receive: None,
-    };
-
-    let err = router
-        .execute_contract(
-            alice_address.clone(),
-            pair_instance.clone(),
-            &msg_imbalance,
-            &[coin(100u128, lp_token)],
-        )
-        .unwrap_err();
-    assert_eq!(
-        err.root_cause().to_string(),
-        "Generic error: Imbalanced withdraw is currently disabled"
-    );
 }
 
 #[test]
@@ -1701,11 +1628,9 @@ fn test_fee_share(
             permissioned: false,
         }],
         token_code_id,
-        generator_address: Some(String::from("generator")),
+        incentives_address: Some(String::from("generator")),
         owner: owner.to_string(),
-        whitelist_code_id: 234u64,
         coin_registry_address: "coin_registry".to_string(),
-        tracker_config: None,
     };
 
     let factory_instance = app
@@ -1729,12 +1654,7 @@ fn test_fee_share(
             },
         ],
         pair_type: PairType::Xyk {},
-        init_params: Some(
-            to_json_binary(&XYKPoolParams {
-                track_asset_balances: Some(true),
-            })
-            .unwrap(),
-        ),
+        init_params: None,
     };
 
     app.execute_contract(owner.clone(), factory_instance.clone(), &msg, &[])
@@ -2007,11 +1927,9 @@ fn test_create_xyk_custom_type() {
             },
         ],
         token_code_id,
-        generator_address: None,
+        incentives_address: None,
         owner: owner.to_string(),
-        whitelist_code_id: 0,
         coin_registry_address: "coin_registry".to_string(),
-        tracker_config: None,
     };
 
     let factory_instance = app

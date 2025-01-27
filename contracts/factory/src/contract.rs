@@ -3,28 +3,27 @@ use std::collections::HashSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, ensure, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Reply,
+    attr, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo, Order, Reply,
     ReplyOn, Response, StdError, StdResult, SubMsg, SubMsgResponse, SubMsgResult, WasmMsg,
 };
-use cw2::{get_contract_version, set_contract_version};
+use cw2::set_contract_version;
 use cw_utils::parse_instantiate_response_data;
 use itertools::Itertools;
 
 use astroport::asset::{addr_opt_validate, AssetInfo, PairInfo};
 use astroport::common::{claim_ownership, drop_ownership_proposal, propose_new_owner};
 use astroport::factory::{
-    Config, ConfigResponse, ExecuteMsg, FeeInfoResponse, InstantiateMsg, MigrateMsg, PairConfig,
-    PairType, PairsResponse, QueryMsg, TrackerConfig,
+    Config, ConfigResponse, ExecuteMsg, FeeInfoResponse, InstantiateMsg, PairConfig, PairType,
+    PairsResponse, QueryMsg,
 };
 use astroport::incentives::ExecuteMsg::DeactivatePool;
 use astroport::pair::InstantiateMsg as PairInstantiateMsg;
 
 use crate::error::ContractError;
-use crate::migration::migrate_pair_configs;
 use crate::querier::query_pair_info;
 use crate::state::{
     check_asset_infos, pair_key, read_pairs, TmpPairInfo, CONFIG, OWNERSHIP_PROPOSAL, PAIRS,
-    PAIR_CONFIGS, TMP_PAIR_INFO, TRACKER_CONFIG,
+    PAIR_CONFIGS, TMP_PAIR_INFO,
 };
 
 /// Contract name that is used for migration.
@@ -50,12 +49,11 @@ pub fn instantiate(
         owner: deps.api.addr_validate(&msg.owner)?,
         token_code_id: msg.token_code_id,
         fee_address: None,
-        generator_address: None,
-        whitelist_code_id: msg.whitelist_code_id,
+        incentives_address: None,
         coin_registry_address: deps.api.addr_validate(&msg.coin_registry_address)?,
     };
 
-    config.generator_address = addr_opt_validate(deps.api, &msg.generator_address)?;
+    config.incentives_address = addr_opt_validate(deps.api, &msg.incentives_address)?;
 
     config.fee_address = addr_opt_validate(deps.api, &msg.fee_address)?;
 
@@ -78,19 +76,6 @@ pub fn instantiate(
     }
     CONFIG.save(deps.storage, &config)?;
 
-    if let Some(tracker_config) = msg.tracker_config {
-        TRACKER_CONFIG.save(
-            deps.storage,
-            &TrackerConfig {
-                code_id: tracker_config.code_id,
-                token_factory_addr: deps
-                    .api
-                    .addr_validate(&tracker_config.token_factory_addr)?
-                    .to_string(),
-            },
-        )?;
-    }
-
     Ok(Response::new())
 }
 
@@ -100,10 +85,8 @@ pub struct UpdateConfig {
     token_code_id: Option<u64>,
     /// Contract address to send governance fees to (the Maker)
     fee_address: Option<String>,
-    /// Generator contract address
-    generator_address: Option<String>,
-    /// CW1 whitelist contract code id used to store 3rd party staking rewards
-    whitelist_code_id: Option<u64>,
+    /// Incentives contract address
+    incentives_address: Option<String>,
     coin_registry_address: Option<String>,
 }
 
@@ -145,8 +128,7 @@ pub fn execute(
         ExecuteMsg::UpdateConfig {
             token_code_id,
             fee_address,
-            generator_address,
-            whitelist_code_id,
+            incentives_address,
             coin_registry_address,
         } => execute_update_config(
             deps,
@@ -154,8 +136,7 @@ pub fn execute(
             UpdateConfig {
                 token_code_id,
                 fee_address,
-                generator_address,
-                whitelist_code_id,
+                incentives_address,
                 coin_registry_address,
             },
         ),
@@ -197,10 +178,6 @@ pub fn execute(
             })
             .map_err(Into::into)
         }
-        ExecuteMsg::UpdateTrackerConfig {
-            tracker_code_id,
-            token_factory_addr,
-        } => update_tracker_config(deps, info, tracker_code_id, token_factory_addr),
     }
 }
 
@@ -227,17 +204,13 @@ pub fn execute_update_config(
         config.fee_address = Some(deps.api.addr_validate(&fee_address)?);
     }
 
-    if let Some(generator_address) = param.generator_address {
+    if let Some(incentives_address) = param.incentives_address {
         // Validate the address format
-        config.generator_address = Some(deps.api.addr_validate(&generator_address)?);
+        config.incentives_address = Some(deps.api.addr_validate(&incentives_address)?);
     }
 
     if let Some(token_code_id) = param.token_code_id {
         config.token_code_id = token_code_id;
-    }
-
-    if let Some(code_id) = param.whitelist_code_id {
-        config.whitelist_code_id = code_id;
     }
 
     if let Some(coin_registry_address) = param.coin_registry_address {
@@ -407,7 +380,7 @@ pub fn deregister(
     PAIRS.remove(deps.storage, &pair_key(&asset_infos));
 
     let mut messages: Vec<CosmosMsg> = vec![];
-    if let Some(generator) = config.generator_address {
+    if let Some(generator) = config.incentives_address {
         let pair_info = query_pair_info(&deps.querier, &pair_addr)?;
 
         // sets the allocation point to zero for the lp_token
@@ -424,35 +397,6 @@ pub fn deregister(
         attr("action", "deregister"),
         attr("pair_contract_addr", pair_addr),
     ]))
-}
-
-pub fn update_tracker_config(
-    deps: DepsMut,
-    info: MessageInfo,
-    tracker_code_id: u64,
-    token_factory_addr: Option<String>,
-) -> Result<Response, ContractError> {
-    let config = CONFIG.load(deps.storage)?;
-
-    ensure!(info.sender == config.owner, ContractError::Unauthorized {});
-    if let Some(mut tracker_config) = TRACKER_CONFIG.may_load(deps.storage)? {
-        tracker_config.code_id = tracker_code_id;
-        TRACKER_CONFIG.save(deps.storage, &tracker_config)?;
-    } else {
-        let tokenfactory_tracker =
-            token_factory_addr.ok_or(StdError::generic_err("token_factory_addr is required"))?;
-        TRACKER_CONFIG.save(
-            deps.storage,
-            &TrackerConfig {
-                code_id: tracker_code_id,
-                token_factory_addr: tokenfactory_tracker,
-            },
-        )?;
-    }
-
-    Ok(Response::new()
-        .add_attribute("action", "update_tracker_config")
-        .add_attribute("code_id", tracker_code_id.to_string()))
 }
 
 /// Exposes all the queries available in the contract.
@@ -478,7 +422,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::FeeInfo { pair_type } => to_json_binary(&query_fee_info(deps, pair_type)?),
         QueryMsg::BlacklistedPairTypes {} => to_json_binary(&query_blacklisted_pair_types(deps)?),
-        QueryMsg::TrackerConfig {} => to_json_binary(&query_tracker_config(deps)?),
     }
 }
 
@@ -510,8 +453,7 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
             .map(|item| Ok(item?.1))
             .collect::<StdResult<Vec<_>>>()?,
         fee_address: config.fee_address,
-        generator_address: config.generator_address,
-        whitelist_code_id: config.whitelist_code_id,
+        incentives_address: config.incentives_address,
         coin_registry_address: config.coin_registry_address,
     };
 
@@ -556,67 +498,8 @@ pub fn query_fee_info(deps: Deps, pair_type: PairType) -> StdResult<FeeInfoRespo
     })
 }
 
-pub fn query_tracker_config(deps: Deps) -> StdResult<TrackerConfig> {
-    let tracker_config = TRACKER_CONFIG.load(deps.storage).map_err(|_| {
-        StdError::generic_err("Tracker config is not set in the factory. It can't be provided")
-    })?;
-
-    Ok(TrackerConfig {
-        code_id: tracker_config.code_id,
-        token_factory_addr: tracker_config.token_factory_addr,
-    })
-}
-
 /// Manages the contract migration.
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    let contract_version = get_contract_version(deps.storage)?;
-
-    match contract_version.contract.as_ref() {
-        "astroport-factory" => match contract_version.version.as_ref() {
-            // pisco-1, phoenix-1, injective-1, pion-1, neutron-1, pacific-1: 1.5.1
-            // injective-888: 1.6.0
-            // atlantic-2: 1.3.1
-            "1.3.1" | "1.5.1" | "1.6.0" => {
-                migrate_pair_configs(deps.storage)?;
-                if let Some(tracker_config) = msg.tracker_config {
-                    TRACKER_CONFIG.save(
-                        deps.storage,
-                        &TrackerConfig {
-                            code_id: tracker_config.code_id,
-                            token_factory_addr: deps
-                                .api
-                                .addr_validate(&tracker_config.token_factory_addr)?
-                                .to_string(),
-                        },
-                    )?;
-                }
-            }
-            "1.7.0" => {
-                if let Some(tracker_config) = msg.tracker_config {
-                    TRACKER_CONFIG.save(
-                        deps.storage,
-                        &TrackerConfig {
-                            code_id: tracker_config.code_id,
-                            token_factory_addr: deps
-                                .api
-                                .addr_validate(&tracker_config.token_factory_addr)?
-                                .to_string(),
-                        },
-                    )?;
-                }
-            }
-            "1.8.0" | "1.8.1" => {}
-            _ => return Err(ContractError::MigrationError {}),
-        },
-        _ => return Err(ContractError::MigrationError {}),
-    }
-
-    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
-    Ok(Response::new()
-        .add_attribute("previous_contract_name", &contract_version.contract)
-        .add_attribute("previous_contract_version", &contract_version.version)
-        .add_attribute("new_contract_name", CONTRACT_NAME)
-        .add_attribute("new_contract_version", CONTRACT_VERSION))
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, ContractError> {
+    unimplemented!()
 }

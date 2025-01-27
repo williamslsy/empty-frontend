@@ -2,12 +2,12 @@
 
 use cosmwasm_std::{coins, from_json, to_json_binary, Addr, Empty, StdError};
 use cw20::Cw20ExecuteMsg;
+use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
 use astroport::asset::{native_asset_info, token_asset_info};
 use astroport::factory::PairType;
 use astroport::router::{ExecuteMsg, InstantiateMsg, SwapOperation, SwapResponseData};
 use astroport_router::error::ContractError;
-use cw_multi_test::{App, AppBuilder, Contract, ContractWrapper, Executor};
 
 use crate::factory_helper::{instantiate_token, mint, mint_native, FactoryHelper};
 
@@ -37,7 +37,12 @@ fn router_does_not_enforce_spread_assertion() {
 
     for (a, b, typ, liq) in [
         (&token_x, &token_y, PairType::Xyk {}, 100_000_000000),
-        (&token_y, &token_z, PairType::Stable {}, 1_000_000_000000),
+        (
+            &token_y,
+            &token_z,
+            PairType::Concentrated {},
+            1_000_000_000000,
+        ),
     ] {
         let pair = helper
             .create_pair(
@@ -144,7 +149,12 @@ fn route_through_pairs_with_natives() {
 
     for (a, b, typ, liq) in [
         (&denom_x, &denom_y, PairType::Xyk {}, 100_000_000000),
-        (&denom_y, &denom_z, PairType::Stable {}, 1_000_000_000000),
+        (
+            &denom_y,
+            &denom_z,
+            PairType::Concentrated {},
+            1_000_000_000000,
+        ),
     ] {
         let pair = helper
             .create_pair(

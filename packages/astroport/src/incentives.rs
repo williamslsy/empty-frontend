@@ -216,11 +216,7 @@ pub enum ExecuteMsg {
 #[cw_serde]
 /// Cw20 hook message template
 pub enum Cw20Msg {
-    Deposit {
-        recipient: Option<String>,
-    },
-    /// Besides this enum variant is redundant we keep this for backward compatibility with old pair contracts
-    DepositFor(String),
+    Deposit { recipient: Option<String> },
 }
 
 #[cw_serde]

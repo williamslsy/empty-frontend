@@ -34,7 +34,7 @@ fn mock_info(sender: &str, funds: &[Coin]) -> MessageInfo {
 #[test]
 fn pair_type_to_string() {
     assert_eq!(PairType::Xyk {}.to_string(), "xyk");
-    assert_eq!(PairType::Stable {}.to_string(), "stable");
+    assert_eq!(PairType::Concentrated {}.to_string(), "concentrated");
 }
 
 #[test]
@@ -66,11 +66,9 @@ fn proper_initialization() {
         ],
         token_code_id: 123u64,
         fee_address: None,
-        generator_address: Some(String::from("generator")),
+        incentives_address: Some(String::from("generator")),
         owner: owner.clone(),
-        whitelist_code_id: 234u64,
         coin_registry_address: "coin_registry".to_string(),
-        tracker_config: None,
     };
 
     let env = mock_env();
@@ -91,11 +89,9 @@ fn proper_initialization() {
         }],
         token_code_id: 123u64,
         fee_address: None,
-        generator_address: Some(String::from("generator")),
+        incentives_address: Some(String::from("generator")),
         owner: owner.clone(),
-        whitelist_code_id: 234u64,
         coin_registry_address: "coin_registry".to_string(),
-        tracker_config: None,
     };
 
     let env = mock_env();
@@ -110,7 +106,7 @@ fn proper_initialization() {
         pair_configs: vec![
             PairConfig {
                 code_id: 325u64,
-                pair_type: PairType::Stable {},
+                pair_type: PairType::Concentrated {},
                 total_fee_bps: 100,
                 maker_fee_bps: 10,
                 is_disabled: false,
@@ -129,11 +125,9 @@ fn proper_initialization() {
         ],
         token_code_id: 123u64,
         fee_address: None,
-        generator_address: Some(String::from("generator")),
+        incentives_address: Some(String::from("generator")),
         owner: owner.clone(),
-        whitelist_code_id: 234u64,
         coin_registry_address: "coin_registry".to_string(),
-        tracker_config: None,
     };
 
     let env = mock_env();
@@ -168,10 +162,8 @@ fn update_config() {
         token_code_id: 123u64,
         fee_address: None,
         owner: owner.to_string(),
-        generator_address: Some(String::from("generator")),
-        whitelist_code_id: 234u64,
+        incentives_address: Some(String::from("generator")),
         coin_registry_address: "coin_registry".to_string(),
-        tracker_config: None,
     };
 
     let env = mock_env();
@@ -186,8 +178,7 @@ fn update_config() {
     let msg = ExecuteMsg::UpdateConfig {
         token_code_id: Some(200u64),
         fee_address: Some(String::from("new_fee_addr")),
-        generator_address: Some(String::from("new_generator_addr")),
-        whitelist_code_id: None,
+        incentives_address: Some(String::from("new_generator_addr")),
         coin_registry_address: None,
     };
 
@@ -205,7 +196,7 @@ fn update_config() {
     );
     assert_eq!(
         String::from("new_generator_addr"),
-        config_res.generator_address.unwrap().as_str()
+        config_res.incentives_address.unwrap().as_str()
     );
 
     // Unauthorized err
@@ -214,8 +205,7 @@ fn update_config() {
     let msg = ExecuteMsg::UpdateConfig {
         token_code_id: None,
         fee_address: None,
-        generator_address: None,
-        whitelist_code_id: None,
+        incentives_address: None,
         coin_registry_address: None,
     };
 
@@ -233,10 +223,8 @@ fn update_owner() {
         token_code_id: 123u64,
         fee_address: None,
         owner: owner.to_string(),
-        generator_address: Some(String::from("generator")),
-        whitelist_code_id: 234u64,
+        incentives_address: Some(String::from("generator")),
         coin_registry_address: "coin_registry".to_string(),
-        tracker_config: None,
     };
 
     let env = mock_env();
@@ -322,10 +310,8 @@ fn update_pair_config() {
         token_code_id: 123u64,
         fee_address: None,
         owner: owner.to_string(),
-        generator_address: Some(String::from("generator")),
-        whitelist_code_id: 234u64,
+        incentives_address: Some(String::from("generator")),
         coin_registry_address: "coin_registry".to_string(),
-        tracker_config: None,
     };
 
     let env = mock_env();
@@ -437,10 +423,8 @@ fn create_pair() {
         token_code_id: 123u64,
         fee_address: None,
         owner: "owner0000".to_string(),
-        generator_address: Some(String::from("generator")),
-        whitelist_code_id: 234u64,
+        incentives_address: Some(String::from("generator")),
         coin_registry_address: "coin_registry".to_string(),
-        tracker_config: None,
     };
 
     let env = mock_env();
@@ -468,7 +452,7 @@ fn create_pair() {
         env.clone(),
         info.clone(),
         ExecuteMsg::CreatePair {
-            pair_type: PairType::Stable {},
+            pair_type: PairType::Concentrated {},
             asset_infos: asset_infos.clone(),
             init_params: None,
         },
@@ -538,11 +522,9 @@ fn register() {
         }],
         token_code_id: 123u64,
         fee_address: None,
-        generator_address: Some(String::from("generator")),
+        incentives_address: Some(String::from("generator")),
         owner: owner.to_string(),
-        whitelist_code_id: 234u64,
         coin_registry_address: "coin_registry".to_string(),
-        tracker_config: None,
     };
 
     let env = mock_env();

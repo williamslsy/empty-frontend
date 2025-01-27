@@ -1,12 +1,12 @@
 #![cfg(not(tarpaulin_include))]
 
 use anyhow::Result as AnyResult;
-use cosmwasm_std::{Addr, Binary, StdResult};
+use cosmwasm_std::{Addr, Binary};
 use cw20::MinterResponse;
 use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
 
 use astroport::asset::AssetInfo;
-use astroport::factory::{PairConfig, PairType, TrackerConfig};
+use astroport::factory::{PairConfig, PairType};
 
 pub struct FactoryHelper {
     pub owner: Addr,
@@ -93,11 +93,9 @@ impl FactoryHelper {
             ],
             token_code_id: cw20_token_code_id,
             fee_address: None,
-            generator_address: None,
+            incentives_address: None,
             owner: owner.to_string(),
-            whitelist_code_id: 0,
             coin_registry_address: "coin_registry".to_string(),
-            tracker_config: None,
         };
 
         let factory = router
@@ -125,15 +123,13 @@ impl FactoryHelper {
         sender: &Addr,
         token_code_id: Option<u64>,
         fee_address: Option<String>,
-        generator_address: Option<String>,
-        whitelist_code_id: Option<u64>,
+        incentives_address: Option<String>,
         coin_registry_address: Option<String>,
     ) -> AnyResult<AppResponse> {
         let msg = astroport::factory::ExecuteMsg::UpdateConfig {
             token_code_id,
             fee_address,
-            generator_address,
-            whitelist_code_id,
+            incentives_address,
             coin_registry_address,
         };
 
@@ -164,28 +160,6 @@ impl FactoryHelper {
         };
 
         router.execute_contract(sender.clone(), self.factory.clone(), &msg, &[])
-    }
-
-    pub fn update_tracker_config(
-        &mut self,
-        router: &mut App,
-        sender: &Addr,
-        tracker_code_id: u64,
-        token_factory_addr: Option<String>,
-    ) -> AnyResult<AppResponse> {
-        let msg = astroport::factory::ExecuteMsg::UpdateTrackerConfig {
-            tracker_code_id,
-            token_factory_addr,
-        };
-
-        router.execute_contract(sender.clone(), self.factory.clone(), &msg, &[])
-    }
-
-    pub fn query_tracker_config(&mut self, router: &mut App) -> StdResult<TrackerConfig> {
-        let msg = astroport::factory::QueryMsg::TrackerConfig {};
-        router
-            .wrap()
-            .query_wasm_smart::<TrackerConfig>(self.factory.clone(), &msg)
     }
 }
 

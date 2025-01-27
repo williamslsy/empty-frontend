@@ -3,10 +3,12 @@ use cosmwasm_std::{Addr, Api, Deps, Order, StdResult};
 use cw_storage_plus::{Bound, Item, Map};
 use itertools::Itertools;
 
-use crate::error::ContractError;
 use astroport::asset::AssetInfo;
 use astroport::common::OwnershipProposal;
-use astroport::factory::{Config, PairConfig, TrackerConfig};
+use astroport::factory::{Config, PairConfig};
+
+use crate::error::ContractError;
+
 /// This is an intermediate structure for storing a pair's key. It is used in a submessage response.
 #[cw_serde]
 pub struct TmpPairInfo {
@@ -21,9 +23,6 @@ pub const CONFIG: Item<Config> = Item::new("config");
 
 /// Saves created pairs (from olders to latest)
 pub const PAIRS: Map<&[u8], Addr> = Map::new("pair_info");
-
-/// Track config for tracking contract
-pub const TRACKER_CONFIG: Item<TrackerConfig> = Item::new("tracker_config");
 
 /// Calculates a pair key from the specified parameters in the `asset_infos` variable.
 ///

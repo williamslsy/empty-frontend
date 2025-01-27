@@ -292,12 +292,10 @@ pub fn query_config(deps: Deps, env: Env) -> StdResult<ConfigResponse> {
             min_price_scale_delta: config.pool_params.min_price_scale_delta,
             price_scale,
             ma_half_time: config.pool_params.ma_half_time,
-            track_asset_balances: config.track_asset_balances,
             fee_share: config.fee_share,
         })?),
         owner: config.owner.unwrap_or(factory_config.owner),
         factory_addr: config.factory_addr,
-        tracker_addr: config.tracker_addr,
     })
 }
 

@@ -53,8 +53,6 @@ pub enum ExecuteMsg {
     },
     /// WithdrawLiquidity allows someone to withdraw liquidity from the pool
     WithdrawLiquidity {
-        #[serde(default)]
-        assets: Vec<Asset>,
         min_assets_to_receive: Option<Vec<Asset>>,
     },
     /// Swap performs a swap in the pool
@@ -124,7 +122,7 @@ pub enum QueryMsg {
     /// Returns information about the cumulative prices in a [`CumulativePricesResponse`] object
     #[returns(CumulativePricesResponse)]
     CumulativePrices {},
-    /// Returns current D invariant in as a [`u128`] value
+    /// Returns current D invariant in as a [`Uint128`] value
     #[returns(Uint128)]
     QueryComputeD {},
     /// Returns an estimation of assets received for the given amount of LP tokens
@@ -158,8 +156,6 @@ pub struct ConfigResponse {
     pub owner: Addr,
     /// The factory contract address
     pub factory_addr: Addr,
-    /// Tracker contract address
-    pub tracker_addr: Option<Addr>,
 }
 
 /// Holds the configuration for fee sharing
@@ -204,63 +200,15 @@ pub struct CumulativePricesResponse {
     pub cumulative_prices: Vec<(AssetInfo, AssetInfo, Uint128)>,
 }
 
-/// This structure holds XYK pool parameters.
-#[cw_serde]
-pub struct XYKPoolParams {
-    /// Whether asset balances are tracked over blocks or not.
-    /// They will not be tracked if the parameter is ignored.
-    /// It can not be disabled later once enabled.
-    pub track_asset_balances: Option<bool>,
-}
-
 /// This structure stores a XYK pool's configuration.
 #[cw_serde]
 pub struct XYKPoolConfig {
-    /// Whether asset balances are tracked over blocks or not.
-    pub track_asset_balances: bool,
-    // The config for swap fee sharing
+    /// The config for swap fee sharing
     pub fee_share: Option<FeeShareConfig>,
 }
 
-/// This enum stores the option available to enable asset balances tracking over blocks.
 #[cw_serde]
 pub enum XYKPoolUpdateParams {
-    /// Enables the sharing of swap fees with an external party.
-    EnableFeeShare {
-        /// The fee shared with the fee_share_address
-        fee_share_bps: u16,
-        /// The fee_share_bps is sent to this address on every swap
-        fee_share_address: String,
-    },
-    DisableFeeShare,
-}
-
-/// This structure holds stableswap pool parameters.
-#[cw_serde]
-pub struct StablePoolParams {
-    /// The current stableswap pool amplification
-    pub amp: u64,
-    /// The contract owner
-    pub owner: Option<String>,
-}
-
-/// This structure stores a stableswap pool's configuration.
-#[cw_serde]
-pub struct StablePoolConfig {
-    /// The stableswap pool amplification
-    pub amp: Decimal,
-    // The config for swap fee sharing
-    pub fee_share: Option<FeeShareConfig>,
-}
-
-/// This enum stores the options available to start and stop changing a stableswap pool's amplification.
-#[cw_serde]
-pub enum StablePoolUpdateParams {
-    StartChangingAmp {
-        next_amp: u64,
-        next_amp_time: u64,
-    },
-    StopChangingAmp {},
     /// Enables the sharing of swap fees with an external party.
     EnableFeeShare {
         /// The fee shared with the fee_share_address
@@ -287,39 +235,5 @@ impl TryFrom<u64> for ReplyIds {
             2 => Ok(ReplyIds::InstantiateTrackingContract),
             _ => Err(StdError::generic_err("Invalid ReplyId")),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use cosmwasm_std::{from_json, to_json_binary};
-
-    use super::*;
-
-    #[cw_serde]
-    pub struct LegacyConfigResponse {
-        pub block_time_last: u64,
-        pub params: Option<Binary>,
-        pub factory_addr: Addr,
-        pub owner: Addr,
-    }
-
-    #[test]
-    fn test_config_response_compatability() {
-        let ser_msg = to_json_binary(&LegacyConfigResponse {
-            block_time_last: 12,
-            params: Some(
-                to_json_binary(&StablePoolConfig {
-                    amp: Decimal::one(),
-                    fee_share: None,
-                })
-                .unwrap(),
-            ),
-            factory_addr: Addr::unchecked(""),
-            owner: Addr::unchecked(""),
-        })
-        .unwrap();
-
-        let _: ConfigResponse = from_json(&ser_msg).unwrap();
     }
 }

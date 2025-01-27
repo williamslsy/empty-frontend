@@ -77,7 +77,7 @@ where
     }
 
     // Mint for the pair contract and stake into the Incentives contract
-    let incentives_addr = query_factory_config(&querier, &config.factory_addr)?.generator_address;
+    let incentives_addr = query_factory_config(&querier, &config.factory_addr)?.incentives_address;
 
     if let Some(address) = incentives_addr {
         // TODO: cw20 mint

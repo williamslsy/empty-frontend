@@ -1,17 +1,17 @@
+use cosmwasm_std::{
+    Addr, Decimal, Decimal256, Deps, Env, QuerierWrapper, StdError, StdResult, Uint128,
+};
+use itertools::Itertools;
+
+use astroport::asset::{Asset, Decimal256Ext, DecimalAsset, MINIMUM_LIQUIDITY_AMOUNT};
 use astroport::cosmwasm_ext::{AbsDiff, DecimalToInteger, IntegerToDecimal};
+use astroport::pair::MIN_TRADE_SIZE;
+use astroport::querier::query_native_supply;
+use astroport_pcl_common::state::{Config, Precisions};
 use astroport_pcl_common::utils::{
     assert_slippage_tolerance, calc_provide_fee, check_assets, check_pair_registered,
 };
 use astroport_pcl_common::{calc_d, get_xcp};
-use cosmwasm_std::{
-    Addr, Decimal, Decimal256, Deps, Env, QuerierWrapper, StdError, StdResult, Storage, Uint128,
-};
-
-use astroport::asset::{Asset, Decimal256Ext, DecimalAsset, MINIMUM_LIQUIDITY_AMOUNT};
-use astroport::pair::MIN_TRADE_SIZE;
-use astroport::querier::query_native_supply;
-use astroport_pcl_common::state::{Config, Precisions};
-use itertools::Itertools;
 
 use crate::contract::LP_TOKEN_PRECISION;
 use crate::error::ContractError;

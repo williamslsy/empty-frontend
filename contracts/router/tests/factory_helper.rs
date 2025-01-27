@@ -3,10 +3,10 @@
 use anyhow::Result as AnyResult;
 use cosmwasm_std::{coins, Addr, Binary};
 use cw20::MinterResponse;
+use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
 
 use astroport::asset::{AssetInfo, PairInfo};
 use astroport::factory::{PairConfig, PairType, QueryMsg};
-use cw_multi_test::{App, AppResponse, ContractWrapper, Executor};
 
 pub struct FactoryHelper {
     pub owner: Addr,
@@ -83,7 +83,7 @@ impl FactoryHelper {
                 },
                 PairConfig {
                     code_id: pair_code_id,
-                    pair_type: PairType::Stable {},
+                    pair_type: PairType::Concentrated {},
                     total_fee_bps: 0,
                     maker_fee_bps: 0,
                     is_disabled: false,
@@ -93,11 +93,9 @@ impl FactoryHelper {
             ],
             token_code_id: cw20_token_code_id,
             fee_address: None,
-            generator_address: None,
+            incentives_address: None,
             owner: owner.to_string(),
-            whitelist_code_id: 0,
             coin_registry_address: "coin_registry".to_string(),
-            tracker_config: None,
         };
 
         let factory = router

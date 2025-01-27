@@ -22,7 +22,6 @@ use astroport::incentives::{
     Config, ExecuteMsg, IncentivesSchedule, IncentivizationFeeInfo, InputSchedule,
     PoolInfoResponse, QueryMsg, RewardInfo, ScheduleResponse,
 };
-use astroport::pair::StablePoolParams;
 use astroport::{factory, native_coin_registry, pair};
 
 use crate::helper::broken_cw20;
@@ -257,8 +256,8 @@ impl Helper {
                             permissioned: false,
                         },
                         PairConfig {
-                            code_id: pair_code, // fake stable pair type
-                            pair_type: PairType::Stable {},
+                            code_id: pair_code, // yet another xyk
+                            pair_type: PairType::Custom("yet_another_xyk".to_string()),
                             total_fee_bps: 0,
                             maker_fee_bps: 0,
                             is_disabled: false,
@@ -268,11 +267,9 @@ impl Helper {
                     ],
                     token_code_id,
                     fee_address: None,
-                    generator_address: None,
+                    incentives_address: None,
                     owner: owner.to_string(),
-                    whitelist_code_id: 0,
                     coin_registry_address: coin_registry_address.to_string(),
-                    tracker_config: None,
                 },
                 &[],
                 "Astroport Factory",
@@ -313,8 +310,7 @@ impl Helper {
             &factory::ExecuteMsg::UpdateConfig {
                 token_code_id: None,
                 fee_address: None,
-                generator_address: Some(generator.to_string()),
-                whitelist_code_id: None,
+                incentives_address: Some(generator.to_string()),
                 coin_registry_address: None,
             },
             &[],
@@ -933,7 +929,7 @@ impl Helper {
             .map(|_| self.query_pair_info(&asset_infos))
     }
 
-    pub fn create_stable_pair(&mut self, asset_infos: &[AssetInfo]) -> PairInfo {
+    pub fn create_another_pair(&mut self, asset_infos: &[AssetInfo]) -> PairInfo {
         for x in asset_infos {
             if let AssetInfo::NativeToken { denom } = x {
                 self.app
@@ -955,15 +951,9 @@ impl Helper {
                 Addr::unchecked("permissionless"),
                 self.factory.clone(),
                 &factory::ExecuteMsg::CreatePair {
-                    pair_type: PairType::Stable {},
+                    pair_type: PairType::Custom("yet_another_xyk".to_string()),
                     asset_infos: asset_infos.clone(),
-                    init_params: Some(
-                        to_json_binary(&StablePoolParams {
-                            amp: 10,
-                            owner: None,
-                        })
-                        .unwrap(),
-                    ),
+                    init_params: None,
                 },
                 &[],
             )

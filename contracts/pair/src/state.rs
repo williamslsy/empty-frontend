@@ -19,21 +19,9 @@ pub struct Config {
     pub price0_cumulative_last: Uint128,
     /// The last cumulative price for asset 1
     pub price1_cumulative_last: Uint128,
-    /// Whether asset balances are tracked over blocks or not.
-    pub track_asset_balances: bool,
-    // The config for swap fee sharing
+    /// The config for swap fee sharing
     pub fee_share: Option<FeeShareConfig>,
-    /// Stores the tracker contract address
-    pub tracker_addr: Option<Addr>,
 }
 
 /// Stores the config struct at the given key
 pub const CONFIG: Item<Config> = Item::new("config");
-
-/// Stores asset balances to query them later at any block height
-pub const BALANCES: SnapshotMap<&AssetInfo, Uint128> = SnapshotMap::new(
-    "balances",
-    "balances_check",
-    "balances_change",
-    cw_storage_plus::Strategy::EveryBlock,
-);

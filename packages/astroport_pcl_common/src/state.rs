@@ -37,12 +37,8 @@ pub struct Config {
     pub pool_state: PoolState,
     /// Pool's owner
     pub owner: Option<Addr>,
-    /// Whether asset balances are tracked over blocks or not.
-    pub track_asset_balances: bool,
     /// The config for swap fee sharing
     pub fee_share: Option<FeeShareConfig>,
-    /// The tracker contract address
-    pub tracker_addr: Option<Addr>,
 }
 
 /// This structure stores the pool parameters which may be adjusted via the `update_pool_params`.

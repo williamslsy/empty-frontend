@@ -31,10 +31,6 @@ pub struct ConcentratedPoolParams {
     pub price_scale: Decimal,
     /// Half-time used for calculating the price oracle.
     pub ma_half_time: u64,
-    /// Whether asset balances are tracked over blocks or not.
-    /// They will not be tracked if the parameter is ignored.
-    /// It can not be disabled later once enabled.
-    pub track_asset_balances: Option<bool>,
     /// The config for swap fee sharing
     pub fee_share: Option<FeeShareConfig>,
 }
@@ -100,8 +96,6 @@ pub struct ConcentratedPoolConfig {
     pub price_scale: Decimal,
     /// Half-time used for calculating the price oracle.
     pub ma_half_time: u64,
-    /// Whether asset balances are tracked over blocks or not.
-    pub track_asset_balances: bool,
     /// The config for swap fee sharing
     pub fee_share: Option<FeeShareConfig>,
 }

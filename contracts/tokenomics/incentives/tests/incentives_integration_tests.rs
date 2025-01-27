@@ -1412,7 +1412,7 @@ fn test_blocked_pair_types() {
     let norm_pair2_info = helper
         .create_pair(&[tokens[0].clone(), tokens[2].clone()])
         .unwrap();
-    let blk_pair_info = helper.create_stable_pair(&[tokens[1].clone(), tokens[2].clone()]);
+    let blk_pair_info = helper.create_another_pair(&[tokens[1].clone(), tokens[2].clone()]);
 
     // Activate all pairs. blk pair is not blocked yet
     helper
