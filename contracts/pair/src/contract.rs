@@ -6,8 +6,8 @@ use std::vec;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     attr, coin, ensure_eq, from_json, to_json_binary, Addr, Binary, Coin, CosmosMsg, CustomMsg,
-    CustomQuery, Decimal, Decimal256, Deps, DepsMut, Empty, Env, MessageInfo, QuerierWrapper,
-    Reply, Response, StdError, StdResult, Uint128, Uint256, Uint64, WasmMsg,
+    CustomQuery, Decimal, Decimal256, Deps, DepsMut, Empty, Env, Isqrt, MessageInfo,
+    QuerierWrapper, Reply, Response, StdError, StdResult, Uint128, Uint256, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
@@ -26,7 +26,6 @@ use astroport::pair::{
     ReverseSimulationResponse, SimulationResponse, TWAP_PRECISION,
 };
 use astroport::querier::{query_factory_config, query_fee_info, query_supply};
-use astroport::U256;
 
 use crate::error::ContractError;
 use crate::state::{Config, CONFIG};
@@ -1172,11 +1171,9 @@ pub fn calculate_shares(
 ) -> Result<Uint128, ContractError> {
     let share = if total_share.is_zero() {
         // Initial share = collateral amount
-        let share = Uint128::new(
-            (U256::from(deposits[0].u128()) * U256::from(deposits[1].u128()))
-                .integer_sqrt()
-                .as_u128(),
-        )
+        let share = Uint128::try_from(
+            (Uint256::from(deposits[0].u128()) * Uint256::from(deposits[1].u128())).isqrt(),
+        )?
         .checked_sub(MINIMUM_LIQUIDITY_AMOUNT)
         .map_err(|_| ContractError::MinimumLiquidityAmountError {})?;
 

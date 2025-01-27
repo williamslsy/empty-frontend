@@ -2,21 +2,22 @@
 
 extern crate core;
 
-mod helper;
+use std::collections::HashMap;
+use std::str::FromStr;
 
+use cosmwasm_std::{Addr, Decimal, Decimal256};
+use proptest::prelude::*;
+
+use astroport::asset::AssetInfoExt;
+use astroport::pair_concentrated::{ConcentratedPoolParams, ConcentratedPoolUpdateParams};
+use astroport_pair_concentrated::error::ContractError;
+use astroport_pcl_common::error::PclError;
 use astroport_test::coins::TestCoin;
 use astroport_test::convert::{dec_to_f64, f64_to_dec};
 
 use crate::helper::{common_pcl_params, AppExtension, Helper};
-use astroport::asset::AssetInfoExt;
-use astroport::cosmwasm_ext::AbsDiff;
-use astroport::pair_concentrated::{ConcentratedPoolParams, ConcentratedPoolUpdateParams};
-use astroport_pair_concentrated::error::ContractError;
-use astroport_pcl_common::error::PclError;
-use cosmwasm_std::{Addr, Decimal, Decimal256};
-use proptest::prelude::*;
-use std::collections::HashMap;
-use std::str::FromStr;
+
+mod helper;
 
 const MAX_EVENTS: usize = 100;
 
@@ -168,7 +169,7 @@ fn simulate_provide_case(case: Vec<(impl Into<String>, u128, u128, u64)>) {
             let xcp_profit = config.pool_state.price_state.xcp_profit;
 
             assert!(
-                lp_price.diff(xcp_profit) <= xcp_profit_real_tolerance,
+                lp_price.abs_diff(xcp_profit) <= xcp_profit_real_tolerance,
                 "Virtual lp price {lp_price} should be equal to xcp profit {xcp_profit} until first price repeg"
             )
         }

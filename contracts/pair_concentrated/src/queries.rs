@@ -141,7 +141,7 @@ pub fn query_simulation(
     let config = CONFIG.load(deps.storage)?;
     let precisions = Precisions::new(deps.storage)?;
     let offer_asset_prec = precisions.get_precision(&offer_asset.info)?;
-    let offer_asset_dec = offer_asset.to_decimal_asset(offer_asset_prec)?;
+    let offer_asset_dec = offer_asset.to_decimal_asset(offer_asset_prec);
 
     let pools = query_pools(deps.querier, &env.contract.address, &config, &precisions)?;
 
@@ -198,7 +198,7 @@ pub fn query_reverse_simulation(
     let config = CONFIG.load(deps.storage)?;
     let precisions = Precisions::new(deps.storage)?;
     let ask_asset_prec = precisions.get_precision(&ask_asset.info)?;
-    let ask_asset_dec = ask_asset.to_decimal_asset(ask_asset_prec)?;
+    let ask_asset_dec = ask_asset.to_decimal_asset(ask_asset_prec);
 
     let pools = query_pools(deps.querier, &env.contract.address, &config, &precisions)?;
 
@@ -247,7 +247,7 @@ fn query_cumulative_prices(
 pub fn query_lp_price(deps: Deps, env: Env) -> StdResult<Decimal256> {
     let config = CONFIG.load(deps.storage)?;
     let total_lp = query_supply(&deps.querier, &config.pair_info.liquidity_token)?
-        .to_decimal256(LP_TOKEN_PRECISION)?;
+        .to_decimal256(LP_TOKEN_PRECISION);
     if !total_lp.is_zero() {
         let precisions = Precisions::new(deps.storage)?;
         let mut ixs = query_pools(deps.querier, &env.contract.address, &config, &precisions)
@@ -328,7 +328,7 @@ pub fn query_simulate_provide(
     let mut config = CONFIG.load(deps.storage)?;
 
     let total_share = query_supply(&deps.querier, &config.pair_info.liquidity_token)?
-        .to_decimal256(LP_TOKEN_PRECISION)?;
+        .to_decimal256(LP_TOKEN_PRECISION);
 
     let precisions = Precisions::new(deps.storage)?;
 

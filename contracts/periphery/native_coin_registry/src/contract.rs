@@ -7,7 +7,7 @@ use cosmwasm_std::{
     attr, ensure, to_json_binary, BankMsg, Binary, Deps, DepsMut, Empty, Env, Event, MessageInfo,
     Order, Response, StdError, StdResult, Storage,
 };
-use cw2::{get_contract_version, set_contract_version};
+use cw2::set_contract_version;
 use cw_storage_plus::Bound;
 use itertools::Itertools;
 

@@ -6,7 +6,7 @@ use cosmwasm_std::{
     attr, ensure, ensure_eq, from_json, wasm_execute, Addr, Binary, Coin, CosmosMsg, Decimal,
     Decimal256, DepsMut, Empty, Env, MessageInfo, Reply, Response, StdError, StdResult, Uint128,
 };
-use cw2::{get_contract_version, set_contract_version};
+use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use cw_utils::{one_coin, PaymentError};
 use itertools::Itertools;
@@ -395,7 +395,7 @@ pub fn provide_liquidity(
     let mut config = CONFIG.load(deps.storage)?;
 
     let total_share = query_supply(&deps.querier, &config.pair_info.liquidity_token)?
-        .to_decimal256(LP_TOKEN_PRECISION)?;
+        .to_decimal256(LP_TOKEN_PRECISION);
 
     let precisions = Precisions::new(deps.storage)?;
 
@@ -538,7 +538,7 @@ fn withdraw_liquidity(
     let d = calc_d(&xs, &amp_gamma)?;
     config.pool_state.price_state.xcp_profit_real =
         get_xcp(d, config.pool_state.price_state.price_scale)
-            / (total_share - amount).to_decimal256(LP_TOKEN_PRECISION)?;
+            / (total_share - amount).to_decimal256(LP_TOKEN_PRECISION);
 
     let refund_assets = refund_assets
         .into_iter()
@@ -598,7 +598,7 @@ fn swap(
 ) -> Result<Response, ContractError> {
     let precisions = Precisions::new(deps.storage)?;
     let offer_asset_prec = precisions.get_precision(&offer_asset.info)?;
-    let offer_asset_dec = offer_asset.to_decimal_asset(offer_asset_prec)?;
+    let offer_asset_dec = offer_asset.to_decimal_asset(offer_asset_prec);
     let mut config = CONFIG.load(deps.storage)?;
 
     let mut pools = query_pools(deps.querier, &env.contract.address, &config, &precisions)?;
@@ -656,7 +656,7 @@ fn swap(
     )?;
 
     let total_share = query_supply(&deps.querier, &config.pair_info.liquidity_token)?
-        .to_decimal256(LP_TOKEN_PRECISION)?;
+        .to_decimal256(LP_TOKEN_PRECISION);
 
     // Skip very small trade sizes which could significantly mess up the price due to rounding errors,
     // especially if token precisions are 18.

@@ -1,29 +1,6 @@
-use std::ops;
-
-use crate::asset::Decimal256Ext;
 use cosmwasm_std::{
-    ConversionOverflowError, Decimal, Decimal256, Fraction, StdError, StdResult, Uint128, Uint256,
-    Uint64,
+    ConversionOverflowError, Decimal, Decimal256, Fraction, StdError, Uint128, Uint256,
 };
-
-pub trait AbsDiff
-where
-    Self: Copy + PartialOrd + ops::Sub<Output = Self>,
-{
-    fn diff(self, rhs: Self) -> Self {
-        if self > rhs {
-            self - rhs
-        } else {
-            rhs - self
-        }
-    }
-}
-
-impl AbsDiff for Uint256 {}
-impl AbsDiff for Uint128 {}
-impl AbsDiff for Uint64 {}
-impl AbsDiff for Decimal {}
-impl AbsDiff for Decimal256 {}
 
 pub trait IntegerToDecimal
 where
@@ -33,8 +10,8 @@ where
         Decimal::from_ratio(self, 1u8)
     }
 
-    fn to_decimal256(self, precision: impl Into<u32>) -> StdResult<Decimal256> {
-        Decimal256::with_precision(self, precision)
+    fn to_decimal256(self, precision: impl Into<u32>) -> Decimal256 {
+        Decimal256::from_ratio(self, 10u128.pow(precision.into()))
     }
 }
 

@@ -3,8 +3,8 @@ use cosmwasm_std::{
 };
 use itertools::Itertools;
 
-use astroport::asset::{Asset, Decimal256Ext, DecimalAsset, MINIMUM_LIQUIDITY_AMOUNT};
-use astroport::cosmwasm_ext::{AbsDiff, DecimalToInteger, IntegerToDecimal};
+use astroport::asset::{Asset, DecimalAsset, MINIMUM_LIQUIDITY_AMOUNT};
+use astroport::cosmwasm_ext::{DecimalToInteger, IntegerToDecimal};
 use astroport::pair::MIN_TRADE_SIZE;
 use astroport::querier::query_supply;
 use astroport_pcl_common::state::{Config, Precisions};
@@ -41,11 +41,7 @@ pub(crate) fn query_pools(
         .pair_info
         .query_pools(&querier, addr)?
         .into_iter()
-        .map(|asset| {
-            asset
-                .to_decimal_asset(precisions.get_precision(&asset.info)?)
-                .map_err(Into::into)
-        })
+        .map(|asset| Ok(asset.to_decimal_asset(precisions.get_precision(&asset.info)?)))
         .collect()
 }
 
@@ -97,8 +93,12 @@ pub(crate) fn get_assets_with_precision(
 
     // precisions.get_precision() also validates that the asset belongs to the pool
     Ok(vec![
-        Decimal256::with_precision(assets[0].amount, precisions.get_precision(&assets[0].info)?)?,
-        Decimal256::with_precision(assets[1].amount, precisions.get_precision(&assets[1].info)?)?,
+        assets[0]
+            .amount
+            .to_decimal256(precisions.get_precision(&assets[0].info)?),
+        assets[1]
+            .amount
+            .to_decimal256(precisions.get_precision(&assets[1].info)?),
     ])
 }
 
@@ -128,7 +128,7 @@ pub(crate) fn calculate_shares(
     let share = if total_share.is_zero() {
         let xcp = get_xcp(new_d, config.pool_state.price_state.price_scale);
         let mint_amount = xcp
-            .checked_sub(MINIMUM_LIQUIDITY_AMOUNT.to_decimal256(LP_TOKEN_PRECISION)?)
+            .checked_sub(MINIMUM_LIQUIDITY_AMOUNT.to_decimal256(LP_TOKEN_PRECISION))
             .map_err(|_| ContractError::MinimumLiquidityAmountError {})?;
 
         // share cannot become zero after minimum liquidity subtraction
@@ -159,8 +159,8 @@ pub(crate) fn calculate_shares(
         new_xp[1] * share_ratio / config.pool_state.price_state.price_scale,
     ];
     let assets_diff = [
-        deposits[0].diff(balanced_share[0]),
-        deposits[1].diff(balanced_share[1]),
+        deposits[0].abs_diff(balanced_share[0]),
+        deposits[1].abs_diff(balanced_share[1]),
     ];
 
     let mut slippage = Decimal256::zero();

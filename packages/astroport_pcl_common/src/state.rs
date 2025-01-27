@@ -8,7 +8,7 @@ use cosmwasm_std::{
 use cw_storage_plus::Map;
 
 use astroport::asset::{AssetInfo, PairInfo};
-use astroport::cosmwasm_ext::{AbsDiff, IntegerToDecimal};
+use astroport::cosmwasm_ext::IntegerToDecimal;
 use astroport::pair::FeeShareConfig;
 use astroport::pair_concentrated::{PromoteParams, UpdatePoolParams};
 
@@ -347,7 +347,7 @@ impl PoolState {
 
         let xcp_profit = price_state.xcp_profit;
 
-        let norm = (price_state.oracle_price / price_state.price_scale).diff(Decimal256::one());
+        let norm = (price_state.oracle_price / price_state.price_scale).abs_diff(Decimal256::one());
         let scale_delta = Decimal256::from(pool_params.min_price_scale_delta)
             .max(norm * Decimal256::from_ratio(1u8, 10u8));
 

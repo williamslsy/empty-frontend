@@ -15,7 +15,6 @@ homepage = "https://astroport.fi"
 [dependencies]
 cw20 = "2.0"
 cosmwasm-std.workspace = true
-uint = "0.10"
 cw-storage-plus.workspace = true
 itertools.workspace = true
 cosmwasm-schema.workspace = true

@@ -1445,7 +1445,7 @@ fn check_small_trades() {
         .unwrap()
         .assets
         .into_iter()
-        .map(|asset| asset.amount.to_decimal256(6u8).unwrap())
+        .map(|asset| asset.amount.to_decimal256(6u8))
         .collect_vec();
 
     let ixs = [pool[0], pool[1] * config.pool_state.price_state.price_scale];
@@ -1473,7 +1473,7 @@ fn check_small_trades() {
         .unwrap()
         .assets
         .into_iter()
-        .map(|asset| asset.amount.to_decimal256(6u8).unwrap())
+        .map(|asset| asset.amount.to_decimal256(6u8))
         .collect_vec();
 
     let ixs = [pool[0], pool[1] * config.pool_state.price_state.price_scale];
@@ -1525,7 +1525,7 @@ fn check_small_trades_18decimals() {
         .unwrap()
         .assets
         .into_iter()
-        .map(|asset| asset.amount.to_decimal256(6u8).unwrap())
+        .map(|asset| asset.amount.to_decimal256(6u8))
         .collect_vec();
 
     let ixs = [pool[0], pool[1] * config.pool_state.price_state.price_scale];
@@ -1554,7 +1554,7 @@ fn check_small_trades_18decimals() {
         .unwrap()
         .assets
         .into_iter()
-        .map(|asset| asset.amount.to_decimal256(6u8).unwrap())
+        .map(|asset| asset.amount.to_decimal256(6u8))
         .collect_vec();
 
     let ixs = [pool[0], pool[1] * config.pool_state.price_state.price_scale];
