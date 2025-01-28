@@ -5,7 +5,7 @@ use cosmwasm_std::{
 use itertools::Itertools;
 
 use astroport::asset::{Asset, AssetInfo, DecimalAsset};
-use astroport::cosmwasm_ext::DecimalToInteger;
+use astroport::cosmwasm_ext::{DecMul, DecimalToInteger};
 use astroport::querier::query_factory_config;
 use astroport_factory::state::pair_key;
 
@@ -151,15 +151,11 @@ pub fn assert_max_spread(
     }
 
     if let Some(belief_price) = belief_price {
-        // TODO: fix Decimal256 * Uint256 multiplication
-        // let expected_return = offer_amount
-        //     * belief_price.inv().ok_or_else(|| {
-        //         StdError::generic_err("Invalid belief_price. Check the input values.")
-        //     })?;
-        //
-        // let spread_amount = expected_return.saturating_sub(return_amount);
-        let expected_return = Uint128::zero();
-        let spread_amount = Uint128::zero();
+        let expected_return = offer_amount.dec_mul(belief_price.inv().ok_or_else(|| {
+            StdError::generic_err("Invalid belief_price. Check the input values.")
+        })?);
+
+        let spread_amount = expected_return.saturating_sub(return_amount);
 
         if return_amount < expected_return
             && Decimal256::from_ratio(spread_amount, expected_return) > max_spread

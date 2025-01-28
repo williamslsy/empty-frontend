@@ -7,6 +7,7 @@ use itertools::Itertools;
 
 use astroport::asset::{Asset, AssetInfo, AssetInfoExt};
 use astroport::common::OwnershipProposal;
+use astroport::cosmwasm_ext::DecMul;
 use astroport::incentives::{Config, IncentivesSchedule};
 use astroport::incentives::{PoolInfoResponse, RewardInfo, RewardType};
 use astroport::incentives::{MAX_PAGE_LIMIT, MAX_REWARD_TOKENS};
@@ -65,16 +66,10 @@ impl RewardInfoExt for RewardInfo {
         let user_amount = Uint256::from(user_info.amount);
         let u256_result = match user_index_opt {
             Some((_, user_reward_index)) if *user_reward_index > self.index => {
-                // TODO: Decimal256 * Uint256 multiplication
-                // self.index * user_amount
-                Uint256::zero()
+                user_amount.dec_mul(self.index)
             }
-            // TODO: Decimal256 * Uint256 multiplication
-            // None => self.index * user_amount,
-            None => Uint256::zero(),
-            // TODO: Decimal256 * Uint256 multiplication
-            // Some((_, user_reward_index)) => (self.index - *user_reward_index) * user_amount,
-            Some((_, ..)) => Uint256::zero(),
+            None => user_amount.dec_mul(self.index),
+            Some((_, user_reward_index)) => user_amount.dec_mul(self.index - *user_reward_index),
         };
 
         Ok(u256_result.try_into()?)
@@ -665,15 +660,11 @@ impl UserInfo {
                                 })
                                 .unwrap_or_default();
 
-                            // TODO: Decimal256 * Uint256 multiplication
-                            // (finished_index - user_reward_index) * lp_tokens_amount
-                            Uint256::zero()
+                            lp_tokens_amount.dec_mul(finished_index - user_reward_index)
                         } else {
                             // Subsequent finished schedules consider user never claimed rewards
                             // thus their index was 0
-                            // TODO: Decimal256 * Uint256 multiplication
-                            // finished_index * lp_tokens_amount
-                            Uint256::zero()
+                            lp_tokens_amount.dec_mul(finished_index)
                         };
 
                         Ok(reward_info.with_balance(Uint128::try_from(amount)?))

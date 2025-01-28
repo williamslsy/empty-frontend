@@ -6,7 +6,7 @@ use std::vec;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     attr, coin, ensure_eq, from_json, to_json_binary, Addr, Binary, Coin, CosmosMsg, CustomMsg,
-    CustomQuery, Decimal, Decimal256, Deps, DepsMut, Empty, Env, Isqrt, MessageInfo,
+    CustomQuery, Decimal, Decimal256, Deps, DepsMut, Empty, Env, Fraction, Isqrt, MessageInfo,
     QuerierWrapper, Reply, Response, StdError, StdResult, Uint128, Uint256, WasmMsg,
 };
 use cw2::set_contract_version;
@@ -17,6 +17,7 @@ use astroport::asset::{
     addr_opt_validate, check_swap_parameters, Asset, AssetInfo, CoinsExt, PairInfo,
     MINIMUM_LIQUIDITY_AMOUNT,
 };
+use astroport::cosmwasm_ext::DecMul;
 use astroport::pair::{
     ConfigResponse, FeeShareConfig, ReplyIds, XYKPoolConfig, XYKPoolUpdateParams, DEFAULT_SLIPPAGE,
     MAX_ALLOWED_SLIPPAGE, MAX_FEE_SHARE_BPS,
@@ -515,8 +516,7 @@ pub fn get_share_in_assets(pools: &[Asset], amount: Uint128, total_share: Uint12
         .iter()
         .map(|a| Asset {
             info: a.info.clone(),
-            // amount: a.amount * share_ratio,
-            amount: todo!("multiply Uint128 by Decimal"),
+            amount: a.amount.dec_mul(share_ratio),
         })
         .collect()
 }
@@ -621,21 +621,20 @@ pub fn swap(
     if let Some(fee_share) = config.fee_share.clone() {
         // Calculate the fee share amount from the full commission amount
         let share_fee_rate = Decimal::from_ratio(fee_share.bps, 10000u16);
-        todo!("multiply Uint128 by Decimal");
-        // fee_share_amount = fees_commission_amount * share_fee_rate;
+        fee_share_amount = fees_commission_amount.dec_mul(share_fee_rate);
 
-        // if !fee_share_amount.is_zero() {
-        //     // Subtract the fee share amount from the commission
-        //     fees_commission_amount = fees_commission_amount.saturating_sub(fee_share_amount);
-        //
-        //     // Build send message for the shared amount
-        //     let fee_share_msg = Asset {
-        //         info: ask_pool.info.clone(),
-        //         amount: fee_share_amount,
-        //     }
-        //     .into_msg(fee_share.recipient)?;
-        //     messages.push(fee_share_msg);
-        // }
+        if !fee_share_amount.is_zero() {
+            // Subtract the fee share amount from the commission
+            fees_commission_amount = fees_commission_amount.saturating_sub(fee_share_amount);
+
+            // Build send message for the shared amount
+            let fee_share_msg = Asset {
+                info: ask_pool.info.clone(),
+                amount: fee_share_amount,
+            }
+            .into_msg(fee_share.recipient)?;
+            messages.push(fee_share_msg);
+        }
     }
 
     // Compute the Maker fee
@@ -797,16 +796,15 @@ pub fn calculate_maker_fee(
     commission_amount: Uint128,
     maker_commission_rate: Decimal,
 ) -> Option<Asset> {
-    todo!("multiply Uint128 by Decimal");
-    // let maker_fee: Uint128 = commission_amount * maker_commission_rate;
-    // if maker_fee.is_zero() {
-    //     return None;
-    // }
-    //
-    // Some(Asset {
-    //     info: pool_info.clone(),
-    //     amount: maker_fee,
-    // })
+    let maker_fee = commission_amount.dec_mul(maker_commission_rate);
+    if maker_fee.is_zero() {
+        return None;
+    }
+
+    Some(Asset {
+        info: pool_info.clone(),
+        amount: maker_fee,
+    })
 }
 
 /// Exposes all the queries available in the contract.
@@ -1084,20 +1082,16 @@ pub fn compute_swap(
 
     // ask_amount = (ask_pool - cp / (offer_pool + offer_amount))
     let cp: Uint256 = offer_pool * ask_pool;
-    // TODO: Decimal256 * Uint256 multiplication
-    let return_amount: Uint256 = 0u128.into();
-    // let return_amount: Uint256 = (Decimal256::from_ratio(ask_pool, 1u8)
-    //     - Decimal256::from_ratio(cp, offer_pool + offer_amount))
-    //     * Uint256::from(1u8);
+    let return_amount = Uint256::one().dec_mul(
+        Decimal256::from_ratio(ask_pool, 1u8)
+            - Decimal256::from_ratio(cp, offer_pool + offer_amount),
+    );
 
     // Calculate spread & commission
-    // TODO: Decimal256 * Uint256 multiplication
-    let spread_amount: Uint256 = 0u128.into();
-    // let spread_amount: Uint256 =
-    //     (offer_amount * Decimal256::from_ratio(ask_pool, offer_pool)).saturating_sub(return_amount);
-    // TODO: Decimal256 * Uint256 multiplication
-    let commission_amount: Uint256 = 0u128.into();
-    // let commission_amount: Uint256 = return_amount * commission_rate;
+    let spread_amount: Uint256 = offer_amount
+        .dec_mul(Decimal256::from_ratio(ask_pool, offer_pool))
+        .saturating_sub(return_amount);
+    let commission_amount: Uint256 = return_amount.dec_mul(commission_rate);
 
     // The commision (minus the part that goes to the Maker contract) will be absorbed by the pool
     let return_amount: Uint256 = return_amount - commission_amount;
@@ -1131,26 +1125,24 @@ pub fn compute_offer_amount(
     let one_minus_commission = Decimal256::one() - Decimal256::from(commission_rate);
     let inv_one_minus_commission = Decimal256::one() / one_minus_commission;
 
-    // TODO: Decimal256 * Uint256 multiplication
-    let offer_amount = 0u8.into();
-    // let offer_amount: Uint128 = cp
-    //     .multiply_ratio(
-    //         Uint256::from(1u8),
-    //         Uint256::from(
-    //             ask_pool.checked_sub(
-    //                 (Uint256::from(ask_amount) * inv_one_minus_commission).try_into()?,
-    //             )?,
-    //         ),
-    //     )
-    //     .checked_sub(offer_pool.into())?
-    //     .try_into()?;
+    let offer_amount: Uint128 = cp
+        .multiply_ratio(
+            Uint256::one(),
+            Uint256::from(ask_pool.checked_sub(
+                (Uint256::from(ask_amount).dec_mul(inv_one_minus_commission)).try_into()?,
+            )?),
+        )
+        .checked_sub(offer_pool.into())?
+        .try_into()?;
 
-    // TODO: Decimal256 * Uint256 multiplication
-    // let before_commission_deduction = Uint256::from(ask_amount) * inv_one_minus_commission;
-    // let spread_amount = (offer_amount * Decimal::from_ratio(ask_pool, offer_pool))
-    //     .saturating_sub(before_commission_deduction.try_into()?);
-    // let commission_amount = before_commission_deduction * Decimal256::from(commission_rate);
-    Ok((offer_amount, 0u8.into(), 0u8.into()))
+    let before_commission_deduction = Uint256::from(ask_amount).dec_mul(inv_one_minus_commission);
+    let spread_amount = offer_amount
+        .dec_mul(Decimal::from_ratio(ask_pool, offer_pool))
+        .saturating_sub(before_commission_deduction.try_into()?);
+    let commission_amount = before_commission_deduction
+        .dec_mul(Decimal256::from(commission_rate))
+        .try_into()?;
+    Ok((offer_amount, spread_amount, commission_amount))
 }
 
 /// Returns shares for the provided deposits.
@@ -1264,18 +1256,18 @@ pub fn assert_max_spread(
     }
 
     if let Some(belief_price) = belief_price {
-        // TODO: Decimal * Uint128 multiplication
-        // let expected_return = offer_amount
-        //     * belief_price
-        //         .inv()
-        //         .ok_or_else(|| StdError::generic_err("Belief price must not be zero!"))?;
-        // let spread_amount = expected_return.saturating_sub(return_amount);
-        //
-        // if return_amount < expected_return
-        //     && Decimal::from_ratio(spread_amount, expected_return) > max_spread
-        // {
-        //     return Err(ContractError::MaxSpreadAssertion {});
-        // }
+        let expected_return = offer_amount.dec_mul(
+            belief_price
+                .inv()
+                .ok_or_else(|| StdError::generic_err("Belief price must not be zero!"))?,
+        );
+        let spread_amount = expected_return.saturating_sub(return_amount);
+
+        if return_amount < expected_return
+            && Decimal::from_ratio(spread_amount, expected_return) > max_spread
+        {
+            return Err(ContractError::MaxSpreadAssertion {});
+        }
     } else if Decimal::from_ratio(spread_amount, return_amount + spread_amount) > max_spread {
         return Err(ContractError::MaxSpreadAssertion {});
     }

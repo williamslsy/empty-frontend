@@ -46,3 +46,19 @@ impl ConvertInto<Decimal> for Decimal256 {
             .map_err(|err| StdError::generic_err(err.to_string()))
     }
 }
+
+pub trait DecMul<T> {
+    fn dec_mul(self, rhs: T) -> Self;
+}
+
+impl DecMul<Decimal> for Uint128 {
+    fn dec_mul(self, rhs: Decimal) -> Self {
+        self * rhs.numerator() / rhs.denominator()
+    }
+}
+
+impl DecMul<Decimal256> for Uint256 {
+    fn dec_mul(self, rhs: Decimal256) -> Self {
+        self * rhs.numerator() / rhs.denominator()
+    }
+}

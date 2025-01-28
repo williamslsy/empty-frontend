@@ -6,6 +6,7 @@ use cw20_base::msg::InstantiateMsg as TokenInstantiateMsg;
 use cw_multi_test::{App, AppBuilder, ContractWrapper, Executor};
 
 use astroport::asset::{native_asset_info, Asset, AssetInfo, PairInfo};
+use astroport::cosmwasm_ext::DecMul;
 use astroport::factory::{
     ExecuteMsg as FactoryExecuteMsg, InstantiateMsg as FactoryInstantiateMsg, PairConfig, PairType,
     QueryMsg as FactoryQueryMsg,
@@ -1751,10 +1752,12 @@ fn test_fee_share(
     app.execute_contract(owner.clone(), token_x_instance.clone(), &swap_msg, &[])
         .unwrap();
 
-    // TODO: fix Decimal * Uint128 multiplication
-    // let y_expected_return =
-    //     x_offer - Uint128::from((x_offer * Decimal::from_ratio(total_fee_bps, 10000u64)).u128());
-    let y_expected_return = Uint128::zero();
+    let y_expected_return = x_offer
+        - Uint128::from(
+            x_offer
+                .dec_mul(Decimal::from_ratio(total_fee_bps, 10000u64))
+                .u128(),
+        );
 
     let msg = Cw20QueryMsg::Balance {
         address: user.to_string(),
