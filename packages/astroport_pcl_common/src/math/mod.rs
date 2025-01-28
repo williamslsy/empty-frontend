@@ -1,4 +1,6 @@
-use cosmwasm_std::{Decimal256, StdResult};
+use cosmwasm_std::{Decimal256, StdError, StdResult};
+
+pub use math_decimal::half_float_pow;
 
 use crate::consts::N;
 use crate::math::math_decimal::{geometric_mean, newton_d, newton_y};
@@ -7,9 +9,6 @@ use crate::state::AmpGamma;
 mod math_decimal;
 #[cfg(test)]
 mod math_f64;
-mod signed_decimal;
-
-pub use math_decimal::half_float_pow;
 
 /// Calculate D invariant based on known pool volumes.
 ///
@@ -17,6 +16,7 @@ pub use math_decimal::half_float_pow;
 /// * **amp_gamma** - an object which represents current Amp and Gamma parameters.
 pub fn calc_d(xs: &[Decimal256], amp_gamma: &AmpGamma) -> StdResult<Decimal256> {
     newton_d(xs, amp_gamma.amp.into(), amp_gamma.gamma.into())
+        .map_err(|err| StdError::generic_err(err.to_string()))
 }
 
 /// Calculate unknown pool's volume based on the other side of pools which is known and D.
@@ -32,6 +32,7 @@ pub fn calc_y(
     ask_ind: usize,
 ) -> StdResult<Decimal256> {
     newton_y(xs, amp_gamma.amp.into(), amp_gamma.gamma.into(), d, ask_ind)
+        .map_err(|err| StdError::generic_err(err.to_string()))
 }
 
 /// Get current XCP.

@@ -1,11 +1,11 @@
-use cosmwasm_std::{Decimal256, Fraction, StdError, StdResult, Uint128};
-
-use crate::consts::{HALFPOW_TOL, MAX_ITER, N, N_POW2, TOL};
-use crate::math::signed_decimal::SignedDecimal256;
+use cosmwasm_std::{Decimal256, Fraction, SignedDecimal256, StdError, StdResult, Uint128};
 use itertools::Itertools;
 
+use crate::consts::{HALFPOW_TOL, MAX_ITER, N, N_POW2, TOL};
+use crate::error::PclError;
+
 /// Internal constant to increase calculation accuracy.
-const PADDING: Decimal256 = Decimal256::raw(1e36 as u128);
+const PADDING: SignedDecimal256 = SignedDecimal256::raw(1e36 as i128);
 
 pub fn geometric_mean(x: &[Decimal256]) -> Decimal256 {
     (x[0] * x[1]).sqrt()
@@ -14,34 +14,36 @@ pub fn geometric_mean(x: &[Decimal256]) -> Decimal256 {
 pub(crate) fn f(
     d: SignedDecimal256,
     x: &[SignedDecimal256],
-    a: Decimal256,
-    gamma: Decimal256,
+    a: SignedDecimal256,
+    gamma: SignedDecimal256,
 ) -> SignedDecimal256 {
     let mul = x[0] * x[1];
     let d_pow2 = d.pow(2);
+    let n_pow2 = SignedDecimal256::try_from(N_POW2).unwrap();
 
-    let prod_n_n = mul * N_POW2;
+    let prod_n_n = mul * n_pow2;
     let k = a * gamma.pow(2) * prod_n_n
-        / ((gamma + Decimal256::one() - prod_n_n / d_pow2).pow(2) * d_pow2);
+        / ((gamma + SignedDecimal256::one() - prod_n_n / d_pow2).pow(2) * d_pow2);
 
-    d * (x[0] + x[1]) * k + mul - k * d_pow2 - d_pow2 / N_POW2
+    d * (x[0] + x[1]) * k + mul - k * d_pow2 - d_pow2 / n_pow2
 }
 
 /// df/dD
 pub(crate) fn df_dd(
     d: SignedDecimal256,
     x: &[SignedDecimal256],
-    a: Decimal256,
-    gamma: Decimal256,
+    a: SignedDecimal256,
+    gamma: SignedDecimal256,
 ) -> SignedDecimal256 {
+    let n = SignedDecimal256::try_from(N).unwrap();
     let a_gamma_pow_2 = a * gamma.pow(2); // A * gamma^2
-    let gamma_plus_1 = gamma + Decimal256::one();
+    let gamma_plus_1 = gamma + SignedDecimal256::one();
     let d_pow_n = d.pow(2);
-    let prod_n_n = x[0] * x[1] * N_POW2;
+    let prod_n_n = x[0] * x[1] * SignedDecimal256::try_from(N_POW2).unwrap();
     let sum = x[0] + x[1];
 
     let k0 = prod_n_n / d_pow_n;
-    let k0_prime = -SignedDecimal256::from(N) * prod_n_n;
+    let k0_prime = -SignedDecimal256::try_from(N).unwrap() * prod_n_n;
 
     let gamma_one_k0 = gamma_plus_1 - k0; // gamma + 1 - K0
 
@@ -51,48 +53,55 @@ pub(crate) fn df_dd(
 
     k_prime_numerator * d * sum / k_prime_denominator + k * sum
         - k_prime_numerator * d_pow_n / k_prime_denominator
-        - N * k * d
-        - d / N
+        - n * k * d
+        - d / n
 }
 
 pub(crate) fn newton_d(
     x: &[Decimal256],
     a: Decimal256,
     gamma: Decimal256,
-) -> StdResult<Decimal256> {
-    let mut d_prev: SignedDecimal256 = (N * geometric_mean(x)).into();
-    let x = x.iter().map(SignedDecimal256::from).collect_vec();
+) -> Result<Decimal256, PclError> {
+    let mut d_prev: SignedDecimal256 = (N * geometric_mean(x)).try_into()?;
+
+    let x = x
+        .iter()
+        .map(|val| Ok(SignedDecimal256::try_from(*val)?))
+        .collect::<Result<Vec<_>, PclError>>()?;
+    let a = SignedDecimal256::try_from(a)?;
+    let gamma = SignedDecimal256::try_from(gamma)?;
 
     for _ in 0..MAX_ITER {
         let d = d_prev - f(d_prev, &x, a, gamma) / df_dd(d_prev, &x, a, gamma);
-        if d.diff(d_prev) <= TOL {
-            return d.try_into();
+        if d.abs_diff(d_prev) <= TOL {
+            return Ok(d.try_into()?);
         }
         d_prev = d;
     }
 
-    Err(StdError::generic_err("newton_d is not converging"))
+    Err(PclError::ConvergenceFailure("newton_d".to_string()))
 }
 
 /// df/dx
 pub(crate) fn df_dx(
-    d: Decimal256,
+    d: SignedDecimal256,
     x: &[SignedDecimal256],
-    a: Decimal256,
-    gamma: Decimal256,
+    a: SignedDecimal256,
+    gamma: SignedDecimal256,
     i: usize,
 ) -> SignedDecimal256 {
     let x_r = x[1 - i];
     let d_pow2 = d.pow(2);
+    let n_pow2 = SignedDecimal256::try_from(N_POW2).unwrap();
 
-    let k0 = x[0] * x[1] * N_POW2 / d_pow2;
-    let gamma_one_k0 = gamma + Decimal256::one() - k0;
+    let k0 = x[0] * x[1] * n_pow2 / d_pow2;
+    let gamma_one_k0 = gamma + SignedDecimal256::one() - k0;
     let gamma_one_k0_pow2 = gamma_one_k0.pow(2);
     let a_gamma_pow2 = a * gamma.pow(2);
 
     let k = a_gamma_pow2 * k0 / gamma_one_k0_pow2;
-    let k0_x = x_r * N_POW2;
-    let k_x = k0_x * a_gamma_pow2 * (gamma + Decimal256::one() + k0) * PADDING
+    let k0_x = x_r * n_pow2;
+    let k_x = k0_x * a_gamma_pow2 * (gamma + SignedDecimal256::one() + k0) * PADDING
         / (PADDING * d_pow2 * gamma_one_k0 * gamma_one_k0_pow2);
 
     (k_x * (x[0] + x[1]) + k) * d + x_r - k_x * d_pow2
@@ -104,22 +113,28 @@ pub(crate) fn newton_y(
     gamma: Decimal256,
     d: Decimal256,
     j: usize,
-) -> StdResult<Decimal256> {
-    let mut x = xs.iter().map(SignedDecimal256::from).collect_vec();
-    let x0 = d.pow(2) / (N_POW2 * x[1 - j]);
+) -> Result<Decimal256, PclError> {
+    let a = SignedDecimal256::try_from(a)?;
+    let gamma = SignedDecimal256::try_from(gamma)?;
+    let d = SignedDecimal256::try_from(d)?;
+    let mut x = xs
+        .iter()
+        .map(|val| Ok(SignedDecimal256::try_from(*val)?))
+        .collect::<Result<Vec<_>, PclError>>()?;
+    let x0 = d.pow(2) / (SignedDecimal256::try_from(N_POW2).unwrap() * x[1 - j]);
     let mut xi_1 = x0;
     x[j] = x0;
 
     for _ in 0..MAX_ITER {
         let xi = xi_1 - f(d.into(), &x, a, gamma) / df_dx(d, &x, a, gamma, j);
-        if xi.diff(xi_1) <= TOL {
-            return xi.try_into();
+        if xi.abs_diff(xi_1) <= TOL {
+            return Ok(xi.try_into()?);
         }
         x[j] = xi;
         xi_1 = xi;
     }
 
-    Err(StdError::generic_err("newton_y is not converging"))
+    Err(PclError::ConvergenceFailure("newton_y".to_string()))
 }
 
 /// Calculates 0.5^power.
@@ -284,13 +299,16 @@ mod tests {
         let d_f64 = 2000000f64;
         let (x1, x2) = (1_000000f64, 1_000000f64);
 
-        let a = f64_to_dec(a_f64);
-        let gamma = f64_to_dec(gamma_f64);
-        let d = f64_to_dec(d_f64);
-        let x: [SignedDecimal256; 2] = [f64_to_dec(x1).into(), f64_to_dec(x2).into()];
+        let a = f64_to_dec(a_f64).try_into().unwrap();
+        let gamma = f64_to_dec(gamma_f64).try_into().unwrap();
+        let d: SignedDecimal256 = f64_to_dec(d_f64).try_into().unwrap();
+        let x: [SignedDecimal256; 2] = [
+            f64_to_dec(x1).try_into().unwrap(),
+            f64_to_dec(x2).try_into().unwrap(),
+        ];
 
         let der_f64 = crate::math::math_f64::df_dd(d_f64, &[x1, x2], a_f64, gamma_f64);
-        let der = df_dd(d.into(), &x, a, gamma);
+        let der = df_dd(d.try_into().unwrap(), &x, a, gamma);
         assert_values(der, der_f64);
 
         let dx_f64 = crate::math::math_f64::df_dx(d_f64, &[x1, x2], a_f64, gamma_f64, 0);
@@ -300,12 +318,12 @@ mod tests {
 
     #[test]
     fn test_f() {
-        let a = f64_to_dec(40f64);
-        let gamma = f64_to_dec(0.000145);
-        let d = f64_to_dec(20000000f64);
+        let a = f64_to_dec(40f64).try_into().unwrap();
+        let gamma = f64_to_dec(0.000145).try_into().unwrap();
+        let d: SignedDecimal256 = f64_to_dec(20000000f64).try_into().unwrap();
         let x: [SignedDecimal256; 2] = [
-            f64_to_dec(1000000f64).into(),
-            f64_to_dec(100000000f64).into(),
+            f64_to_dec(1000000f64).try_into().unwrap(),
+            f64_to_dec(100000000f64).try_into().unwrap(),
         ];
 
         let val = f(d.into(), &x, a, gamma);

@@ -1,4 +1,4 @@
-use cosmwasm_std::{Decimal, StdError};
+use cosmwasm_std::{Decimal, Decimal256RangeExceeded, SignedDecimal256RangeExceeded, StdError};
 use thiserror::Error;
 
 use crate::consts::MIN_AMP_CHANGING_TIME;
@@ -8,6 +8,12 @@ use crate::consts::MIN_AMP_CHANGING_TIME;
 pub enum PclError {
     #[error("{0}")]
     Std(#[from] StdError),
+
+    #[error("{0}")]
+    SignedDecimal256RangeExceeded(#[from] SignedDecimal256RangeExceeded),
+
+    #[error("{0}")]
+    Decimal256RangeExceeded(#[from] Decimal256RangeExceeded),
 
     #[error("{0} parameter must be greater than {1} and less than or equal to {2}")]
     IncorrectPoolParam(String, String, String),
@@ -22,6 +28,9 @@ pub enum PclError {
         MIN_AMP_CHANGING_TIME
     )]
     MinChangingTimeAssertion {},
+
+    #[error("{0} failed to converge")]
+    ConvergenceFailure(String),
 
     #[error("Doubling assets in asset infos")]
     DoublingAssets {},
