@@ -328,6 +328,7 @@ pub fn execute_create_pair(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg {
+        #[allow(deprecated)]
         Reply {
             id: INSTANTIATE_PAIR_REPLY_ID,
             result:

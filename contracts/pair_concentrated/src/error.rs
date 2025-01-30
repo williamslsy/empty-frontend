@@ -64,4 +64,17 @@ pub enum ContractError {
 
     #[error("Slippage is more than expected: received {0}, expected {1} LP tokens")]
     ProvideSlippageViolation(Uint128, Uint128),
+
+    #[error("Received {received} {asset_name} but expected {expected}")]
+    WithdrawSlippageViolation {
+        asset_name: String,
+        received: Uint128,
+        expected: Uint128,
+    },
+
+    #[error("Wrong asset length: expected {expected}, actual {actual}")]
+    WrongAssetLength { expected: usize, actual: usize },
+
+    #[error("Asset mismatch between the requested and the stored asset in contract")]
+    AssetMismatch {},
 }

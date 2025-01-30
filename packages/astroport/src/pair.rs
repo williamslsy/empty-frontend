@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Decimal, Decimal256, StdError, Uint128};
+use cosmwasm_std::{Addr, Binary, Decimal, Decimal256, Uint128};
 use cw20::Cw20ReceiveMsg;
 
 use crate::asset::{Asset, AssetInfo, PairInfo};
@@ -51,10 +51,6 @@ pub enum ExecuteMsg {
         receiver: Option<String>,
         min_lp_to_receive: Option<Uint128>,
     },
-    /// WithdrawLiquidity allows someone to withdraw liquidity from the pool
-    WithdrawLiquidity {
-        min_assets_to_receive: Option<Vec<Asset>>,
-    },
     /// Swap performs a swap in the pool
     Swap {
         offer_asset: Asset,
@@ -88,6 +84,10 @@ pub enum Cw20HookMsg {
         belief_price: Option<Decimal>,
         max_spread: Option<Decimal>,
         to: Option<String>,
+    },
+    /// Withdraw liquidity from the pool
+    WithdrawLiquidity {
+        min_assets_to_receive: Option<Vec<Asset>>,
     },
 }
 
@@ -219,21 +219,4 @@ pub enum XYKPoolUpdateParams {
     DisableFeeShare,
 }
 
-/// A `reply` call code ID used for sub-messages.
-#[cw_serde]
-pub enum ReplyIds {
-    CreateDenom = 1,
-    InstantiateTrackingContract = 2,
-}
-
-impl TryFrom<u64> for ReplyIds {
-    type Error = StdError;
-
-    fn try_from(value: u64) -> Result<Self, Self::Error> {
-        match value {
-            1 => Ok(ReplyIds::CreateDenom),
-            2 => Ok(ReplyIds::InstantiateTrackingContract),
-            _ => Err(StdError::generic_err("Invalid ReplyId")),
-        }
-    }
-}
+pub const INSTANTIATE_TOKEN_REPLY_ID: u64 = 1;

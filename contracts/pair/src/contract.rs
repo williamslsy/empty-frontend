@@ -5,22 +5,24 @@ use std::vec;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, coin, ensure_eq, from_json, to_json_binary, Addr, Binary, Coin, CosmosMsg, CustomMsg,
-    CustomQuery, Decimal, Decimal256, Deps, DepsMut, Empty, Env, Fraction, Isqrt, MessageInfo,
-    QuerierWrapper, Reply, Response, StdError, StdResult, Uint128, Uint256, WasmMsg,
+    attr, ensure_eq, from_json, to_json_binary, wasm_execute, wasm_instantiate, Addr, Binary,
+    CosmosMsg, CustomMsg, CustomQuery, Decimal, Decimal256, Deps, DepsMut, Empty, Env, Fraction,
+    Isqrt, MessageInfo, QuerierWrapper, Reply, Response, StdError, StdResult, SubMsg,
+    SubMsgResponse, SubMsgResult, Uint128, Uint256, WasmMsg,
 };
 use cw2::set_contract_version;
-use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
-use cw_utils::{one_coin, PaymentError};
+use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, MinterResponse};
+use cw_utils::parse_instantiate_response_data;
 
 use astroport::asset::{
-    addr_opt_validate, check_swap_parameters, Asset, AssetInfo, CoinsExt, PairInfo,
-    MINIMUM_LIQUIDITY_AMOUNT,
+    addr_opt_validate, check_swap_parameters, format_lp_token_name, Asset, AssetInfo, CoinsExt,
+    PairInfo, MINIMUM_LIQUIDITY_AMOUNT,
 };
 use astroport::cosmwasm_ext::DecMul;
+use astroport::incentives;
 use astroport::pair::{
-    ConfigResponse, FeeShareConfig, ReplyIds, XYKPoolConfig, XYKPoolUpdateParams, DEFAULT_SLIPPAGE,
-    MAX_ALLOWED_SLIPPAGE, MAX_FEE_SHARE_BPS,
+    ConfigResponse, FeeShareConfig, XYKPoolConfig, XYKPoolUpdateParams, DEFAULT_SLIPPAGE,
+    INSTANTIATE_TOKEN_REPLY_ID, MAX_ALLOWED_SLIPPAGE, MAX_FEE_SHARE_BPS,
 };
 use astroport::pair::{
     CumulativePricesResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PoolResponse, QueryMsg,
@@ -73,74 +75,52 @@ pub fn instantiate(
 
     CONFIG.save(deps.storage, &config)?;
 
-    let sub_msg = todo!("CW20 init");
-    // let sub_msg: SubMsg<_> = SubMsg::reply_on_success(
-    //     tf_create_denom_msg(env.contract.address.to_string(), LP_SUBDENOM),
-    //     ReplyIds::CreateDenom as u64,
-    // );
+    let sub_msg = SubMsg::reply_on_success(
+        wasm_instantiate(
+            msg.token_code_id,
+            &cw20_base::msg::InstantiateMsg {
+                name: format_lp_token_name(&msg.asset_infos, &deps.querier)?,
+                symbol: "uLP".to_string(),
+                decimals: 6,
+                initial_balances: vec![],
+                mint: Some(MinterResponse {
+                    minter: env.contract.address.to_string(),
+                    cap: None,
+                }),
+                marketing: None,
+            },
+            vec![],
+            "LP token".to_string(),
+        )?,
+        INSTANTIATE_TOKEN_REPLY_ID,
+    );
 
     Ok(Response::new().add_submessage(sub_msg))
 }
 
 /// The entry point to the contract for processing replies from submessages.
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
-    match ReplyIds::try_from(msg.id)? {
-        ReplyIds::CreateDenom => {
-            todo!("Rewrite to CW20 init")
-            // if let SubMsgResult::Ok(SubMsgResponse { data: Some(b), .. }) = msg.result {
-            //     let MsgCreateDenomResponse { new_token_denom } = b.try_into()?;
-            //     let config = CONFIG.load(deps.storage)?;
-            //
-            //     let tracking = config.track_asset_balances;
-            //     let mut sub_msgs = vec![];
-            //
-            //     #[cfg(any(feature = "injective", feature = "sei"))]
-            //     let tracking = false;
-            //
-            //     if tracking {
-            //         let factory_config = query_factory_config(&deps.querier, &config.factory_addr)?;
-            //         let tracker_config = query_tracker_config(&deps.querier, config.factory_addr)?;
-            //         // Instantiate tracking contract
-            //         let sub_msg: Vec<SubMsg> = vec![SubMsg::reply_on_success(
-            //             WasmMsg::Instantiate {
-            //                 admin: Some(factory_config.owner.to_string()),
-            //                 code_id: tracker_config.code_id,
-            //                 msg: to_json_binary(&tokenfactory_tracker::InstantiateMsg {
-            //                     tokenfactory_module_address: tracker_config
-            //                         .token_factory_addr
-            //                         .to_string(),
-            //                     tracked_denom: new_token_denom.clone(),
-            //                     track_over_seconds: false,
-            //                 })?,
-            //                 funds: vec![],
-            //                 label: format!("{new_token_denom} tracking contract"),
-            //             },
-            //             ReplyIds::InstantiateTrackingContract as u64,
-            //         )];
-            //
-            //         sub_msgs.extend(sub_msg);
-            //     }
-            //
-            //     CONFIG.update(deps.storage, |mut config| {
-            //         if !config.pair_info.liquidity_token.is_empty() {
-            //             return Err(StdError::generic_err(
-            //                 "Liquidity token is already set in the config",
-            //             ));
-            //         }
-            //
-            //         config.pair_info.liquidity_token = new_token_denom.clone();
-            //         Ok(config)
-            //     })?;
-            //
-            //     Ok(Response::new()
-            //         .add_submessages(sub_msgs)
-            //         .add_attribute("lp_denom", new_token_denom))
-            // } else {
-            //     Err(ContractError::FailedToParseReply {})
-            // }
+pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+    match msg {
+        #[allow(deprecated)]
+        Reply {
+            id: INSTANTIATE_TOKEN_REPLY_ID,
+            result:
+                SubMsgResult::Ok(SubMsgResponse {
+                    data: Some(data), ..
+                }),
+            ..
+        } => {
+            let config = CONFIG.update::<_, ContractError>(deps.storage, |mut config| {
+                config.pair_info.liquidity_token =
+                    parse_instantiate_response_data(data.as_slice())?.contract_address;
+                Ok(config)
+            })?;
+
+            Ok(Response::new()
+                .add_attribute("liquidity_token_addr", config.pair_info.liquidity_token))
         }
-        _ => todo!("Remove other replies"),
+        _ => Err(StdError::generic_err("Invalid reply".to_string()).into()),
     }
 }
 
@@ -221,9 +201,6 @@ pub fn execute(
             )
         }
         ExecuteMsg::UpdateConfig { params } => update_config(deps, info, params),
-        ExecuteMsg::WithdrawLiquidity {
-            min_assets_to_receive,
-        } => withdraw_liquidity(deps, env, info, min_assets_to_receive),
         _ => Err(ContractError::NonSupported {}),
     }
 }
@@ -277,6 +254,16 @@ pub fn receive_cw20(
                 to_addr,
             )
         }
+        Cw20HookMsg::WithdrawLiquidity {
+            min_assets_to_receive,
+        } => withdraw_liquidity(
+            deps,
+            env,
+            info,
+            min_assets_to_receive,
+            Addr::unchecked(cw20_msg.sender),
+            cw20_msg.amount,
+        ),
     }
 }
 
@@ -412,31 +399,46 @@ where
     C: CustomQuery,
     T: CustomMsg,
 {
-    let coin = coin(amount.into(), config.pair_info.liquidity_token.to_string());
-
     // If no auto-stake - just mint to recipient
     if !auto_stake {
-        todo!("mint CW20 token")
-        // return Ok(tf_mint_msg(contract_address, coin, recipient));
+        return Ok(vec![wasm_execute(
+            &config.pair_info.liquidity_token,
+            &Cw20ExecuteMsg::Mint {
+                recipient: recipient.to_string(),
+                amount,
+            },
+            vec![],
+        )?
+        .into()]);
     }
 
     // Mint for the pair contract and stake into the Incentives contract
     let incentives_addr = query_factory_config(&querier, &config.factory_addr)?.incentives_address;
 
     if let Some(address) = incentives_addr {
-        todo!("mint CW20 token");
-        // let mut msgs = tf_mint_msg(contract_address, coin.clone(), contract_address);
-        // msgs.push(
-        //     wasm_execute(
-        //         address,
-        //         &IncentiveExecuteMsg::Deposit {
-        //             recipient: Some(recipient.to_string()),
-        //         },
-        //         vec![coin],
-        //     )?
-        //     .into(),
-        // );
-        // Ok(msgs)
+        Ok(vec![
+            wasm_execute(
+                &config.pair_info.liquidity_token,
+                &Cw20ExecuteMsg::Mint {
+                    recipient: contract_address.to_string(),
+                    amount,
+                },
+                vec![],
+            )?
+            .into(),
+            wasm_execute(
+                &config.pair_info.liquidity_token,
+                &Cw20ExecuteMsg::Send {
+                    contract: address.to_string(),
+                    amount,
+                    msg: to_json_binary(&incentives::ExecuteMsg::Deposit {
+                        recipient: Some(recipient.to_string()),
+                    })?,
+                },
+                vec![],
+            )?
+            .into(),
+        ])
     } else {
         Err(ContractError::AutoStakeError {})
     }
@@ -448,15 +450,15 @@ pub fn withdraw_liquidity(
     env: Env,
     info: MessageInfo,
     min_assets_to_receive: Option<Vec<Asset>>,
+    receiver: Addr,
+    amount: Uint128,
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage).unwrap();
 
-    let Coin { amount, denom } = one_coin(&info)?;
-
     ensure_eq!(
-        denom,
+        info.sender.to_string(),
         config.pair_info.liquidity_token,
-        PaymentError::MissingDenom(config.pair_info.liquidity_token.to_string())
+        ContractError::Unauthorized {}
     );
 
     let (pools, total_share) = pool_info(deps.querier, &config)?;
@@ -479,14 +481,17 @@ pub fn withdraw_liquidity(
     let mut messages = refund_assets
         .clone()
         .into_iter()
-        .map(|asset| asset.into_msg(&info.sender))
+        .map(|asset| asset.into_msg(&receiver))
         .collect::<StdResult<Vec<_>>>()?;
 
-    // TODO: burn cw20 token
-    // messages.push(tf_burn_msg(
-    //     env.contract.address,
-    //     coin(amount.u128(), config.pair_info.liquidity_token.to_string()),
-    // ));
+    messages.push(
+        wasm_execute(
+            &config.pair_info.liquidity_token,
+            &Cw20ExecuteMsg::Burn { amount },
+            vec![],
+        )?
+        .into(),
+    );
 
     Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "withdraw_liquidity"),

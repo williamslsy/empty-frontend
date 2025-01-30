@@ -1,11 +1,13 @@
 use cosmwasm_std::{
-    coin, Addr, Api, CosmosMsg, CustomMsg, CustomQuery, Decimal, Decimal256, Env, Fraction,
-    QuerierWrapper, StdError, StdResult, Uint128,
+    to_json_binary, wasm_execute, Addr, Api, CosmosMsg, CustomMsg, CustomQuery, Decimal,
+    Decimal256, Env, Fraction, QuerierWrapper, StdError, StdResult, Uint128,
 };
+use cw20::Cw20ExecuteMsg;
 use itertools::Itertools;
 
 use astroport::asset::{Asset, AssetInfo, DecimalAsset};
 use astroport::cosmwasm_ext::{DecMul, DecimalToInteger};
+use astroport::incentives;
 use astroport::querier::query_factory_config;
 use astroport_factory::state::pair_key;
 
@@ -68,32 +70,46 @@ where
     C: CustomQuery,
     T: CustomMsg,
 {
-    let coin = coin(amount.into(), config.pair_info.liquidity_token.to_string());
-
     // If no auto-stake - just mint to recipient
     if !auto_stake {
-        // TODO: cw20 mint
-        // return Ok(tf_mint_msg(contract_address, coin, recipient));
+        return Ok(vec![wasm_execute(
+            &config.pair_info.liquidity_token,
+            &Cw20ExecuteMsg::Mint {
+                recipient: recipient.to_string(),
+                amount,
+            },
+            vec![],
+        )?
+        .into()]);
     }
 
     // Mint for the pair contract and stake into the Incentives contract
     let incentives_addr = query_factory_config(&querier, &config.factory_addr)?.incentives_address;
 
     if let Some(address) = incentives_addr {
-        // TODO: cw20 mint
-        // let mut msgs = tf_mint_msg(contract_address, coin.clone(), contract_address);
-        // msgs.push(
-        //     wasm_execute(
-        //         address,
-        //         &IncentiveExecuteMsg::Deposit {
-        //             recipient: Some(recipient.to_string()),
-        //         },
-        //         vec![coin],
-        //     )?
-        //     .into(),
-        // );
-        // Ok(msgs)
-        Ok(vec![])
+        Ok(vec![
+            wasm_execute(
+                &config.pair_info.liquidity_token,
+                &Cw20ExecuteMsg::Mint {
+                    recipient: contract_address.to_string(),
+                    amount,
+                },
+                vec![],
+            )?
+            .into(),
+            wasm_execute(
+                &config.pair_info.liquidity_token,
+                &Cw20ExecuteMsg::Send {
+                    contract: address.to_string(),
+                    amount,
+                    msg: to_json_binary(&incentives::ExecuteMsg::Deposit {
+                        recipient: Some(recipient.to_string()),
+                    })?,
+                },
+                vec![],
+            )?
+            .into(),
+        ])
     } else {
         Err(PclError::AutoStakeError {})
     }

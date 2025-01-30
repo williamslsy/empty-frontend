@@ -186,3 +186,46 @@ pub(crate) fn calculate_shares(
 
     Ok((share.to_uint(LP_TOKEN_PRECISION)?, slippage))
 }
+
+pub fn ensure_min_assets_to_receive(
+    config: &Config,
+    mut refund_assets: Vec<Asset>,
+    min_assets_to_receive: Option<Vec<Asset>>,
+) -> Result<(), ContractError> {
+    if let Some(min_assets_to_receive) = min_assets_to_receive {
+        if refund_assets.len() != min_assets_to_receive.len() {
+            return Err(ContractError::WrongAssetLength {
+                expected: refund_assets.len(),
+                actual: min_assets_to_receive.len(),
+            });
+        }
+
+        for asset in &min_assets_to_receive {
+            if !config.pair_info.asset_infos.contains(&asset.info) {
+                return Err(ContractError::AssetMismatch {});
+            }
+        }
+
+        if refund_assets[0].info.ne(&min_assets_to_receive[0].info) {
+            refund_assets.swap(0, 1)
+        }
+
+        if refund_assets[0].amount < min_assets_to_receive[0].amount {
+            return Err(ContractError::WithdrawSlippageViolation {
+                asset_name: refund_assets[0].info.to_string(),
+                received: refund_assets[0].amount,
+                expected: min_assets_to_receive[0].amount,
+            });
+        }
+
+        if refund_assets[1].amount < min_assets_to_receive[1].amount {
+            return Err(ContractError::WithdrawSlippageViolation {
+                asset_name: refund_assets[1].info.to_string(),
+                received: refund_assets[1].amount,
+                expected: min_assets_to_receive[1].amount,
+            });
+        }
+    }
+
+    Ok(())
+}

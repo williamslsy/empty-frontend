@@ -3,23 +3,24 @@ use std::vec;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, ensure, ensure_eq, from_json, wasm_execute, Addr, Binary, Coin, CosmosMsg, Decimal,
-    Decimal256, DepsMut, Empty, Env, MessageInfo, Reply, Response, StdError, StdResult, Uint128,
+    attr, ensure, ensure_eq, from_json, wasm_execute, wasm_instantiate, Addr, Binary, CosmosMsg,
+    Decimal, Decimal256, DepsMut, Empty, Env, MessageInfo, Reply, Response, StdError, StdResult,
+    SubMsg, SubMsgResponse, SubMsgResult, Uint128,
 };
 use cw2::set_contract_version;
-use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
-use cw_utils::{one_coin, PaymentError};
+use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, MinterResponse};
+use cw_utils::parse_instantiate_response_data;
 use itertools::Itertools;
 
-use astroport::asset::AssetInfoExt;
 use astroport::asset::{
     addr_opt_validate, token_asset, Asset, AssetInfo, CoinsExt, PairInfo, MINIMUM_LIQUIDITY_AMOUNT,
 };
+use astroport::asset::{format_lp_token_name, AssetInfoExt};
 use astroport::common::{claim_ownership, drop_ownership_proposal, propose_new_owner};
 use astroport::cosmwasm_ext::{DecimalToInteger, IntegerToDecimal};
 use astroport::pair::{
-    Cw20HookMsg, ExecuteMsg, FeeShareConfig, InstantiateMsg, ReplyIds, MAX_FEE_SHARE_BPS,
-    MIN_TRADE_SIZE,
+    Cw20HookMsg, ExecuteMsg, FeeShareConfig, InstantiateMsg, INSTANTIATE_TOKEN_REPLY_ID,
+    MAX_FEE_SHARE_BPS, MIN_TRADE_SIZE,
 };
 use astroport::pair_concentrated::{
     ConcentratedPoolParams, ConcentratedPoolUpdateParams, UpdatePoolParams,
@@ -36,7 +37,9 @@ use astroport_pcl_common::{calc_d, get_xcp};
 
 use crate::error::ContractError;
 use crate::state::{CONFIG, OWNERSHIP_PROPOSAL};
-use crate::utils::{calculate_shares, get_assets_with_precision, query_pools};
+use crate::utils::{
+    calculate_shares, ensure_min_assets_to_receive, get_assets_with_precision, query_pools,
+};
 
 /// Contract name that is used for migration.
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -131,85 +134,52 @@ pub fn instantiate(
 
     CONFIG.save(deps.storage, &config)?;
 
-    // TODO: Create LP token
-    // let sub_msg = SubMsg::reply_on_success(
-    //     tf_create_denom_msg(env.contract.address.to_string(), LP_SUBDENOM),
-    //     ReplyIds::CreateDenom as u64,
-    // );
+    let sub_msg = SubMsg::reply_on_success(
+        wasm_instantiate(
+            msg.token_code_id,
+            &cw20_base::msg::InstantiateMsg {
+                name: format_lp_token_name(&msg.asset_infos, &deps.querier)?,
+                symbol: "uLP".to_string(),
+                decimals: 6,
+                initial_balances: vec![],
+                mint: Some(MinterResponse {
+                    minter: env.contract.address.to_string(),
+                    cap: None,
+                }),
+                marketing: None,
+            },
+            vec![],
+            "LP token".to_string(),
+        )?,
+        INSTANTIATE_TOKEN_REPLY_ID,
+    );
 
-    // Ok(Response::new().add_submessage(sub_msg).add_attribute(
-    //     "asset_balances_tracking".to_owned(),
-    //     if config.track_asset_balances {
-    //         "enabled"
-    //     } else {
-    //         "disabled"
-    //     }
-    //     .to_owned(),
-    // ))
-
-    Ok(Response::new())
+    Ok(Response::new().add_submessage(sub_msg))
 }
 
 /// The entry point to the contract for processing replies from submessages.
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
-    match ReplyIds::try_from(msg.id)? {
-        ReplyIds::CreateDenom => {
-            todo!("Rewrite to cw20 instantiate")
-            // if let SubMsgResult::Ok(SubMsgResponse { data: Some(b), .. }) = msg.result {
-            //     let MsgCreateDenomResponse { new_token_denom } = b.try_into()?;
-            //     let config = CONFIG.load(deps.storage)?;
-            //
-            //     let tracking = config.track_asset_balances;
-            //     let mut sub_msgs = vec![];
-            //
-            //     #[cfg(any(feature = "injective", feature = "sei"))]
-            //     let tracking = false;
-            //
-            //     if tracking {
-            //         let factory_config =
-            //             query_factory_config(&deps.querier, config.factory_addr.clone())?;
-            //         let tracker_config = query_tracker_config(&deps.querier, config.factory_addr)?;
-            //         // Instantiate tracking contract
-            //         let sub_msg: Vec<SubMsg> = vec![SubMsg::reply_on_success(
-            //             WasmMsg::Instantiate {
-            //                 admin: Some(factory_config.owner.to_string()),
-            //                 code_id: tracker_config.code_id,
-            //                 msg: to_json_binary(&tokenfactory_tracker::InstantiateMsg {
-            //                     tokenfactory_module_address: tracker_config
-            //                         .token_factory_addr
-            //                         .to_string(),
-            //                     tracked_denom: new_token_denom.clone(),
-            //                     track_over_seconds: false,
-            //                 })?,
-            //                 funds: vec![],
-            //                 label: format!("{new_token_denom} tracking contract"),
-            //             },
-            //             ReplyIds::InstantiateTrackingContract as u64,
-            //         )];
-            //
-            //         sub_msgs.extend(sub_msg);
-            //     }
-            //
-            //     CONFIG.update(deps.storage, |mut config| {
-            //         if !config.pair_info.liquidity_token.is_empty() {
-            //             return Err(StdError::generic_err(
-            //                 "Liquidity token is already set in the config",
-            //             ));
-            //         }
-            //
-            //         config.pair_info.liquidity_token = new_token_denom.clone();
-            //         Ok(config)
-            //     })?;
-            //
-            //     Ok(Response::new()
-            //         .add_submessages(sub_msgs)
-            //         .add_attribute("lp_denom", new_token_denom))
-            // } else {
-            //     Err(ContractError::FailedToParseReply {})
-            // }
+pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+    match msg {
+        #[allow(deprecated)]
+        Reply {
+            id: INSTANTIATE_TOKEN_REPLY_ID,
+            result:
+                SubMsgResult::Ok(SubMsgResponse {
+                    data: Some(data), ..
+                }),
+            ..
+        } => {
+            let config = CONFIG.update::<_, ContractError>(deps.storage, |mut config| {
+                config.pair_info.liquidity_token =
+                    parse_instantiate_response_data(data.as_slice())?.contract_address;
+                Ok(config)
+            })?;
+
+            Ok(Response::new()
+                .add_attribute("liquidity_token_addr", config.pair_info.liquidity_token))
         }
-        ReplyIds::InstantiateTrackingContract => todo!("Remove this reply"),
+        _ => Err(StdError::generic_err("Invalid reply".to_string()).into()),
     }
 }
 
@@ -327,8 +297,6 @@ pub fn execute(
             })
             .map_err(Into::into)
         }
-        // TODO: handle withdraw slippage
-        ExecuteMsg::WithdrawLiquidity { .. } => withdraw_liquidity(deps, env, info),
     }
 }
 
@@ -364,6 +332,16 @@ fn receive_cw20(
                 to_addr,
             )
         }
+        Cw20HookMsg::WithdrawLiquidity {
+            min_assets_to_receive,
+        } => withdraw_liquidity(
+            deps,
+            env,
+            info,
+            min_assets_to_receive,
+            Addr::unchecked(cw20_msg.sender),
+            cw20_msg.amount,
+        ),
     }
 }
 
@@ -499,19 +477,20 @@ pub fn provide_liquidity(
 /// * **sender** address that will receive assets back from the pair contract
 ///
 /// * **assets** defines number of coins a user wants to withdraw per each asset.
-fn withdraw_liquidity(
+pub fn withdraw_liquidity(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
+    min_assets_to_receive: Option<Vec<Asset>>,
+    receiver: Addr,
+    amount: Uint128,
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
 
-    let Coin { amount, denom } = one_coin(&info)?;
-
     ensure_eq!(
-        denom,
+        info.sender.to_string(),
         config.pair_info.liquidity_token,
-        PaymentError::MissingDenom(config.pair_info.liquidity_token.to_string())
+        ContractError::Unauthorized {}
     );
 
     let precisions = Precisions::new(deps.storage)?;
@@ -552,18 +531,24 @@ fn withdraw_liquidity(
         })
         .collect::<StdResult<Vec<_>>>()?;
 
+    ensure_min_assets_to_receive(&config, refund_assets.clone(), min_assets_to_receive)?;
+
     messages.extend(
         refund_assets
             .iter()
             .cloned()
-            .map(|asset| asset.into_msg(&info.sender))
+            .map(|asset| asset.into_msg(&receiver))
             .collect::<StdResult<Vec<_>>>()?,
     );
-    // TODO: cw20 burn
-    // messages.push(tf_burn_msg(
-    //     env.contract.address,
-    //     coin(amount.u128(), config.pair_info.liquidity_token.to_string()),
-    // ));
+
+    messages.push(
+        wasm_execute(
+            &config.pair_info.liquidity_token,
+            &Cw20ExecuteMsg::Burn { amount },
+            vec![],
+        )?
+        .into(),
+    );
 
     CONFIG.save(deps.storage, &config)?;
 

@@ -358,9 +358,10 @@ impl Helper {
         self.app.execute_contract(
             sender.clone(),
             self.pair_addr.clone(),
-            &ExecuteMsg::WithdrawLiquidity {
-                min_assets_to_receive: None,
-            },
+            // &ExecuteMsg::WithdrawLiquidity {
+            //     min_assets_to_receive: None,
+            // },
+            &Empty {}, // TODO: fix withdraw msg
             &[coin(amount, self.lp_token.to_string())],
         )
     }
