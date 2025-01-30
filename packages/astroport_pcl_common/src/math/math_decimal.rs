@@ -1,5 +1,4 @@
 use cosmwasm_std::{Decimal256, Fraction, SignedDecimal256, StdError, StdResult, Uint128};
-use itertools::Itertools;
 
 use crate::consts::{HALFPOW_TOL, MAX_ITER, N, N_POW2, TOL};
 use crate::error::PclError;
@@ -339,6 +338,8 @@ mod tests {
     #[ignore]
     #[test]
     fn test_calculations() {
+        use itertools::Itertools;
+
         let gamma = 0.000145;
 
         let x_range = (1000u128..=100_000)

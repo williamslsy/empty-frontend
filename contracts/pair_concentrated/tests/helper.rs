@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use anyhow::Result as AnyResult;
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::testing::MockApi;
 use cosmwasm_std::{
     coin, from_json, to_json_binary, Addr, Coin, Decimal, Decimal256, Empty, StdError, StdResult,
     Uint128,
@@ -121,15 +122,13 @@ pub struct Helper {
 }
 
 impl Helper {
-    pub fn new(
-        owner: &Addr,
-        test_coins: Vec<TestCoin>,
-        params: ConcentratedPoolParams,
-    ) -> AnyResult<Self> {
+    pub fn new(test_coins: Vec<TestCoin>, params: ConcentratedPoolParams) -> AnyResult<Self> {
+        let api = MockApi::default();
+        let owner = api.addr_make("owner");
         let mut app = AppBuilder::new_custom().build(|router, _, storage| {
             router
                 .bank
-                .init_balance(storage, owner, init_native_coins(&test_coins))
+                .init_balance(storage, &owner, init_native_coins(&test_coins))
                 .unwrap()
         });
 
@@ -148,7 +147,7 @@ impl Helper {
                             token_code_id,
                             name,
                             precision,
-                            owner,
+                            &owner,
                         ))
                     }
                 };
@@ -159,7 +158,7 @@ impl Helper {
         let pair_code_id = app.store_code(pair_contract());
         let factory_code_id = app.store_code(factory_contract());
         let pair_type = PairType::Custom("concentrated".to_string());
-        let fake_maker = Addr::unchecked("fake_maker");
+        let fake_maker = api.addr_make("fake_maker");
 
         let coin_registry_id = app.store_code(coin_registry_contract());
 
@@ -229,7 +228,7 @@ impl Helper {
                     owner: owner.to_string(),
                     guardian: None,
                     incentivization_fee_info: None,
-                    vesting_contract: "vesting".to_string(),
+                    vesting_contract: api.addr_make("vesting").to_string(),
                 },
                 &[],
                 "generator",
@@ -357,12 +356,16 @@ impl Helper {
     pub fn withdraw_liquidity(&mut self, sender: &Addr, amount: u128) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
-            self.pair_addr.clone(),
-            // &ExecuteMsg::WithdrawLiquidity {
-            //     min_assets_to_receive: None,
-            // },
-            &Empty {}, // TODO: fix withdraw msg
-            &[coin(amount, self.lp_token.to_string())],
+            Addr::unchecked(&self.lp_token),
+            &cw20_base::msg::ExecuteMsg::Send {
+                contract: self.pair_addr.to_string(),
+                amount: amount.into(),
+                msg: to_json_binary(&Cw20HookMsg::WithdrawLiquidity {
+                    min_assets_to_receive: None,
+                })
+                .unwrap(),
+            },
+            &[],
         )
     }
 
@@ -497,14 +500,14 @@ impl Helper {
         .unwrap()
     }
 
-    pub fn token_balance(&self, token_addr: &Addr, user: &Addr) -> u128 {
+    pub fn token_balance(&self, token_addr: impl Into<String>, user: &Addr) -> u128 {
         let resp: BalanceResponse = self
             .app
             .wrap()
             .query_wasm_smart(
                 token_addr,
                 &Cw20QueryMsg::Balance {
-                    address: user.to_string(),
+                    address: user.into(),
                 },
             )
             .unwrap();

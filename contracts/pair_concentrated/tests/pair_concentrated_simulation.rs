@@ -22,14 +22,13 @@ mod helper;
 const MAX_EVENTS: usize = 100;
 
 fn simulate_case(case: Vec<(usize, u128, u64)>) {
-    let owner = Addr::unchecked("owner");
-    let user = Addr::unchecked("user");
-
     let test_coins = vec![TestCoin::native("uluna"), TestCoin::cw20("USDC")];
 
     let balances = vec![100_000_000_000000u128, 100_000_000_000000u128];
 
-    let mut helper = Helper::new(&owner, test_coins.clone(), common_pcl_params()).unwrap();
+    let mut helper = Helper::new(test_coins.clone(), common_pcl_params()).unwrap();
+    let owner = helper.owner.clone();
+    let user = helper.app.api().addr_make("user");
 
     let assets = vec![
         helper.assets[&test_coins[0]].with_balance(balances[0]),
@@ -68,14 +67,13 @@ fn simulate_case(case: Vec<(usize, u128, u64)>) {
 }
 
 fn simulate_fee_share_case(case: Vec<(usize, u128, u64)>) {
-    let owner = Addr::unchecked("owner");
-    let user = Addr::unchecked("user");
-
     let test_coins = vec![TestCoin::native("uluna"), TestCoin::cw20("USDC")];
 
     let balances = vec![100_000_000_000000u128, 100_000_000_000000u128];
 
-    let mut helper = Helper::new(&owner, test_coins.clone(), common_pcl_params()).unwrap();
+    let mut helper = Helper::new(test_coins.clone(), common_pcl_params()).unwrap();
+    let owner = helper.owner.clone();
+    let user = helper.app.api().addr_make("user");
 
     // Set to 5% fee share
     let action = ConcentratedPoolUpdateParams::EnableFeeShare {
@@ -120,7 +118,6 @@ fn simulate_fee_share_case(case: Vec<(usize, u128, u64)>) {
 }
 
 fn simulate_provide_case(case: Vec<(impl Into<String>, u128, u128, u64)>) {
-    let owner = Addr::unchecked("owner");
     let loss_tolerance = 0.05; // allowed loss per provide due to integer math withing contract
     let xcp_profit_real_tolerance = Decimal256::raw(100000000); // 1e-10
 
@@ -128,7 +125,8 @@ fn simulate_provide_case(case: Vec<(impl Into<String>, u128, u128, u64)>) {
 
     let initial_price_scale = Decimal::one();
 
-    let mut helper = Helper::new(&owner, test_coins.clone(), common_pcl_params()).unwrap();
+    let mut helper = Helper::new(test_coins.clone(), common_pcl_params()).unwrap();
+    let owner = helper.owner.clone();
 
     // owner makes the first provide cuz the pool charges small amount of fees
     let assets = vec![
@@ -139,7 +137,7 @@ fn simulate_provide_case(case: Vec<(impl Into<String>, u128, u128, u64)>) {
 
     let mut accounts: HashMap<Addr, (u128, u128, u8)> = HashMap::new();
     for (user, coin0_amnt, coin1_amnt, shift_time) in case {
-        let user = Addr::unchecked(user);
+        let user = helper.app.api().addr_make(&user.into());
         println!("{user} {coin0_amnt} {coin1_amnt}");
         let assets = vec![
             helper.assets[&test_coins[0]].with_balance(coin0_amnt),
@@ -182,7 +180,7 @@ fn simulate_provide_case(case: Vec<(impl Into<String>, u128, u128, u64)>) {
     let price_scale = dec_to_f64(config.pool_state.price_state.price_scale);
 
     for (user, &(coin0_amnt, coin1_amnt, cnt)) in &accounts {
-        let lp_amount = helper.native_balance(&helper.lp_token, user);
+        let lp_amount = helper.token_balance(&helper.lp_token, user);
         if cnt != 0 {
             helper.withdraw_liquidity(user, lp_amount).unwrap();
         }
@@ -401,8 +399,6 @@ fn generate_mixed_cases() -> impl Strategy<Value = Vec<(PclEvent, u64)>> {
 }
 
 fn simulate_mixed_case(cases: Vec<(PclEvent, u64)>) {
-    let owner = Addr::unchecked("owner");
-
     let test_coins = vec![TestCoin::cw20precise("inj", 18), TestCoin::native("uusd")];
 
     let params = ConcentratedPoolParams {
@@ -411,7 +407,8 @@ fn simulate_mixed_case(cases: Vec<(PclEvent, u64)>) {
         ..common_pcl_params()
     };
 
-    let mut helper = Helper::new(&owner, test_coins.clone(), params).unwrap();
+    let mut helper = Helper::new(test_coins.clone(), params).unwrap();
+    let owner = helper.owner.clone();
 
     // owner makes the first provide cuz the pool charges small amount of fees
     let assets = vec![
@@ -420,7 +417,7 @@ fn simulate_mixed_case(cases: Vec<(PclEvent, u64)>) {
     ];
     helper.provide_liquidity(&owner, &assets).unwrap();
 
-    let user = Addr::unchecked("user");
+    let user = helper.app.api().addr_make("user");
     for (pcl_event, shift_time) in cases {
         match pcl_event {
             PclEvent::Provide { coin0, coin1 } => {
