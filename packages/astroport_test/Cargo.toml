@@ -11,3 +11,4 @@ homepage = "https://astroport.fi"
 [features]
 
 [dependencies]
+cosmwasm-std.workspace = true

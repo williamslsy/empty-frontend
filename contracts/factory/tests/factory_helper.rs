@@ -16,14 +16,14 @@ pub struct FactoryHelper {
 }
 
 impl FactoryHelper {
-    pub fn init(router: &mut App, owner: &Addr) -> Self {
+    pub fn init(app: &mut App, owner: &Addr) -> Self {
         let astro_token_contract = Box::new(ContractWrapper::new_with_empty(
             cw20_base::contract::execute,
             cw20_base::contract::instantiate,
             cw20_base::contract::query,
         ));
 
-        let cw20_token_code_id = router.store_code(astro_token_contract);
+        let cw20_token_code_id = app.store_code(astro_token_contract);
 
         let msg = cw20_base::msg::InstantiateMsg {
             name: String::from("Astro token"),
@@ -37,7 +37,7 @@ impl FactoryHelper {
             marketing: None,
         };
 
-        let astro_token = router
+        let astro_token = app
             .instantiate_contract(
                 cw20_token_code_id,
                 owner.clone(),
@@ -57,7 +57,7 @@ impl FactoryHelper {
             .with_reply_empty(astroport_pair::contract::reply),
         );
 
-        let pair_code_id = router.store_code(pair_contract);
+        let pair_code_id = app.store_code(pair_contract);
 
         let factory_contract = Box::new(
             ContractWrapper::new_with_empty(
@@ -68,7 +68,7 @@ impl FactoryHelper {
             .with_reply_empty(astroport_factory::contract::reply),
         );
 
-        let factory_code_id = router.store_code(factory_contract);
+        let factory_code_id = app.store_code(factory_contract);
 
         let msg = astroport::factory::InstantiateMsg {
             pair_configs: vec![
@@ -95,10 +95,10 @@ impl FactoryHelper {
             fee_address: None,
             incentives_address: None,
             owner: owner.to_string(),
-            coin_registry_address: "coin_registry".to_string(),
+            coin_registry_address: app.api().addr_make("coin_registry").to_string(),
         };
 
-        let factory = router
+        let factory = app
             .instantiate_contract(
                 factory_code_id,
                 owner.clone(),

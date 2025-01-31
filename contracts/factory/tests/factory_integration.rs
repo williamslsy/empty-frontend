@@ -30,7 +30,7 @@ fn store_factory_code(app: &mut App) -> u64 {
 fn proper_initialization() {
     let mut app = App::default();
 
-    let owner = Addr::unchecked("owner");
+    let owner = app.api().addr_make("owner");
 
     let factory_code_id = store_factory_code(&mut app);
 
@@ -49,19 +49,12 @@ fn proper_initialization() {
         token_code_id: 123,
         fee_address: None,
         owner: owner.to_string(),
-        incentives_address: Some(String::from("generator")),
-        coin_registry_address: "coin_registry".to_string(),
+        incentives_address: Some(app.api().addr_make("incentives").to_string()),
+        coin_registry_address: app.api().addr_make("coin_registry").to_string(),
     };
 
     let factory_instance = app
-        .instantiate_contract(
-            factory_code_id,
-            Addr::unchecked(owner.clone()),
-            &msg,
-            &[],
-            "factory",
-            None,
-        )
+        .instantiate_contract(factory_code_id, owner.clone(), &msg, &[], "factory", None)
         .unwrap();
 
     let msg = QueryMsg::Config {};
@@ -78,8 +71,11 @@ fn proper_initialization() {
 #[test]
 fn update_config() {
     let mut app = App::default();
-    let owner = Addr::unchecked("owner");
+    let owner = app.api().addr_make("owner");
     let mut helper = FactoryHelper::init(&mut app, &owner);
+
+    let fee_addr = app.api().addr_make("fee");
+    let incentives_addr = app.api().addr_make("incentives");
 
     // Update config
     helper
@@ -87,8 +83,8 @@ fn update_config() {
             &mut app,
             &owner,
             Some(200u64),
-            Some("fee".to_string()),
-            Some("generator".to_string()),
+            Some(fee_addr.to_string()),
+            Some(incentives_addr.to_string()),
             None,
         )
         .unwrap();
@@ -99,22 +95,13 @@ fn update_config() {
         .unwrap();
 
     assert_eq!(200u64, config_res.token_code_id);
-    assert_eq!("fee", config_res.fee_address.unwrap().to_string());
-    assert_eq!(
-        "generator",
-        config_res.incentives_address.unwrap().to_string()
-    );
+    assert_eq!(fee_addr, config_res.fee_address.unwrap());
+    assert_eq!(incentives_addr, config_res.incentives_address.unwrap());
 
     // Unauthorized err
+    let not_owner = app.api().addr_make("not_owner");
     let res = helper
-        .update_config(
-            &mut app,
-            &Addr::unchecked("not_owner"),
-            None,
-            None,
-            None,
-            None,
-        )
+        .update_config(&mut app, &not_owner, None, None, None, None)
         .unwrap_err();
     assert_eq!(res.root_cause().to_string(), "Unauthorized");
 }
@@ -122,7 +109,7 @@ fn update_config() {
 #[test]
 fn test_create_pair() {
     let mut app = App::default();
-    let owner = Addr::unchecked("owner");
+    let owner = app.api().addr_make("owner");
     let mut helper = FactoryHelper::init(&mut app, &owner);
 
     let token1 = instantiate_token(
@@ -180,14 +167,6 @@ fn test_create_pair() {
         )
         .unwrap();
 
-    // In multitest, contract names are counted in the order in which contracts are created
-    assert_eq!("contract1", helper.factory.to_string());
-    assert_eq!("contract4", res.contract_addr.to_string());
-    assert_eq!(
-        "factory/contract4/astroport/share",
-        res.liquidity_token.to_string()
-    );
-
     // Create disabled pair type
     app.execute_contract(
         owner.clone(),
@@ -215,10 +194,11 @@ fn test_create_pair() {
         Some(18),
     );
 
+    let someone = app.api().addr_make("someone");
     let err = helper
         .create_pair(
             &mut app,
-            &Addr::unchecked("someone"),
+            &someone,
             PairType::Custom("Custom".to_string()),
             [&token1, &token3],
             None,
@@ -250,14 +230,14 @@ fn test_create_pair() {
 #[test]
 fn check_update_owner() {
     let mut app = App::default();
-    let owner = Addr::unchecked("owner");
+    let owner = app.api().addr_make("owner");
     let helper = FactoryHelper::init(&mut app, &owner);
 
-    let new_owner = String::from("new_owner");
+    let new_owner = app.api().addr_make("new_owner");
 
     // New owner
     let msg = ExecuteMsg::ProposeNewOwner {
-        owner: new_owner.clone(),
+        owner: new_owner.to_string(),
         expires_in: 100, // seconds
     };
 
@@ -287,7 +267,7 @@ fn check_update_owner() {
     );
 
     // Propose new owner
-    app.execute_contract(Addr::unchecked("owner"), helper.factory.clone(), &msg, &[])
+    app.execute_contract(owner.clone(), helper.factory.clone(), &msg, &[])
         .unwrap();
 
     // Claim from invalid addr
@@ -336,7 +316,7 @@ fn check_update_owner() {
     );
 
     // Propose new owner again
-    app.execute_contract(Addr::unchecked("owner"), helper.factory.clone(), &msg, &[])
+    app.execute_contract(owner.clone(), helper.factory.clone(), &msg, &[])
         .unwrap();
     // Claim ownership
     app.execute_contract(
@@ -351,13 +331,13 @@ fn check_update_owner() {
     let msg = QueryMsg::Config {};
     let res: ConfigResponse = app.wrap().query_wasm_smart(&helper.factory, &msg).unwrap();
 
-    assert_eq!(res.owner.as_str(), new_owner)
+    assert_eq!(res.owner, new_owner)
 }
 
 #[test]
 fn test_create_permissioned_pair() {
     let mut app = App::default();
-    let owner = Addr::unchecked("owner");
+    let owner = app.api().addr_make("owner");
     let mut helper = FactoryHelper::init(&mut app, &owner);
 
     let token1 = instantiate_token(&mut app, helper.cw20_token_code_id, &owner, "tokenX", None);
