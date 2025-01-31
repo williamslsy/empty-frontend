@@ -23,7 +23,7 @@ fn store_native_registry_code(app: &mut App) -> u64 {
 #[test]
 fn proper_initialization() {
     let mut app = mock_app();
-    let owner = Addr::unchecked("owner");
+    let owner = app.api().addr_make("owner");
 
     let native_registry_code_id = store_native_registry_code(&mut app);
     let msg = InstantiateMsg {
@@ -53,8 +53,8 @@ fn proper_initialization() {
 #[test]
 fn check_update_owner() {
     let mut app = mock_app();
-    let owner = Addr::unchecked("owner");
-    let new_owner = String::from("new_owner");
+    let owner = app.api().addr_make("owner");
+    let new_owner = app.api().addr_make("new_owner");
 
     let native_registry_code_id = store_native_registry_code(&mut app);
     let msg = InstantiateMsg {
@@ -64,7 +64,7 @@ fn check_update_owner() {
     let native_registry_instance = app
         .instantiate_contract(
             native_registry_code_id,
-            Addr::unchecked(owner.clone()),
+            owner.clone(),
             &msg,
             &[],
             "Precision registry contract",
@@ -74,13 +74,14 @@ fn check_update_owner() {
 
     // New owner
     let msg = ExecuteMsg::ProposeNewOwner {
-        owner: new_owner.clone(),
+        owner: new_owner.to_string(),
         expires_in: 100, // seconds
     };
 
+    let not_owner = app.api().addr_make("not_owner");
     let err = app
         .execute_contract(
-            Addr::unchecked("not_owner"),
+            not_owner.clone(),
             native_registry_instance.clone(),
             &msg,
             &[],
@@ -91,7 +92,7 @@ fn check_update_owner() {
     // Claim before proposal
     let err = app
         .execute_contract(
-            Addr::unchecked(new_owner.clone()),
+            new_owner.clone(),
             native_registry_instance.clone(),
             &ExecuteMsg::ClaimOwnership {},
             &[],
@@ -103,18 +104,13 @@ fn check_update_owner() {
     );
 
     // Propose new owner
-    app.execute_contract(
-        Addr::unchecked("owner"),
-        native_registry_instance.clone(),
-        &msg,
-        &[],
-    )
-    .unwrap();
+    app.execute_contract(owner.clone(), native_registry_instance.clone(), &msg, &[])
+        .unwrap();
 
     // Claim from invalid addr
     let err = app
         .execute_contract(
-            Addr::unchecked("invalid_addr"),
+            not_owner,
             native_registry_instance.clone(),
             &ExecuteMsg::ClaimOwnership {},
             &[],
@@ -125,7 +121,7 @@ fn check_update_owner() {
     // Drop ownership proposal
     let err = app
         .execute_contract(
-            Addr::unchecked(new_owner.clone()),
+            new_owner.clone(),
             native_registry_instance.clone(),
             &ExecuteMsg::DropOwnershipProposal {},
             &[],
@@ -145,7 +141,7 @@ fn check_update_owner() {
     // Try to claim ownership
     let err = app
         .execute_contract(
-            Addr::unchecked(new_owner.clone()),
+            new_owner.clone(),
             native_registry_instance.clone(),
             &ExecuteMsg::ClaimOwnership {},
             &[],
@@ -157,16 +153,11 @@ fn check_update_owner() {
     );
 
     // Propose new owner again
-    app.execute_contract(
-        Addr::unchecked("owner"),
-        native_registry_instance.clone(),
-        &msg,
-        &[],
-    )
-    .unwrap();
+    app.execute_contract(owner.clone(), native_registry_instance.clone(), &msg, &[])
+        .unwrap();
     // Claim ownership
     app.execute_contract(
-        Addr::unchecked(new_owner.clone()),
+        new_owner.clone(),
         native_registry_instance.clone(),
         &ExecuteMsg::ClaimOwnership {},
         &[],
@@ -180,13 +171,13 @@ fn check_update_owner() {
         .query_wasm_smart(&native_registry_instance, &msg)
         .unwrap();
 
-    assert_eq!(res.owner.as_str(), new_owner)
+    assert_eq!(res.owner, new_owner)
 }
 
 #[test]
 fn try_add_and_remove_native_tokens() {
     let mut app = mock_app();
-    let owner = Addr::unchecked("owner");
+    let owner = app.api().addr_make("owner");
 
     let native_registry_code_id = store_native_registry_code(&mut app);
     let msg = InstantiateMsg {
@@ -213,9 +204,10 @@ fn try_add_and_remove_native_tokens() {
         ],
     };
 
+    let not_owner = app.api().addr_make("not_owner");
     let err = app
         .execute_contract(
-            Addr::unchecked("not_owner"),
+            not_owner.clone(),
             native_registry_instance.clone(),
             &msg,
             &[],
@@ -224,12 +216,7 @@ fn try_add_and_remove_native_tokens() {
     assert_eq!(err.root_cause().to_string(), "Unauthorized");
 
     let err = app
-        .execute_contract(
-            Addr::unchecked("owner"),
-            native_registry_instance.clone(),
-            &msg,
-            &[],
-        )
+        .execute_contract(owner.clone(), native_registry_instance.clone(), &msg, &[])
         .unwrap_err();
     assert_eq!(err.root_cause().to_string(), "Duplicate coins are provided");
 
@@ -241,13 +228,8 @@ fn try_add_and_remove_native_tokens() {
         ],
     };
 
-    app.execute_contract(
-        Addr::unchecked("owner"),
-        native_registry_instance.clone(),
-        &msg,
-        &[],
-    )
-    .unwrap();
+    app.execute_contract(owner.clone(), native_registry_instance.clone(), &msg, &[])
+        .unwrap();
 
     // query asset info by denominator name
     let coin_decimals: u8 = app
@@ -317,12 +299,7 @@ fn try_add_and_remove_native_tokens() {
     };
 
     let err = app
-        .execute_contract(
-            Addr::unchecked("owner"),
-            native_registry_instance.clone(),
-            &msg,
-            &[],
-        )
+        .execute_contract(owner.clone(), native_registry_instance.clone(), &msg, &[])
         .unwrap_err();
     assert_eq!(
         err.downcast::<ContractError>().unwrap(),
@@ -331,7 +308,7 @@ fn try_add_and_remove_native_tokens() {
 
     let err = app
         .execute_contract(
-            Addr::unchecked("not_owner"),
+            not_owner.clone(),
             native_registry_instance.clone(),
             &msg,
             &[],
@@ -341,7 +318,7 @@ fn try_add_and_remove_native_tokens() {
 
     let err = app
         .execute_contract(
-            Addr::unchecked("owner"),
+            owner.clone(),
             native_registry_instance.clone(),
             &ExecuteMsg::Remove {
                 native_coins: vec!["foo_coin".to_string()],
@@ -355,7 +332,7 @@ fn try_add_and_remove_native_tokens() {
     );
 
     app.execute_contract(
-        Addr::unchecked("owner"),
+        owner.clone(),
         native_registry_instance.clone(),
         &ExecuteMsg::Remove {
             native_coins: vec!["usdc".to_string()],
@@ -394,7 +371,7 @@ fn try_add_and_remove_native_tokens() {
 #[test]
 fn test_permissionless_add() {
     let mut app = mock_app();
-    let owner = Addr::unchecked("owner");
+    let owner = app.api().addr_make("owner");
 
     let native_registry_code_id = store_native_registry_code(&mut app);
     let msg = InstantiateMsg {
@@ -412,9 +389,10 @@ fn test_permissionless_add() {
         )
         .unwrap();
 
+    let random_addr = app.api().addr_make("random");
     let err = app
         .execute_contract(
-            Addr::unchecked("random"),
+            random_addr.clone(),
             native_registry_instance.clone(),
             &ExecuteMsg::Register {
                 native_coins: vec![("utoken".to_string(), 6)],
@@ -430,7 +408,7 @@ fn test_permissionless_add() {
 
     app.sudo(
         BankSudo::Mint {
-            to_address: "random".to_string(),
+            to_address: random_addr.to_string(),
             amount: vec![coin(1, "ufoo"), coin(1, "adydx"), coin(100000, "utoken")],
         }
         .into(),
@@ -439,7 +417,7 @@ fn test_permissionless_add() {
 
     let err = app
         .execute_contract(
-            Addr::unchecked("random"),
+            random_addr.clone(),
             native_registry_instance.clone(),
             &ExecuteMsg::Register {
                 native_coins: vec![
@@ -461,7 +439,7 @@ fn test_permissionless_add() {
 
     let err = app
         .execute_contract(
-            Addr::unchecked("random"),
+            random_addr.clone(),
             native_registry_instance.clone(),
             &ExecuteMsg::Register {
                 native_coins: vec![
@@ -480,7 +458,7 @@ fn test_permissionless_add() {
     );
 
     app.execute_contract(
-        Addr::unchecked("random"),
+        random_addr.clone(),
         native_registry_instance.clone(),
         &ExecuteMsg::Register {
             native_coins: vec![
@@ -503,7 +481,7 @@ fn test_permissionless_add() {
     assert_eq!(foo_bal, 0);
     let user_foo_bal = app
         .wrap()
-        .query_balance(&Addr::unchecked("random"), "ufoo")
+        .query_balance(&random_addr, "ufoo")
         .unwrap()
         .amount
         .u128();
@@ -512,7 +490,7 @@ fn test_permissionless_add() {
     // Try to update existing coin
     let err = app
         .execute_contract(
-            Addr::unchecked("random"),
+            random_addr,
             native_registry_instance.clone(),
             &ExecuteMsg::Register {
                 native_coins: vec![("utoken".to_string(), 6)],
