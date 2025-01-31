@@ -3,11 +3,10 @@ use cosmwasm_std::{
 };
 use cw20::{BalanceResponse as Cw20BalanceResponse, Cw20QueryMsg, TokenInfoResponse};
 
-use crate::asset::{Asset, AssetInfo, PairInfo};
+use crate::asset::{AssetInfo, PairInfo};
 use crate::factory::{
     Config as FactoryConfig, FeeInfoResponse, PairType, QueryMsg as FactoryQueryMsg,
 };
-use crate::pair::{QueryMsg as PairQueryMsg, ReverseSimulationResponse, SimulationResponse};
 
 /// Returns a native token's balance for a specific account.
 ///
@@ -184,57 +183,4 @@ pub fn query_pair_info(
     //         limit: None,
     //     },
     // )
-}
-
-/// Returns a vector that contains items of type [`PairInfo`] which
-/// symbolize pairs instantiated in the Astroport factory
-pub fn query_pairs_info(
-    _querier: &QuerierWrapper,
-    _factory_contract: impl Into<String>,
-    _start_after: Option<Vec<AssetInfo>>,
-    _limit: Option<u32>,
-) -> StdResult<Vec<PairInfo>> {
-    todo!()
-    // querier.query_wasm_smart(
-    //     factory_contract,
-    //     &FactoryQueryMsg::Pairs { start_after, limit },
-    // )
-}
-
-/// Returns information about a swap simulation using a [`SimulationResponse`] object.
-///
-/// * **pair_contract** address of the pair for which we return swap simulation info.
-///
-/// * **offer_asset** asset that is being swapped.
-pub fn simulate(
-    querier: &QuerierWrapper,
-    pair_contract: impl Into<String>,
-    offer_asset: &Asset,
-) -> StdResult<SimulationResponse> {
-    querier.query_wasm_smart(
-        pair_contract,
-        &PairQueryMsg::Simulation {
-            offer_asset: offer_asset.clone(),
-            ask_asset_info: None,
-        },
-    )
-}
-
-/// Returns information about a reverse swap simulation using a [`ReverseSimulationResponse`] object.
-///
-/// * **pair_contract**  address of the pair for which we return swap simulation info.
-///
-/// * **ask_asset** represents the asset that we swap to.
-pub fn reverse_simulate(
-    querier: &QuerierWrapper,
-    pair_contract: impl Into<String>,
-    ask_asset: &Asset,
-) -> StdResult<ReverseSimulationResponse> {
-    querier.query_wasm_smart(
-        pair_contract,
-        &PairQueryMsg::ReverseSimulation {
-            offer_asset_info: None,
-            ask_asset: ask_asset.clone(),
-        },
-    )
 }
