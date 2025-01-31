@@ -3,7 +3,7 @@ extern crate core;
 
 use std::collections::{HashMap, HashSet};
 
-use cosmwasm_std::{StdError, Timestamp};
+use cosmwasm_std::{Addr, StdError, Timestamp};
 use itertools::Itertools;
 use proptest::prelude::*;
 
@@ -12,7 +12,7 @@ use astroport::incentives::{MAX_PERIODS, MAX_REWARD_TOKENS};
 use astroport_incentives::error::ContractError;
 use Event::*;
 
-use crate::helper::{Helper, TestAddr};
+use crate::helper::Helper;
 
 mod helper;
 const MAX_EVENTS: usize = 100;
@@ -39,10 +39,6 @@ enum Event {
         reward_id: u8,
         amount: u128,
         duration: u64,
-    },
-    SetupPools {
-        pools: Vec<(u8, u8)>,
-        tokens_per_second: u128,
     },
     RemoveReward {
         lp_token_id: u8,
@@ -106,7 +102,7 @@ fn update_total_rewards(
 
 fn simulate_case(events: Vec<(Event, u64)>) {
     let astro = AssetInfo::native("astro");
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let owner = helper.owner.clone();
     let incentivization_fee = helper.incentivization_fee.clone();
 
@@ -116,7 +112,7 @@ fn simulate_case(events: Vec<(Event, u64)>) {
 
     let users = (0..MAX_USERS)
         .into_iter()
-        .map(|i| TestAddr::new(&format!("user{i}")))
+        .map(|i| helper.app.api().addr_make(&format!("user{i}")))
         .collect_vec();
     let mut user_positions = HashMap::new();
 
@@ -162,8 +158,8 @@ fn simulate_case(events: Vec<(Event, u64)>) {
         .take(MAX_POOLS as usize)
         .collect_vec();
 
-    let bank = TestAddr::new("bank");
-    let dereg_rewards_receiver = TestAddr::new("dereg_rewards_receiver");
+    let bank = helper.app.api().addr_make("bank");
+    let dereg_rewards_receiver = helper.app.api().addr_make("dereg_rewards_receiver");
 
     let mut rewards: RewardsAccounting = HashMap::new();
     let mut longest_schedule_end = helper.app.block_info().time.seconds();
@@ -181,7 +177,7 @@ fn simulate_case(events: Vec<(Event, u64)>) {
             } => {
                 let user = &users[sender_id as usize];
                 let lp_token = &lp_tokens[lp_token_id as usize];
-                let lp_asset_info = AssetInfo::native(lp_token);
+                let lp_asset_info = AssetInfo::cw20(Addr::unchecked(lp_token));
                 let total_amount = lp_asset_info.query_pool(&helper.app.wrap(), user).unwrap();
                 let part = total_amount.u128() * amount as u128 / 100;
 
@@ -258,23 +254,6 @@ fn simulate_case(events: Vec<(Event, u64)>) {
                     r.left += amount;
                     r.total += amount;
                 }
-            }
-            SetupPools {
-                pools,
-                tokens_per_second,
-            } => {
-                let pools = pools
-                    .into_iter()
-                    .map(|(lp_token_id, alloc_points)| {
-                        let lp_token = &lp_tokens[lp_token_id as usize];
-                        (lp_token.clone(), alloc_points as u128)
-                    })
-                    .sorted_by(|a, b| a.0.cmp(&b.0))
-                    .dedup_by(|a, b| a.0 == b.0)
-                    .collect_vec();
-
-                helper.setup_pools(pools).unwrap();
-                helper.set_tokens_per_second(tokens_per_second).unwrap();
             }
             RemoveReward {
                 lp_token_id,
@@ -388,17 +367,6 @@ fn generate_cases() -> impl Strategy<Value = Vec<(Event, u64)>> {
                     amount,
                     duration,
                 }
-            }),
-        (
-            prop::collection::vec(
-                (lp_token_id_strategy.clone(), percent_strategy.clone()),
-                1..=10
-            ),
-            500..=1_000000u128,
-        )
-            .prop_map(|(pools, tokens_per_second)| Event::SetupPools {
-                pools: pools,
-                tokens_per_second: tokens_per_second as u128,
             }),
         (lp_token_id_strategy.clone(), reward_id_strategy.clone()).prop_map(
             |(lp_token_id, reward_id)| Event::RemoveReward {

@@ -4,16 +4,12 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
 use anyhow::Result as AnyResult;
-use cosmwasm_std::testing::{mock_env, MockApi, MockStorage};
+use cosmwasm_std::testing::mock_env;
 use cosmwasm_std::{
-    to_json_binary, Addr, Api, BlockInfo, CanonicalAddr, Coin, Decimal256, Empty, Env,
-    RecoverPubkeyError, StdError, StdResult, Storage, Timestamp, Uint128, VerificationError,
+    to_json_binary, Addr, BlockInfo, Coin, Decimal256, Empty, Env, StdResult, Timestamp, Uint128,
 };
 use cw20::MinterResponse;
-use cw_multi_test::{
-    AddressGenerator, App, AppBuilder, AppResponse, BankKeeper, Contract, ContractWrapper,
-    Executor, FailingModule, WasmKeeper,
-};
+use cw_multi_test::{App, AppBuilder, AppResponse, Contract, ContractWrapper, Executor};
 use itertools::Itertools;
 
 use astroport::asset::{Asset, AssetInfo, AssetInfoExt, PairInfo};
@@ -83,125 +79,8 @@ fn generator_contract() -> Box<dyn Contract<Empty>> {
     )
 }
 
-pub struct TestApi {
-    mock_api: MockApi,
-}
-
-impl TestApi {
-    pub fn new() -> Self {
-        Self {
-            mock_api: MockApi::default(),
-        }
-    }
-}
-
-impl Api for TestApi {
-    fn addr_validate(&self, input: &str) -> StdResult<Addr> {
-        if input.starts_with(TestAddr::ADDR_PREFIX) {
-            self.mock_api.addr_validate(input)
-        } else {
-            Err(StdError::generic_err(format!(
-                "TestApi: address {input} does not start with {}",
-                TestAddr::ADDR_PREFIX
-            )))
-        }
-    }
-
-    fn addr_canonicalize(&self, human: &str) -> StdResult<CanonicalAddr> {
-        self.mock_api.addr_canonicalize(human)
-    }
-
-    fn addr_humanize(&self, canonical: &CanonicalAddr) -> StdResult<Addr> {
-        self.mock_api.addr_humanize(canonical)
-    }
-
-    fn secp256k1_verify(
-        &self,
-        message_hash: &[u8],
-        signature: &[u8],
-        public_key: &[u8],
-    ) -> Result<bool, VerificationError> {
-        self.mock_api
-            .secp256k1_verify(message_hash, signature, public_key)
-    }
-
-    fn secp256k1_recover_pubkey(
-        &self,
-        message_hash: &[u8],
-        signature: &[u8],
-        recovery_param: u8,
-    ) -> Result<Vec<u8>, RecoverPubkeyError> {
-        self.mock_api
-            .secp256k1_recover_pubkey(message_hash, signature, recovery_param)
-    }
-
-    fn ed25519_verify(
-        &self,
-        message: &[u8],
-        signature: &[u8],
-        public_key: &[u8],
-    ) -> Result<bool, VerificationError> {
-        self.mock_api.ed25519_verify(message, signature, public_key)
-    }
-
-    fn ed25519_batch_verify(
-        &self,
-        messages: &[&[u8]],
-        signatures: &[&[u8]],
-        public_keys: &[&[u8]],
-    ) -> Result<bool, VerificationError> {
-        self.mock_api
-            .ed25519_batch_verify(messages, signatures, public_keys)
-    }
-
-    fn debug(&self, message: &str) {
-        self.mock_api.debug(message)
-    }
-}
-
-pub struct TestAddr;
-
-impl TestAddr {
-    pub const ADDR_PREFIX: &'static str = "wasm1";
-    pub const COUNT_KEY: &'static [u8] = b"address_count";
-
-    pub fn new(seed: &str) -> Addr {
-        Addr::unchecked(format!("{}_{seed}", Self::ADDR_PREFIX))
-    }
-}
-
-impl AddressGenerator for TestAddr {
-    fn contract_address(
-        &self,
-        _api: &dyn Api,
-        storage: &mut dyn Storage,
-        _code_id: u64,
-        _instance_id: u64,
-    ) -> AnyResult<Addr> {
-        let count = if let Some(next) = storage.get(Self::COUNT_KEY) {
-            u64::from_be_bytes(next.as_slice().try_into().unwrap()) + 1
-        } else {
-            1u64
-        };
-        storage.set(Self::COUNT_KEY, &count.to_be_bytes());
-
-        Ok(Addr::unchecked(format!(
-            "{}_contract{count}",
-            Self::ADDR_PREFIX
-        )))
-    }
-}
-
-pub type TestApp<ExecC = Empty, QueryC = Empty> = App<
-    BankKeeper,
-    TestApi,
-    MockStorage,
-    FailingModule<ExecC, QueryC, Empty>,
-    WasmKeeper<ExecC, QueryC>,
->;
-
 pub struct Helper {
-    pub app: TestApp,
+    pub app: App,
     pub owner: Addr,
     pub factory: Addr,
     pub generator: Addr,
@@ -211,17 +90,15 @@ pub struct Helper {
 }
 
 impl Helper {
-    pub fn new(owner: &str, astro: &AssetInfo) -> AnyResult<Self> {
+    pub fn new(astro: &AssetInfo) -> AnyResult<Self> {
         let mut app = AppBuilder::new()
-            .with_wasm(WasmKeeper::new().with_address_generator(TestAddr))
-            .with_api(TestApi::new())
             .with_block(BlockInfo {
                 height: 1,
                 time: Timestamp::from_seconds(1696810000),
                 chain_id: "cw-multitest-1".to_string(),
             })
             .build(|_, _, _| {});
-        let owner = TestAddr::new(owner);
+        let owner = app.api().addr_make("owner");
 
         let coin_registry_address_code = app.store_code(coin_registry_contract());
         let coin_registry_address = app
@@ -291,12 +168,12 @@ impl Helper {
                     owner: owner.to_string(),
                     factory: factory.to_string(),
                     astro_token: astro.clone(),
-                    vesting_contract: "vesting".to_string(),
+                    vesting_contract: app.api().addr_make("vesting").to_string(),
                     incentivization_fee_info: Some(IncentivizationFeeInfo {
-                        fee_receiver: TestAddr::new("maker"),
+                        fee_receiver: app.api().addr_make("maker"),
                         fee: incentivization_fee.clone(),
                     }),
-                    guardian: Some(TestAddr::new("guardian").to_string()),
+                    guardian: Some(app.api().addr_make("guardian").to_string()),
                 },
                 &[],
                 "Astroport Generator",
@@ -315,14 +192,6 @@ impl Helper {
             },
             &[],
         )
-        .unwrap();
-
-        let astro_for_vesting = astro.with_balance(u128::MAX).as_coin().unwrap();
-        app.init_modules(|router, _, storage| {
-            router
-                .bank
-                .init_balance(storage, &owner, vec![astro_for_vesting.clone()])
-        })
         .unwrap();
 
         Ok(Self {
@@ -483,7 +352,7 @@ impl Helper {
 
     pub fn deactivate_blocked(&mut self) -> AnyResult<AppResponse> {
         self.app.execute_contract(
-            Addr::unchecked("permissionless"),
+            self.app.api().addr_make("permissionless"),
             self.generator.clone(),
             &ExecuteMsg::DeactivateBlockedPools {},
             &[],
@@ -750,7 +619,7 @@ impl Helper {
 
     pub fn mint_coin(&mut self, to: &Addr, coin: &Coin) {
         // .init_balance() erases previous balance thus I use such hack and create intermediate "denom admin"
-        let denom_admin = Addr::unchecked(format!("{}_admin", &coin.denom));
+        let denom_admin = self.app.api().addr_make(&format!("{}_admin", &coin.denom));
         self.app
             .init_modules(|router, _, storage| {
                 router
@@ -917,7 +786,7 @@ impl Helper {
         let asset_infos = asset_infos.to_vec();
         self.app
             .execute_contract(
-                Addr::unchecked("permissionless"),
+                self.app.api().addr_make("permissionless"),
                 self.factory.clone(),
                 &factory::ExecuteMsg::CreatePair {
                     pair_type: PairType::Xyk {},
@@ -948,7 +817,7 @@ impl Helper {
         let asset_infos = asset_infos.to_vec();
         self.app
             .execute_contract(
-                Addr::unchecked("permissionless"),
+                self.app.api().addr_make("permissionless"),
                 self.factory.clone(),
                 &factory::ExecuteMsg::CreatePair {
                     pair_type: PairType::Custom("yet_another_xyk".to_string()),

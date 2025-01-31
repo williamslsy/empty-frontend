@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, coins, Decimal256, Timestamp, Uint128};
+use cosmwasm_std::{coin, coins, Addr, Decimal256, Timestamp, Uint128};
+use cw_multi_test::Executor;
 use itertools::Itertools;
 
 use astroport::asset::{native_asset_info, AssetInfo, AssetInfoExt};
@@ -9,294 +10,81 @@ use astroport::incentives::{
     EPOCH_LENGTH, MAX_REWARD_TOKENS,
 };
 use astroport_incentives::error::ContractError;
-use cw_multi_test::Executor;
 
-use crate::helper::{assert_rewards, dec256_to_u128_floor, Helper, TestAddr};
+use crate::helper::{assert_rewards, dec256_to_u128_floor, Helper};
 
 mod helper;
 
 #[test]
 fn test_stake_unstake() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
-    let asset_infos = [AssetInfo::native("foo"), AssetInfo::native("bar")];
-    let pair_info = helper.create_pair(&asset_infos).unwrap();
-    let lp_token = pair_info.liquidity_token.to_string();
+    let mut helper = Helper::new(&astro).unwrap();
 
-    let user = TestAddr::new("user");
-
-    let native_lp = native_asset_info(lp_token.to_string()).with_balance(10000u16);
-    helper.mint_coin(&user, &native_lp.as_coin().unwrap());
-
-    helper.stake(&user, native_lp).unwrap();
-
-    helper
-        .unstake(&user, &lp_token.to_string(), 500u128)
-        .unwrap();
-
-    // Unstake more than staked
-    let err = helper.unstake(&user, &lp_token, 10000u128).unwrap_err();
-    assert_eq!(
-        err.downcast::<ContractError>().unwrap(),
-        ContractError::AmountExceedsBalance {
-            available: 9500u16.into(),
-            withdraw_amount: 10000u16.into()
-        }
-    );
-
-    // Unstake non-existing LP token
-    let err = helper
-        .unstake(&user, "non_existing_lp_token", 10000u128)
-        .unwrap_err();
-    assert_eq!(
-        err.downcast::<ContractError>().unwrap(),
-        ContractError::PositionDoesntExist {
-            user: user.to_string(),
-            lp_token: "non_existing_lp_token".to_string()
-        }
-    );
-
-    helper.unstake(&user, &lp_token, 500u128).unwrap();
+    let user = helper.app.api().addr_make("user");
 
     // ##### Check cw20 LPs
 
-    // let asset_infos = [AssetInfo::native("uusd"), AssetInfo::native("ueur")];
-    // let pair_info = helper.create_pair(&asset_infos).unwrap();
-    // let provide_assets = [
-    //     asset_infos[0].with_balance(100000u64),
-    //     asset_infos[1].with_balance(100000u64),
-    // ];
-    // helper
-    //     .provide_liquidity(&user, &provide_assets, &pair_info.contract_addr, false)
-    //     .unwrap();
-
-    // let cw20_lp = AssetInfo::cw20(pair_info.liquidity_token.clone());
-    // let initial_lp_balance = cw20_lp.query_pool(&helper.app.wrap(), &user).unwrap();
-    // helper
-    //     .stake(&user, cw20_lp.with_balance(initial_lp_balance))
-    //     .unwrap();
-    // let lp_balance = cw20_lp.query_pool(&helper.app.wrap(), &user).unwrap();
-    // assert_eq!(lp_balance.u128(), 0);
-
-    // // Unstake more than staked
-    // let err = helper
-    //     .unstake(
-    //         &user,
-    //         pair_info.liquidity_token.as_str(),
-    //         initial_lp_balance + Uint128::one(),
-    //     )
-    //     .unwrap_err();
-    // assert_eq!(
-    //     err.downcast::<ContractError>().unwrap(),
-    //     ContractError::AmountExceedsBalance {
-    //         available: initial_lp_balance,
-    //         withdraw_amount: initial_lp_balance + Uint128::one()
-    //     }
-    // );
-
-    // // Unstake half
-    // helper
-    //     .unstake(
-    //         &user,
-    //         pair_info.liquidity_token.as_str(),
-    //         initial_lp_balance.u128() / 2,
-    //     )
-    //     .unwrap();
-    // let lp_balance = cw20_lp.query_pool(&helper.app.wrap(), &user).unwrap();
-    // assert_eq!(lp_balance.u128(), initial_lp_balance.u128() / 2);
-
-    // // Unstake the rest
-    // helper
-    //     .unstake(
-    //         &user,
-    //         pair_info.liquidity_token.as_str(),
-    //         initial_lp_balance.u128() / 2,
-    //     )
-    //     .unwrap();
-    // let lp_balance = cw20_lp.query_pool(&helper.app.wrap(), &user).unwrap();
-    // assert_eq!(lp_balance, initial_lp_balance);
-}
-
-#[test]
-fn test_claim_rewards() {
-    let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
-    let owner = helper.owner.clone();
-
-    let mut pools = vec![
-        ("uusd", "eur", "".to_string(), vec!["user1", "user2"], 100),
-        ("uusd", "tokenA", "".to_string(), vec!["user1"], 50),
-        ("uusd", "tokenB", "".to_string(), vec!["user2"], 50),
+    let asset_infos = [AssetInfo::native("uusd"), AssetInfo::native("ueur")];
+    let pair_info = helper.create_pair(&asset_infos).unwrap();
+    let provide_assets = [
+        asset_infos[0].with_balance(100000u64),
+        asset_infos[1].with_balance(100000u64),
     ];
-
-    let mut active_pools = vec![];
-    for (token1, token2, lp_token, stakers, alloc_points) in pools.iter_mut() {
-        let asset_infos = [AssetInfo::native(*token1), AssetInfo::native(*token2)];
-        let pair_info = helper.create_pair(&asset_infos).unwrap();
-        *lp_token = pair_info.liquidity_token.to_string();
-        active_pools.push((pair_info.liquidity_token.to_string(), *alloc_points));
-
-        let provide_assets = [
-            asset_infos[0].with_balance(100000u64),
-            asset_infos[1].with_balance(100000u64),
-        ];
-        // Owner provides liquidity first just make following calculations easier
-        // since first depositor gets small cut of LP tokens
-        helper
-            .provide_liquidity(
-                &owner,
-                &provide_assets,
-                &pair_info.contract_addr,
-                false, // Owner doesn't stake in incentives
-            )
-            .unwrap();
-
-        for staker in stakers {
-            let staker_addr = TestAddr::new(staker);
-
-            // Pool doesn't exist in incentives contract yet
-            let astro_before = astro.query_pool(&helper.app.wrap(), &staker_addr).unwrap();
-            helper
-                .claim_rewards(&staker_addr, vec![pair_info.liquidity_token.to_string()])
-                .unwrap_err();
-            let astro_after = astro.query_pool(&helper.app.wrap(), &staker_addr).unwrap();
-            assert_eq!((astro_after - astro_before).u128(), 0);
-
-            helper
-                .provide_liquidity(
-                    &staker_addr,
-                    &provide_assets,
-                    &pair_info.contract_addr,
-                    true,
-                )
-                .unwrap();
-        }
-    }
-
-    // Invalid active pools set
-    let err = helper
-        .setup_pools(vec![
-            (TestAddr::new("pool1").to_string(), 1),
-            (TestAddr::new("pool1").to_string(), 1),
-        ])
-        .unwrap_err();
-    assert_eq!(
-        err.downcast::<ContractError>().unwrap(),
-        ContractError::DuplicatedPoolFound {}
-    );
-
-    // Can't set 0 alloc point
-    let err = helper
-        .setup_pools(vec![
-            (TestAddr::new("pool1").to_string(), 0),
-            (TestAddr::new("pool2").to_string(), 1),
-        ])
-        .unwrap_err();
-    assert_eq!(
-        err.downcast::<ContractError>().unwrap(),
-        ContractError::ZeroAllocPoint {
-            lp_token: TestAddr::new("pool1").to_string()
-        }
-    );
-
-    // Only owner can execute operations below
-    let err = helper
-        .app
-        .execute_contract(
-            TestAddr::new("not_owner"),
-            helper.generator.clone(),
-            &ExecuteMsg::SetTokensPerSecond {
-                amount: 1u128.into(),
-            },
-            &[],
-        )
-        .unwrap_err();
-    assert_eq!(
-        err.downcast::<ContractError>().unwrap(),
-        ContractError::Unauthorized {}
-    );
-    let err = helper
-        .app
-        .execute_contract(
-            TestAddr::new("not_owner"),
-            helper.generator.clone(),
-            &ExecuteMsg::SetupPools {
-                pools: active_pools
-                    .iter()
-                    .map(|(pool, amount)| (pool.clone(), (*amount).into()))
-                    .collect(),
-            },
-            &[],
-        )
-        .unwrap_err();
-    assert_eq!(
-        err.downcast::<ContractError>().unwrap(),
-        ContractError::Unauthorized {}
-    );
-
-    helper.setup_pools(active_pools).unwrap();
-    helper.set_tokens_per_second(1_000000).unwrap();
-
-    // Block time still the same thus no rewards collected
-    for (_, _, lp_token, stakers, _) in &pools {
-        for staker in stakers {
-            let staker_addr = TestAddr::new(staker);
-
-            let pending = helper.query_pending_rewards(&staker_addr, &lp_token);
-            let bal_before = helper.snapshot_balances(&staker_addr, &pending);
-
-            helper
-                .claim_rewards(&staker_addr, vec![lp_token.clone()])
-                .unwrap();
-
-            let bal_after = helper.snapshot_balances(&staker_addr, &pending);
-            assert_rewards(&bal_before, &bal_after, &pending);
-        }
-    }
-
     helper
-        .app
-        .update_block(|block| block.time = block.time.plus_seconds(5));
-
-    let user1 = TestAddr::new("user1");
-    let astro_before = astro.query_pool(&helper.app.wrap(), &user1).unwrap();
-    let err = helper
-        .claim_rewards(
-            &user1,
-            vec![
-                pools[0].2.to_string(),
-                pools[1].2.to_string(),
-                pools[2].2.to_string(), // user1 doesn't have position in this pool and it should fail transaction
-            ],
-        )
-        .unwrap_err();
-    assert_eq!(
-        err.downcast::<ContractError>().unwrap(),
-        ContractError::PositionDoesntExist {
-            user: user1.to_string(),
-            lp_token: pools[2].2.to_string()
-        }
-    );
-
-    helper
-        .claim_rewards(&user1, vec![pools[0].2.to_string(), pools[1].2.to_string()])
+        .provide_liquidity(&user, &provide_assets, &pair_info.contract_addr, false)
         .unwrap();
-    let astro_after = astro.query_pool(&helper.app.wrap(), &user1).unwrap();
-    assert_eq!((astro_after - astro_before).u128(), 2_500000);
 
-    let user2 = TestAddr::new("user2");
-    let astro_before = astro.query_pool(&helper.app.wrap(), &user2).unwrap();
+    let cw20_lp = AssetInfo::cw20(Addr::unchecked(&pair_info.liquidity_token));
+    let initial_lp_balance = cw20_lp.query_pool(&helper.app.wrap(), &user).unwrap();
     helper
-        .claim_rewards(&user2, vec![pools[0].2.to_string(), pools[2].2.to_string()])
+        .stake(&user, cw20_lp.with_balance(initial_lp_balance))
         .unwrap();
-    let astro_after = astro.query_pool(&helper.app.wrap(), &user2).unwrap();
-    assert_eq!((astro_after - astro_before).u128(), 2_500000);
+    let lp_balance = cw20_lp.query_pool(&helper.app.wrap(), &user).unwrap();
+    assert_eq!(lp_balance.u128(), 0);
+
+    // Unstake more than staked
+    let err = helper
+        .unstake(
+            &user,
+            pair_info.liquidity_token.as_str(),
+            initial_lp_balance + Uint128::one(),
+        )
+        .unwrap_err();
+    assert_eq!(
+        err.downcast::<ContractError>().unwrap(),
+        ContractError::AmountExceedsBalance {
+            available: initial_lp_balance,
+            withdraw_amount: initial_lp_balance + Uint128::one()
+        }
+    );
+
+    // Unstake half
+    helper
+        .unstake(
+            &user,
+            pair_info.liquidity_token.as_str(),
+            initial_lp_balance.u128() / 2,
+        )
+        .unwrap();
+    let lp_balance = cw20_lp.query_pool(&helper.app.wrap(), &user).unwrap();
+    assert_eq!(lp_balance.u128(), initial_lp_balance.u128() / 2);
+
+    // Unstake the rest
+    helper
+        .unstake(
+            &user,
+            pair_info.liquidity_token.as_str(),
+            initial_lp_balance.u128() / 2,
+        )
+        .unwrap();
+    let lp_balance = cw20_lp.query_pool(&helper.app.wrap(), &user).unwrap();
+    assert_eq!(lp_balance, initial_lp_balance);
 }
 
 #[test]
 fn test_incentives() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let owner = helper.owner.clone();
     let incentivization_fee = helper.incentivization_fee.clone();
 
@@ -319,12 +107,12 @@ fn test_incentives() {
         )
         .unwrap();
 
-    let user = TestAddr::new("user");
+    let user = helper.app.api().addr_make("user");
     helper
         .provide_liquidity(&user, &provide_assets, &pair_info.contract_addr, true)
         .unwrap();
 
-    let bank = TestAddr::new("bank");
+    let bank = helper.app.api().addr_make("bank");
     let reward_asset_info = AssetInfo::native("reward");
     let reward = reward_asset_info.with_balance(1000_000000u128);
     helper.mint_assets(&bank, &[reward.clone()]);
@@ -382,7 +170,10 @@ fn test_incentives() {
     let maker_amount = helper
         .app
         .wrap()
-        .query_balance(TestAddr::new("maker"), &incentivization_fee.denom)
+        .query_balance(
+            helper.app.api().addr_make("maker"),
+            &incentivization_fee.denom,
+        )
         .unwrap();
     assert_eq!(maker_amount.amount, incentivization_fee.amount);
 
@@ -431,7 +222,7 @@ fn test_incentives() {
 #[test]
 fn test_cw20_incentives() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let owner = helper.owner.clone();
     let incentivization_fee = helper.incentivization_fee.clone();
 
@@ -454,12 +245,12 @@ fn test_cw20_incentives() {
         )
         .unwrap();
 
-    let user = TestAddr::new("user");
+    let user = helper.app.api().addr_make("user");
     helper
         .provide_liquidity(&user, &provide_assets, &pair_info.contract_addr, true)
         .unwrap();
 
-    let bank = TestAddr::new("bank");
+    let bank = helper.app.api().addr_make("bank");
     let reward_cw20 = helper.init_cw20("reward", None);
     let reward_asset_info = AssetInfo::cw20(reward_cw20);
     let reward = reward_asset_info.with_balance(1000_000000u128);
@@ -523,7 +314,7 @@ fn test_cw20_incentives() {
 #[test]
 fn test_large_incentives() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let owner = helper.owner.clone();
     let incentivization_fee = helper.incentivization_fee.clone();
 
@@ -546,12 +337,12 @@ fn test_large_incentives() {
         )
         .unwrap();
 
-    let user = TestAddr::new("user");
+    let user = helper.app.api().addr_make("user");
     helper
         .provide_liquidity(&user, &provide_assets, &pair_info.contract_addr, true)
         .unwrap();
 
-    let bank = TestAddr::new("bank");
+    let bank = helper.app.api().addr_make("bank");
     let reward_asset_info = AssetInfo::native("reward");
     let reward = reward_asset_info.with_balance(2839081665193567584256u128);
     helper.mint_assets(&bank, &[reward.clone()]);
@@ -584,7 +375,7 @@ fn test_large_incentives() {
 #[test]
 fn test_multiple_schedules_same_reward() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let owner = helper.owner.clone();
     let incentivization_fee = helper.incentivization_fee.clone();
 
@@ -607,16 +398,12 @@ fn test_multiple_schedules_same_reward() {
         )
         .unwrap();
 
-    // Incentivize with ASTRO
-    helper.setup_pools(vec![(lp_token.clone(), 100)]).unwrap();
-    helper.set_tokens_per_second(100).unwrap();
-
-    let user = TestAddr::new("user");
+    let user = helper.app.api().addr_make("user");
     helper
         .provide_liquidity(&user, &provide_assets, &pair_info.contract_addr, true)
         .unwrap();
 
-    let bank = TestAddr::new("bank");
+    let bank = helper.app.api().addr_make("bank");
     let reward_asset_info = AssetInfo::native("reward");
     let reward = reward_asset_info.with_balance(1000_000000u128);
 
@@ -645,8 +432,6 @@ fn test_multiple_schedules_same_reward() {
         }
     }
 
-    let time_before_claims = helper.app.block_info().time.seconds();
-
     // Rewards started right away
     helper
         .app
@@ -656,9 +441,6 @@ fn test_multiple_schedules_same_reward() {
         .query_pool(&helper.app.wrap(), &user)
         .unwrap();
     assert_eq!(reward_balance.u128(), 207_189296);
-    // And received ASTRO rewards
-    let astro_reward_balance = astro.query_pool(&helper.app.wrap(), &user).unwrap();
-    assert_eq!(astro_reward_balance.u128(), 86400 * 100);
 
     // Iterate till the end of the longest schedule by 1 day and claim rewards
     loop {
@@ -683,19 +465,12 @@ fn test_multiple_schedules_same_reward() {
         .unwrap();
     // A small amount of reward is lost due to rounding
     assert_eq!(reward_balance.u128(), 4999_999972);
-
-    let time_now = helper.app.block_info().time.seconds();
-    let astro_reward_balance = astro.query_pool(&helper.app.wrap(), &user).unwrap();
-    assert_eq!(
-        astro_reward_balance.u128(),
-        u128::from(time_now - time_before_claims) * 100
-    );
 }
 
 #[test]
 fn test_astro_can_bypass_rewards_limit() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let incentivization_fee = helper.incentivization_fee.clone();
 
     let lp_token = helper
@@ -704,7 +479,7 @@ fn test_astro_can_bypass_rewards_limit() {
         .liquidity_token
         .to_string();
 
-    let bank = TestAddr::new("bank");
+    let bank = helper.app.api().addr_make("bank");
 
     let schedules: Vec<_> = (1..=MAX_REWARD_TOKENS)
         .into_iter()
@@ -747,7 +522,7 @@ fn test_astro_can_bypass_rewards_limit() {
 #[test]
 fn test_multiple_schedules_different_reward() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let owner = helper.owner.clone();
     let incentivization_fee = helper.incentivization_fee.clone();
 
@@ -770,16 +545,12 @@ fn test_multiple_schedules_different_reward() {
         )
         .unwrap();
 
-    // Incentivize with ASTRO
-    helper.setup_pools(vec![(lp_token.clone(), 100)]).unwrap();
-    helper.set_tokens_per_second(100).unwrap();
-
-    let user = TestAddr::new("user");
+    let user = helper.app.api().addr_make("user");
     helper
         .provide_liquidity(&user, &provide_assets, &pair_info.contract_addr, true)
         .unwrap();
 
-    let bank = TestAddr::new("bank");
+    let bank = helper.app.api().addr_make("bank");
 
     let schedules: Vec<_> = (1..=MAX_REWARD_TOKENS)
         .into_iter()
@@ -824,8 +595,6 @@ fn test_multiple_schedules_different_reward() {
         }
     );
 
-    let time_before_claims = helper.app.block_info().time.seconds();
-
     // Rewards started right away
     helper
         .app
@@ -839,9 +608,6 @@ fn test_multiple_schedules_different_reward() {
             .unwrap();
         assert_eq!(reward_balance.u128(), 47_629547);
     }
-    // And received ASTRO rewards
-    let astro_reward_balance = astro.query_pool(&helper.app.wrap(), &user).unwrap();
-    assert_eq!(astro_reward_balance.u128(), 86400 * 100);
 
     // Iterate till the end of the longest schedule by 1 day and claim rewards
     loop {
@@ -877,19 +643,12 @@ fn test_multiple_schedules_different_reward() {
             schedule.reward.info
         );
     }
-
-    let time_now = helper.app.block_info().time.seconds();
-    let astro_reward_balance = astro.query_pool(&helper.app.wrap(), &user).unwrap();
-    assert_eq!(
-        astro_reward_balance.u128(),
-        u128::from(time_now - time_before_claims) * 100
-    );
 }
 
 #[test]
 fn test_incentivize_many() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let owner = helper.owner.clone();
     let incentivization_fee = helper.incentivization_fee.clone();
 
@@ -912,12 +671,12 @@ fn test_incentivize_many() {
         )
         .unwrap();
 
-    let user = TestAddr::new("user");
+    let user = helper.app.api().addr_make("user");
     helper
         .provide_liquidity(&user, &provide_assets, &pair_info.contract_addr, true)
         .unwrap();
 
-    let bank = TestAddr::new("bank");
+    let bank = helper.app.api().addr_make("bank");
 
     let schedules: Vec<_> = (1..=MAX_REWARD_TOKENS)
         .into_iter()
@@ -1057,7 +816,7 @@ fn test_incentivize_many() {
 #[test]
 fn test_claim_between_different_periods() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let owner = helper.owner.clone();
     let incentivization_fee = helper.incentivization_fee.clone();
 
@@ -1080,13 +839,13 @@ fn test_claim_between_different_periods() {
         )
         .unwrap();
 
-    let user = TestAddr::new("user");
+    let user = helper.app.api().addr_make("user");
     helper
         .provide_liquidity(&user, &provide_assets, &pair_info.contract_addr, true)
         .unwrap();
 
     // External incentives
-    let bank = TestAddr::new("bank");
+    let bank = helper.app.api().addr_make("bank");
     let reward_asset_info = AssetInfo::native("reward");
     let reward = reward_asset_info.with_balance(1000_000000u128);
 
@@ -1115,10 +874,6 @@ fn test_claim_between_different_periods() {
         }
     }
 
-    // Incentivize with ASTRO
-    helper.setup_pools(vec![(lp_token.clone(), 100)]).unwrap();
-    helper.set_tokens_per_second(100).unwrap();
-
     let time_before_claims = helper.app.block_info().time.seconds();
 
     // Shift time by 15 days
@@ -1129,108 +884,21 @@ fn test_claim_between_different_periods() {
     helper.claim_rewards(&user, vec![lp_token.clone()]).unwrap();
 
     let time_now = helper.app.block_info().time.seconds();
-    let astro_reward_balance = astro.query_pool(&helper.app.wrap(), &user).unwrap();
-    assert_eq!(
-        astro_reward_balance.u128(),
-        u128::from(time_now - time_before_claims) * 100
-    );
-}
-
-#[test]
-fn test_astro_external_reward() {
-    let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
-    helper
-        .app
-        .update_block(|block| block.time = Timestamp::from_seconds(EPOCHS_START + EPOCH_LENGTH));
-
-    let owner = helper.owner.clone();
-
-    let asset_infos = [AssetInfo::native("foo"), AssetInfo::native("bar")];
-    let pair_info = helper.create_pair(&asset_infos).unwrap();
-    let lp_token = pair_info.liquidity_token.to_string();
-
-    let provide_assets = [
-        asset_infos[0].with_balance(100000u64),
-        asset_infos[1].with_balance(100000u64),
-    ];
-    // Owner provides liquidity first just to make following calculations easier
-    // since first depositor gets small cut of LP tokens
-    helper
-        .provide_liquidity(
-            &owner,
-            &provide_assets,
-            &pair_info.contract_addr,
-            false, // Owner doesn't stake in incentives
-        )
+    let reward_balance = reward_asset_info
+        .query_pool(&helper.app.wrap(), &user)
         .unwrap();
-
-    // Incentivize with ASTRO
-    helper.setup_pools(vec![(lp_token.clone(), 100)]).unwrap();
-    helper.set_tokens_per_second(100).unwrap();
-
-    let active_pools = helper.active_pools();
-    assert_eq!(active_pools, vec![(lp_token.clone(), 100u8.into())]);
-
-    // Setup external rewards: 2 equal external ASTRO rewards that must be summed up
-    let bank = TestAddr::new("bank");
-    let reward = astro.with_balance(2u128 * 7 * 86400 * 25); // 25 uastro per second
-    let (schedule, internal_sch) = helper.create_schedule(&reward, 1).unwrap();
-    helper.mint_assets(&bank, &[reward.clone()]);
-    helper
-        .incentivize(&bank, &lp_token, schedule.clone(), &[])
-        .unwrap();
-    helper.mint_assets(&bank, &[reward.clone()]);
-    helper
-        .incentivize(&bank, &lp_token, schedule.clone(), &[])
-        .unwrap();
-
-    // Prepare user's liquidity
-    let user = TestAddr::new("user");
-    helper
-        .provide_liquidity(&user, &provide_assets, &pair_info.contract_addr, true)
-        .unwrap();
-
-    let time_before_claims = helper.app.block_info().time.seconds();
-
-    helper.next_block(86400);
-
-    helper.claim_rewards(&user, vec![lp_token.clone()]).unwrap();
-    let astro_reward_balance = astro.query_pool(&helper.app.wrap(), &user).unwrap();
-    assert_eq!(astro_reward_balance.u128(), 86400 * (100 + 50));
-
-    // Iterate till the end of the schedule by 1 day and claim rewards
-    loop {
-        let pending = helper.query_pending_rewards(&user, &lp_token);
-        let bal_before = helper.snapshot_balances(&user, &pending);
-
-        helper.claim_rewards(&user, vec![lp_token.clone()]).unwrap();
-
-        let bal_after = helper.snapshot_balances(&user, &pending);
-        assert_rewards(&bal_before, &bal_after, &pending);
-
-        if helper.app.block_info().time.seconds() > internal_sch.end_ts {
-            break;
-        } else {
-            helper.next_block(86400);
-        }
-    }
-
-    let time_now = helper.app.block_info().time.seconds();
-    let astro_reward_balance = astro.query_pool(&helper.app.wrap(), &user).unwrap();
-    assert_eq!(
-        astro_reward_balance.u128(),
-        u128::from(time_now - time_before_claims) * 100 // protocol rewards
-            + u128::from(internal_sch.end_ts - time_before_claims) * 50 // external rewards
-    );
+    // first schedule is 2 weeks long with 1000 (500 reward per week)
+    // second schedule is 3 week long with 1000 (333.33 reward per week)
+    // full 14 days passed, so 500 + 500 + 333.33 + 333.33 + 333.33 / 7 (for one day of the last week)
+    assert_eq!(reward_balance.u128(), 1714_443219);
 }
 
 #[test]
 fn test_blocked_tokens() {
     let astro = native_asset_info("ibc/old_cw20_astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let owner = helper.owner.clone();
-    let guardian = TestAddr::new("guardian");
+    let guardian = helper.app.api().addr_make("guardian");
 
     let tokens = [
         AssetInfo::native("usd"),
@@ -1257,7 +925,7 @@ fn test_blocked_tokens() {
         )
     );
     let err = helper
-        .block_tokens(&TestAddr::new("random"), &[tokens[2].clone()])
+        .block_tokens(&helper.app.api().addr_make("random"), &[tokens[2].clone()])
         .unwrap_err();
     assert_eq!(
         err.downcast::<ContractError>().unwrap(),
@@ -1398,7 +1066,7 @@ fn test_blocked_tokens() {
 #[test]
 fn test_blocked_pair_types() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let owner = helper.owner.clone();
 
     let tokens = [
@@ -1524,7 +1192,7 @@ fn test_blocked_pair_types() {
 #[test]
 fn test_incentives_with_blocked() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let owner = helper.owner.clone();
     let incentivization_fee = helper.incentivization_fee.clone();
 
@@ -1532,7 +1200,7 @@ fn test_incentives_with_blocked() {
     let pair_info = helper.create_pair(&asset_infos).unwrap();
 
     // Try to incentivize with blocked token
-    let bank = TestAddr::new("bank");
+    let bank = helper.app.api().addr_make("bank");
     let blocked_token = AssetInfo::native("blocked_reward");
     helper
         .block_tokens(&owner, &[blocked_token.clone()])
@@ -1562,7 +1230,7 @@ fn test_incentives_with_blocked() {
 fn test_remove_rewards() {
     let astro = native_asset_info("astro".to_string());
 
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     helper
         .app
         .update_block(|block| block.time = Timestamp::from_seconds(EPOCHS_START + EPOCH_LENGTH));
@@ -1589,12 +1257,12 @@ fn test_remove_rewards() {
         )
         .unwrap();
 
-    let user = TestAddr::new("user");
+    let user = helper.app.api().addr_make("user");
     helper
         .provide_liquidity(&user, &provide_assets, &pair_info.contract_addr, true)
         .unwrap();
 
-    let bank = TestAddr::new("bank");
+    let bank = helper.app.api().addr_make("bank");
     let reward_asset_info = AssetInfo::native("reward");
     let reward = reward_asset_info.with_balance(1000_000000u128);
     let (schedule, _) = helper.create_schedule(&reward, 1).unwrap();
@@ -1627,12 +1295,12 @@ fn test_remove_rewards() {
     // Assume 1 day passed and then reward gets deregistered
     helper.next_block(86400);
 
-    let receiver = TestAddr::new("receiver");
+    let receiver = helper.app.api().addr_make("receiver");
 
     // Only owner is able to remove reward
     let err = helper
         .remove_reward(
-            &TestAddr::new("random"),
+            &helper.app.api().addr_make("random"),
             &lp_token,
             &reward_asset_info.to_string(),
             false,
@@ -1674,7 +1342,7 @@ fn test_remove_rewards() {
 fn test_long_unclaimed_rewards() {
     let astro = native_asset_info("astro".to_string());
 
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     helper
         .app
         .update_block(|block| block.time = Timestamp::from_seconds(EPOCHS_START + EPOCH_LENGTH));
@@ -1701,12 +1369,12 @@ fn test_long_unclaimed_rewards() {
         )
         .unwrap();
 
-    let user = TestAddr::new("user");
+    let user = helper.app.api().addr_make("user");
     helper
         .provide_liquidity(&user, &provide_assets, &pair_info.contract_addr, true)
         .unwrap();
 
-    let bank = TestAddr::new("bank");
+    let bank = helper.app.api().addr_make("bank");
 
     let schedules: Vec<_> = (1..=2)
         .into_iter()
@@ -1741,7 +1409,7 @@ fn test_long_unclaimed_rewards() {
     });
 
     // Deregister reward1
-    let receiver = TestAddr::new("receiver");
+    let receiver = helper.app.api().addr_make("receiver");
     helper
         .remove_reward(
             &owner,
@@ -1800,7 +1468,7 @@ fn test_long_unclaimed_rewards() {
 #[test]
 fn test_queries() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let owner = helper.owner.clone();
     let incentivization_fee = helper.incentivization_fee.clone();
 
@@ -1824,17 +1492,17 @@ fn test_queries() {
         .unwrap();
 
     for i in 0..10 {
-        let user = TestAddr::new(&format!("user_{i}"));
+        let user = helper.app.api().addr_make(&format!("user_{i}"));
         helper
             .provide_liquidity(&user, &provide_assets, &pair_info.contract_addr, true)
             .unwrap();
     }
 
-    let user = TestAddr::new("user_1");
+    let user = helper.app.api().addr_make("user_1");
 
     assert_eq!(helper.query_deposit(&lp_token, &user).unwrap(), 100000);
 
-    let random = TestAddr::new("random");
+    let random = helper.app.api().addr_make("random");
     let amount = helper.query_deposit(&lp_token, &random).unwrap();
     assert_eq!(amount, 0);
 
@@ -1853,16 +1521,13 @@ fn test_queries() {
     );
 
     let stakers = helper.pool_stakers(&lp_token, None, None);
-    assert_eq!(
-        stakers[5],
-        ("wasm1_user_5".to_string(), Uint128::from(100_000u128))
-    );
+    assert_eq!(stakers[5].1.u128(), 100_000u128);
     let total = stakers
         .iter()
         .fold(Uint128::zero(), |acc, (_, bal)| acc + bal);
     assert_eq!(total, pool_info.total_lp);
 
-    let bank = TestAddr::new("bank");
+    let bank = helper.app.api().addr_make("bank");
     let reward_asset_info = AssetInfo::native("reward");
     let reward = reward_asset_info.with_balance(1000_000000u128);
 
@@ -1940,13 +1605,13 @@ fn test_queries() {
 #[test]
 fn test_update_config() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
 
-    let new_vesting = TestAddr::new("new_vesting");
-    let new_generator_controller = TestAddr::new("new_generator_controller");
-    let new_guardian = TestAddr::new("new_guardian");
+    let new_vesting = helper.app.api().addr_make("new_vesting");
+    let new_generator_controller = helper.app.api().addr_make("new_generator_controller");
+    let new_guardian = helper.app.api().addr_make("new_guardian");
     let new_incentivization_fee_info = IncentivizationFeeInfo {
-        fee_receiver: TestAddr::new("new_fee_receiver"),
+        fee_receiver: helper.app.api().addr_make("new_fee_receiver"),
         fee: coin(1000, "uusd"),
     };
     let new_gas_limit = 800_000;
@@ -1962,7 +1627,12 @@ fn test_update_config() {
 
     let err = helper
         .app
-        .execute_contract(TestAddr::new("random"), helper.generator.clone(), &msg, &[])
+        .execute_contract(
+            helper.app.api().addr_make("random"),
+            helper.generator.clone(),
+            &msg,
+            &[],
+        )
         .unwrap_err();
     assert_eq!(
         err.downcast::<ContractError>().unwrap(),
@@ -1992,9 +1662,9 @@ fn test_update_config() {
 #[test]
 fn test_change_ownership() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
 
-    let new_owner = TestAddr::new("new_owner");
+    let new_owner = helper.app.api().addr_make("new_owner");
 
     // New owner
     let msg = ExecuteMsg::ProposeNewOwner {
@@ -2006,7 +1676,7 @@ fn test_change_ownership() {
     let err = helper
         .app
         .execute_contract(
-            TestAddr::new("not_owner"),
+            helper.app.api().addr_make("not_owner"),
             helper.generator.clone(),
             &msg,
             &[],
@@ -2039,7 +1709,7 @@ fn test_change_ownership() {
     let err = helper
         .app
         .execute_contract(
-            TestAddr::new("invalid_addr"),
+            helper.app.api().addr_make("invalid_addr"),
             helper.generator.clone(),
             &ExecuteMsg::ClaimOwnership {},
             &[],
@@ -2095,7 +1765,7 @@ fn test_change_ownership() {
 fn test_incentive_without_funds() {
     let astro = native_asset_info("astro".to_string());
     let usdc = native_asset_info("usdc".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let owner = helper.owner.clone();
     let asset_infos = [AssetInfo::native("foo"), AssetInfo::native("bar")];
     let pair_info = helper.create_pair(&asset_infos).unwrap();
@@ -2113,7 +1783,7 @@ fn test_incentive_without_funds() {
             false, // Owner doesn't stake in incentives
         )
         .unwrap();
-    let bank = TestAddr::new("bank");
+    let bank = helper.app.api().addr_make("bank");
     let reward_asset_info = usdc.clone();
     let reward = reward_asset_info.with_balance(1000_000000u128);
     helper.mint_assets(&bank, &[reward.clone()]);
@@ -2144,97 +1814,9 @@ fn test_incentive_without_funds() {
 }
 
 #[test]
-fn test_claim_excess_rewards() {
-    let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
-    let owner = helper.owner.clone();
-    let mut pools = vec![
-        ("uusd", "eur", "".to_string(), vec!["user1", "user2"], 100),
-        ("uusd", "tokenA", "".to_string(), vec!["user1"], 50),
-        ("uusd", "tokenB", "".to_string(), vec!["user2"], 50),
-    ];
-    let mut active_pools = vec![];
-    for (token1, token2, lp_token, stakers, alloc_points) in pools.iter_mut() {
-        let asset_infos = [AssetInfo::native(*token1), AssetInfo::native(*token2)];
-        let pair_info = helper.create_pair(&asset_infos).unwrap();
-        *lp_token = pair_info.liquidity_token.to_string();
-        active_pools.push((pair_info.liquidity_token.to_string(), *alloc_points));
-        let provide_assets = [
-            asset_infos[0].with_balance(100000u64),
-            asset_infos[1].with_balance(100000u64),
-        ];
-        // Owner provides liquidity first just to make following calculations easier
-        // since first depositor gets small cut of LP tokens
-        helper
-            .provide_liquidity(
-                &owner,
-                &provide_assets,
-                &pair_info.contract_addr,
-                false, // Owner doesn't stake in incentives
-            )
-            .unwrap();
-
-        for staker in stakers {
-            let staker_addr = TestAddr::new(staker);
-            // Pool doesn't exist in incentives yet
-            let astro_before = astro.query_pool(&helper.app.wrap(), &staker_addr).unwrap();
-            helper
-                .claim_rewards(
-                    &staker_addr,
-                    vec![
-                        pair_info.liquidity_token.to_string(),
-                        pair_info.liquidity_token.to_string(),
-                    ],
-                )
-                .unwrap_err();
-            let astro_after = astro.query_pool(&helper.app.wrap(), &staker_addr).unwrap();
-            assert_eq!((astro_after - astro_before).u128(), 0);
-
-            helper
-                .provide_liquidity(
-                    &staker_addr,
-                    &provide_assets,
-                    &pair_info.contract_addr,
-                    true,
-                )
-                .unwrap();
-        }
-    }
-
-    helper.setup_pools(active_pools).unwrap();
-    helper.set_tokens_per_second(1_000000).unwrap();
-    helper
-        .app
-        .update_block(|block| block.time = block.time.plus_seconds(5));
-    let user1 = TestAddr::new("user1");
-    let astro_before = astro.query_pool(&helper.app.wrap(), &user1).unwrap();
-    let err = helper
-        .claim_rewards(
-            &user1,
-            vec![
-                pools[0].2.to_string(),
-                pools[1].2.to_string(),
-                pools[0].2.to_string(),
-                pools[1].2.to_string(),
-            ],
-        )
-        .unwrap_err();
-    assert_eq!(
-        err.downcast::<ContractError>().unwrap(),
-        ContractError::DuplicatedPoolFound {}
-    );
-
-    helper
-        .claim_rewards(&user1, vec![pools[0].2.to_string(), pools[1].2.to_string()])
-        .unwrap();
-    let astro_after = astro.query_pool(&helper.app.wrap(), &user1).unwrap();
-    assert_eq!((astro_after - astro_before).u128(), 2_500000);
-}
-
-#[test]
 fn test_user_claim_less() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let owner = helper.owner.clone();
     let incentivization_fee = helper.incentivization_fee.clone();
 
@@ -2257,12 +1839,12 @@ fn test_user_claim_less() {
         )
         .unwrap();
 
-    let user = TestAddr::new("user");
+    let user = helper.app.api().addr_make("user");
     helper
         .provide_liquidity(&user, &provide_assets, &pair_info.contract_addr, true)
         .unwrap();
 
-    let bank = TestAddr::new("bank");
+    let bank = helper.app.api().addr_make("bank");
     let reward_asset_info = AssetInfo::native("reward");
     let reward = reward_asset_info.with_balance(1000_000000u128);
 
@@ -2334,7 +1916,7 @@ fn test_user_claim_less() {
 #[test]
 fn test_broken_cw20_incentives() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let owner = helper.owner.clone();
     let incentivization_fee = helper.incentivization_fee.clone();
 
@@ -2357,12 +1939,12 @@ fn test_broken_cw20_incentives() {
         )
         .unwrap();
 
-    let user = TestAddr::new("user");
+    let user = helper.app.api().addr_make("user");
     helper
         .provide_liquidity(&user, &provide_assets, &pair_info.contract_addr, true)
         .unwrap();
 
-    let bank = TestAddr::new("bank");
+    let bank = helper.app.api().addr_make("bank");
 
     let schedules: Vec<_> = (1..=2)
         .into_iter()
@@ -2430,7 +2012,7 @@ fn test_broken_cw20_incentives() {
 #[test]
 fn test_factory_deregisters_any_pool() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let asset_infos = &[AssetInfo::native("usd"), AssetInfo::native("foo")];
 
     // factory contract create pair
@@ -2446,14 +2028,14 @@ fn test_factory_deregisters_any_pool() {
 #[test]
 fn test_orphaned_rewards() {
     let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new("owner", &astro).unwrap();
+    let mut helper = Helper::new(&astro).unwrap();
     let incentivization_fee = helper.incentivization_fee.clone();
 
     let asset_infos = [AssetInfo::native("foo"), AssetInfo::native("bar")];
     let pair_info = helper.create_pair(&asset_infos).unwrap();
     let lp_token = pair_info.liquidity_token.to_string();
 
-    let bank = TestAddr::new("bank");
+    let bank = helper.app.api().addr_make("bank");
 
     let schedules: Vec<_> = (1..=(MAX_REWARD_TOKENS - 1))
         .into_iter()
@@ -2482,7 +2064,7 @@ fn test_orphaned_rewards() {
         block.time = Timestamp::from_seconds(schedules.last().cloned().unwrap().1.end_ts + 1)
     });
 
-    let orph_receiver = TestAddr::new("orphaned_rewards_receiver");
+    let orph_receiver = helper.app.api().addr_make("orphaned_rewards_receiver");
 
     // Check that there are still no orphaned rewards to claim
     let err = helper
@@ -2513,7 +2095,7 @@ fn test_orphaned_rewards() {
         asset_infos[0].with_balance(100000u64),
         asset_infos[1].with_balance(100000u64),
     ];
-    let user = TestAddr::new("user");
+    let user = helper.app.api().addr_make("user");
     helper
         .provide_liquidity(&user, &provide_assets, &pair_info.contract_addr, true)
         .unwrap();
