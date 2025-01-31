@@ -1,5 +1,3 @@
-#![cfg(not(tarpaulin_include))]
-
 use anyhow::Result as AnyResult;
 use cosmwasm_std::{coins, Addr, Binary};
 use cw20::MinterResponse;
@@ -9,8 +7,6 @@ use astroport::asset::{AssetInfo, PairInfo};
 use astroport::factory::{PairConfig, PairType, QueryMsg};
 
 pub struct FactoryHelper {
-    pub owner: Addr,
-    pub astro_token: Addr,
     pub factory: Addr,
     pub cw20_token_code_id: u64,
 }
@@ -110,8 +106,6 @@ impl FactoryHelper {
             .unwrap();
 
         Self {
-            owner: owner.clone(),
-            astro_token,
             factory,
             cw20_token_code_id,
         }
@@ -135,8 +129,10 @@ impl FactoryHelper {
 
         let res: PairInfo = router.wrap().query_wasm_smart(
             self.factory.clone(),
-            &QueryMsg::Pair {
+            &QueryMsg::PairsByAssetInfos {
                 asset_infos: asset_infos.to_vec(),
+                start_after: None,
+                limit: None,
             },
         )?;
 

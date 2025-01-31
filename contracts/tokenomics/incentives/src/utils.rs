@@ -225,9 +225,8 @@ pub fn incentivize(
         });
     }
 
-    let pair_info = query_pair_info(deps.as_ref(), &lp_token_asset)?;
     let config = CONFIG.load(deps.storage)?;
-    is_pool_registered(deps.querier, &config, &pair_info, &lp_token)?;
+    is_pool_registered(deps.querier, &config, &lp_token)?;
 
     let mut pool_info = PoolInfo::may_load(deps.storage, &lp_token_asset)?.unwrap_or_default();
     pool_info.update_rewards(deps.storage, env, &lp_token_asset)?;
@@ -401,37 +400,25 @@ pub fn query_pair_info(deps: Deps, lp_asset: &AssetInfo) -> StdResult<PairInfo> 
     }
 }
 
-/// Checks if the pool with the following asset infos is registered in the factory contract and
-/// LP tokens address/denom matches the one registered in the factory.
+/// Checks if the pool with the following LP token is registered in the factory.
 pub fn is_pool_registered(
     querier: QuerierWrapper,
     config: &Config,
-    pair_info: &PairInfo,
     lp_token_addr: &str,
 ) -> StdResult<()> {
     querier
         .query_wasm_smart::<PairInfo>(
             &config.factory,
-            &factory::QueryMsg::Pair {
-                asset_infos: pair_info.asset_infos.to_vec(),
+            &factory::QueryMsg::PairByLpToken {
+                lp_token: lp_token_addr.to_string(),
             },
         )
         .map_err(|_| {
             StdError::generic_err(format!(
-                "The pair is not registered: {}-{}",
-                pair_info.asset_infos[0], pair_info.asset_infos[1]
+                "The pair is not registered for token {lp_token_addr}"
             ))
         })
-        .map(|resp| {
-            if resp.liquidity_token == lp_token_addr {
-                Ok(())
-            } else {
-                Err(StdError::generic_err(format!(
-                    "LP token {lp_token_addr} doesn't match LP token registered in factory {}",
-                    resp.liquidity_token
-                )))
-            }
-        })?
+        .map(|_| ())
 }
 
 pub fn claim_orphaned_rewards(

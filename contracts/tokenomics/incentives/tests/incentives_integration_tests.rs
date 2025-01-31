@@ -874,8 +874,6 @@ fn test_claim_between_different_periods() {
         }
     }
 
-    let time_before_claims = helper.app.block_info().time.seconds();
-
     // Shift time by 15 days
     helper
         .app
@@ -883,7 +881,6 @@ fn test_claim_between_different_periods() {
 
     helper.claim_rewards(&user, vec![lp_token.clone()]).unwrap();
 
-    let time_now = helper.app.block_info().time.seconds();
     let reward_balance = reward_asset_info
         .query_pool(&helper.app.wrap(), &user)
         .unwrap();
@@ -1143,50 +1140,6 @@ fn test_blocked_pair_types() {
 
     // All subsequent deactivate_blocked calls will do nothing
     helper.deactivate_blocked().unwrap();
-
-    // Lets check factory deactivation logic
-    // Only factory can deactivate pair
-    let err = helper
-        .deactivate_pool(&owner, norm_pair1_info.liquidity_token.as_str())
-        .unwrap_err();
-    assert_eq!(
-        err.downcast::<ContractError>().unwrap(),
-        ContractError::Unauthorized {}
-    );
-
-    // Deactivate norm_pair1_info by its asset infos
-    helper
-        .deactivate_pool_full_flow(&[tokens[0].clone(), tokens[1].clone()])
-        .unwrap();
-
-    let err = helper
-        .setup_pools(vec![
-            (norm_pair1_info.liquidity_token.to_string(), 1),
-            (norm_pair2_info.liquidity_token.to_string(), 1),
-        ])
-        .unwrap_err();
-    assert_eq!(
-        err.root_cause().to_string(),
-        format!(
-            "Generic error: The pair is not registered: {}-{}",
-            &tokens[0], &tokens[1]
-        )
-    );
-
-    helper.next_block(1000);
-
-    let reward_info = helper.query_reward_info(norm_pair1_info.liquidity_token.as_str());
-    assert_eq!(
-        dec256_to_u128_floor(reward_info[0].orphaned),
-        50 * 1000 + 75 * 1000 // deactivated pool gets nothing
-    );
-    let reward_info = helper.query_reward_info(norm_pair2_info.liquidity_token.as_str());
-    assert_eq!(
-        dec256_to_u128_floor(reward_info[0].orphaned),
-        50 * 1000 + 75 * 1000 + 150 * 1000
-    );
-    let reward_info = helper.query_reward_info(blk_pair_info.liquidity_token.as_str());
-    assert_eq!(dec256_to_u128_floor(reward_info[0].orphaned), 50 * 1000); // deactivated blk pair still gets nothing
 }
 
 #[test]
@@ -2007,22 +1960,6 @@ fn test_broken_cw20_incentives() {
         .query_pool(&helper.app.wrap(), &user)
         .unwrap();
     assert_eq!(broken_reward_balance.u128(), 0);
-}
-
-#[test]
-fn test_factory_deregisters_any_pool() {
-    let astro = native_asset_info("astro".to_string());
-    let mut helper = Helper::new(&astro).unwrap();
-    let asset_infos = &[AssetInfo::native("usd"), AssetInfo::native("foo")];
-
-    // factory contract create pair
-    helper.create_pair(asset_infos).unwrap();
-    // ensure pair created
-    let pair_info = helper.query_pair_info(asset_infos);
-    assert_eq!(pair_info.asset_infos, asset_infos);
-
-    // Incentives contract doesn't have such pool yet but it doesn't block deregistration
-    helper.deactivate_pool_full_flow(asset_infos).unwrap();
 }
 
 #[test]

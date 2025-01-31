@@ -3,10 +3,11 @@ use std::collections::HashSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo, Order, Reply,
-    ReplyOn, Response, StdError, StdResult, SubMsg, SubMsgResponse, SubMsgResult, WasmMsg,
+    attr, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply, Response,
+    StdError, StdResult, SubMsg, SubMsgResponse, SubMsgResult, WasmMsg,
 };
 use cw2::set_contract_version;
+use cw_storage_plus::Bound;
 use cw_utils::parse_instantiate_response_data;
 use itertools::Itertools;
 
@@ -14,16 +15,15 @@ use astroport::asset::{addr_opt_validate, AssetInfo, PairInfo};
 use astroport::common::{claim_ownership, drop_ownership_proposal, propose_new_owner};
 use astroport::factory::{
     Config, ConfigResponse, ExecuteMsg, FeeInfoResponse, InstantiateMsg, PairConfig, PairType,
-    PairsResponse, QueryMsg,
+    QueryMsg,
 };
-use astroport::incentives::ExecuteMsg::DeactivatePool;
+use astroport::pair;
 use astroport::pair::InstantiateMsg as PairInstantiateMsg;
 
 use crate::error::ContractError;
-use crate::querier::query_pair_info;
 use crate::state::{
-    check_asset_infos, pair_key, read_pairs, TmpPairInfo, CONFIG, OWNERSHIP_PROPOSAL, PAIRS,
-    PAIR_CONFIGS, TMP_PAIR_INFO,
+    check_asset_infos, get_pairs_index, pair_key, CONFIG, DEFAULT_LIMIT, OWNERSHIP_PROPOSAL,
+    PAIR_CONFIGS,
 };
 
 /// Contract name that is used for migration.
@@ -146,7 +146,6 @@ pub fn execute(
             asset_infos,
             init_params,
         } => execute_create_pair(deps, info, env, pair_type, asset_infos, init_params),
-        ExecuteMsg::Deregister { asset_infos } => deregister(deps, info, asset_infos),
         ExecuteMsg::ProposeNewOwner { owner, expires_in } => {
             let config = CONFIG.load(deps.storage)?;
 
@@ -273,10 +272,6 @@ pub fn execute_create_pair(
 
     let config = CONFIG.load(deps.storage)?;
 
-    if PAIRS.has(deps.storage, &pair_key(&asset_infos)) {
-        return Err(ContractError::PairWasCreated {});
-    }
-
     // Get pair type from config
     let pair_config = PAIR_CONFIGS
         .load(deps.storage, pair_type.to_string())
@@ -291,13 +286,8 @@ pub fn execute_create_pair(
         return Err(ContractError::PairConfigDisabled {});
     }
 
-    let pair_key = pair_key(&asset_infos);
-    TMP_PAIR_INFO.save(deps.storage, &TmpPairInfo { pair_key })?;
-
-    let sub_msg: Vec<SubMsg> = vec![SubMsg {
-        id: INSTANTIATE_PAIR_REPLY_ID,
-        payload: Default::default(),
-        msg: WasmMsg::Instantiate {
+    let sub_msg = SubMsg::reply_on_success(
+        WasmMsg::Instantiate {
             admin: Some(config.owner.to_string()),
             code_id: pair_config.code_id,
             msg: to_json_binary(&PairInstantiateMsg {
@@ -307,21 +297,16 @@ pub fn execute_create_pair(
                 factory_addr: env.contract.address.to_string(),
                 init_params,
             })?,
-            // Pass executor funds to pair contract to pay for LP token creation
-            funds: info.funds,
+            funds: vec![],
             label: "Astroport pair".to_string(),
-        }
-        .into(),
-        gas_limit: None,
-        reply_on: ReplyOn::Success,
-    }];
+        },
+        INSTANTIATE_PAIR_REPLY_ID,
+    );
 
-    Ok(Response::new()
-        .add_submessages(sub_msg)
-        .add_attributes(vec![
-            attr("action", "create_pair"),
-            attr("pair", asset_infos.iter().join("-")),
-        ]))
+    Ok(Response::new().add_submessage(sub_msg).add_attributes(vec![
+        attr("action", "create_pair"),
+        attr("pair", asset_infos.iter().join("-")),
+    ]))
 }
 
 /// The entry point to the contract for processing replies from submessages.
@@ -337,17 +322,15 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
                 }),
             ..
         } => {
-            let tmp = TMP_PAIR_INFO.load(deps.storage)?;
-            if PAIRS.has(deps.storage, &tmp.pair_key) {
-                return Err(ContractError::PairWasRegistered {});
-            }
-
             let init_response = parse_instantiate_response_data(data.as_slice())
                 .map_err(|e| StdError::generic_err(format!("{e}")))?;
 
             let pair_contract = deps.api.addr_validate(&init_response.contract_address)?;
+            let pair_info = deps
+                .querier
+                .query_wasm_smart(&pair_contract, &pair::QueryMsg::Pair {})?;
 
-            PAIRS.save(deps.storage, &tmp.pair_key, &pair_contract)?;
+            get_pairs_index().save(deps.storage, pair_contract.clone(), &pair_info)?;
 
             Ok(Response::new().add_attributes(vec![
                 attr("action", "register"),
@@ -356,48 +339,6 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
         }
         _ => Err(ContractError::FailedToParseReply {}),
     }
-}
-
-/// Removes an existing pair from the factory.
-///
-/// * **asset_infos** is a vector with assets for which we deregister the pair.
-///
-/// ## Executor
-/// Only the owner can execute this.
-pub fn deregister(
-    deps: DepsMut,
-    info: MessageInfo,
-    asset_infos: Vec<AssetInfo>,
-) -> Result<Response, ContractError> {
-    check_asset_infos(deps.api, &asset_infos)?;
-
-    let config = CONFIG.load(deps.storage)?;
-
-    if info.sender != config.owner {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    let pair_addr = PAIRS.load(deps.storage, &pair_key(&asset_infos))?;
-    PAIRS.remove(deps.storage, &pair_key(&asset_infos));
-
-    let mut messages: Vec<CosmosMsg> = vec![];
-    if let Some(generator) = config.incentives_address {
-        let pair_info = query_pair_info(&deps.querier, &pair_addr)?;
-
-        // sets the allocation point to zero for the lp_token
-        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: generator.to_string(),
-            msg: to_json_binary(&DeactivatePool {
-                lp_token: pair_info.liquidity_token.to_string(),
-            })?,
-            funds: vec![],
-        }));
-    }
-
-    Ok(Response::new().add_messages(messages).add_attributes(vec![
-        attr("action", "deregister"),
-        attr("pair_contract_addr", pair_addr),
-    ]))
 }
 
 /// Exposes all the queries available in the contract.
@@ -417,7 +358,12 @@ pub fn deregister(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
-        QueryMsg::Pair { asset_infos } => to_json_binary(&query_pair(deps, asset_infos)?),
+        QueryMsg::PairsByAssetInfos {
+            asset_infos,
+            start_after,
+            limit,
+        } => query_pairs_by_asset_infos(deps, asset_infos, start_after, limit),
+        QueryMsg::PairByLpToken { lp_token } => query_pair_by_lp_token(deps, lp_token),
         QueryMsg::Pairs { start_after, limit } => {
             to_json_binary(&query_pairs(deps, start_after, limit)?)
         }
@@ -461,29 +407,55 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     Ok(resp)
 }
 
-/// Returns a pair's data using the assets in `asset_infos` as input (those being the assets that are traded in the pair).
-/// * **asset_infos** is a vector with assets traded in the pair.
-pub fn query_pair(deps: Deps, asset_infos: Vec<AssetInfo>) -> StdResult<PairInfo> {
-    let pair_addr = PAIRS.load(deps.storage, &pair_key(&asset_infos))?;
-    query_pair_info(&deps.querier, pair_addr)
-}
-
-/// Returns a vector with pair data that contains items of type [`PairInfo`]. Querying starts at `start_after` and returns `limit` pairs.
-/// * **start_after** is a field which accepts a vector with items of type [`AssetInfo`].
+/// Returns a vector with pair data that contains items of type [`PairInfo`].
+/// Querying starts at `start_after` and returns `limit` pairs.
+/// * **start_after** is a field which accepts an address [`String`].
 /// This is the pair from which we start a query.
 ///
 /// * **limit** sets the number of pairs to be retrieved.
 pub fn query_pairs(
     deps: Deps,
-    start_after: Option<Vec<AssetInfo>>,
+    start_after: Option<String>,
     limit: Option<u32>,
-) -> StdResult<PairsResponse> {
-    let pairs = read_pairs(deps, start_after, limit)?
-        .iter()
-        .map(|pair_addr| query_pair_info(&deps.querier, pair_addr))
-        .collect::<StdResult<Vec<_>>>()?;
+) -> StdResult<Vec<PairInfo>> {
+    let start_after = addr_opt_validate(deps.api, &start_after)?.map(Bound::exclusive);
+    let limit = limit.unwrap_or(DEFAULT_LIMIT);
 
-    Ok(PairsResponse { pairs })
+    get_pairs_index()
+        .range(deps.storage, start_after, None, Order::Ascending)
+        .map(|item| item.map(|(_, pair_info)| pair_info))
+        .take(limit as usize)
+        .collect()
+}
+pub fn query_pairs_by_asset_infos(
+    deps: Deps,
+    asset_infos: Vec<AssetInfo>,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<Binary> {
+    let start_after = addr_opt_validate(deps.api, &start_after)?.map(Bound::exclusive);
+    let limit = limit.unwrap_or(DEFAULT_LIMIT);
+
+    let pair_infos = get_pairs_index()
+        .idx
+        .assets_ix
+        .prefix(pair_key(&asset_infos))
+        .range(deps.storage, start_after, None, Order::Ascending)
+        .take(limit as usize)
+        .map(|item| item.map(|(_, pair_info)| pair_info))
+        .collect::<StdResult<Vec<_>>>()?;
+    to_json_binary(&pair_infos)
+}
+
+pub fn query_pair_by_lp_token(deps: Deps, lp_token: String) -> StdResult<Binary> {
+    let pair_info = get_pairs_index()
+        .idx
+        .lp_tokens_ix
+        .item(deps.storage, lp_token)?
+        .ok_or_else(|| StdError::generic_err("Pair not found"))?
+        .1;
+
+    to_json_binary(&pair_info)
 }
 
 /// Returns the fee setup for a specific pair type using a [`FeeInfoResponse`] struct.
@@ -497,11 +469,4 @@ pub fn query_fee_info(deps: Deps, pair_type: PairType) -> StdResult<FeeInfoRespo
         total_fee_bps: pair_config.total_fee_bps,
         maker_fee_bps: pair_config.maker_fee_bps,
     })
-}
-
-/// Manages the contract migration.
-#[cfg(not(tarpaulin_include))]
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, ContractError> {
-    unimplemented!()
 }

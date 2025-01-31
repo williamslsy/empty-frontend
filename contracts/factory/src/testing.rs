@@ -7,7 +7,7 @@ use prost::Message;
 
 use astroport::asset::{AssetInfo, PairInfo};
 use astroport::factory::{
-    ConfigResponse, ExecuteMsg, InstantiateMsg, PairConfig, PairType, PairsResponse, QueryMsg,
+    ConfigResponse, ExecuteMsg, InstantiateMsg, PairConfig, PairType, QueryMsg,
 };
 use astroport::pair::InstantiateMsg as PairInstantiateMsg;
 
@@ -573,6 +573,7 @@ fn register() {
         .encode(&mut encoded_instantiate_reply)
         .unwrap();
 
+    #[allow(deprecated)]
     let reply_msg = Reply {
         id: 1,
         payload: Default::default(),
@@ -589,26 +590,24 @@ fn register() {
     let query_res = query(
         deps.as_ref(),
         env.clone(),
-        QueryMsg::Pair {
+        QueryMsg::PairsByAssetInfos {
             asset_infos: asset_infos.clone(),
+            start_after: None,
+            limit: None,
         },
     )
     .unwrap();
 
-    let pair_res: PairInfo = from_json(&query_res).unwrap();
+    let pair_res: Vec<PairInfo> = from_json(&query_res).unwrap();
     assert_eq!(
         pair_res,
-        PairInfo {
+        [PairInfo {
             liquidity_token: "liquidity0000".to_owned(),
             contract_addr: Addr::unchecked("pair0000"),
             asset_infos: asset_infos.clone(),
             pair_type: PairType::Xyk {},
-        }
+        }]
     );
-
-    // Check pair was registered
-    let res = reply(deps.as_mut(), mock_env(), reply_msg).unwrap_err();
-    assert_eq!(res, ContractError::PairWasRegistered {});
 
     // Store one more item to test query pairs
     let asset_infos_2 = vec![
@@ -653,6 +652,7 @@ fn register() {
         .encode(&mut encoded_instantiate_reply)
         .unwrap();
 
+    #[allow(deprecated)]
     let reply_msg = Reply {
         id: 1,
         payload: Default::default(),
@@ -672,9 +672,9 @@ fn register() {
     };
 
     let res = query(deps.as_ref(), env.clone(), query_msg).unwrap();
-    let pairs_res: PairsResponse = from_json(&res).unwrap();
+    let pairs_res: Vec<PairInfo> = from_json(&res).unwrap();
     assert_eq!(
-        pairs_res.pairs,
+        pairs_res,
         vec![
             PairInfo {
                 liquidity_token: "liquidity0000".to_owned(),
@@ -697,9 +697,9 @@ fn register() {
     };
 
     let res = query(deps.as_ref(), env.clone(), query_msg).unwrap();
-    let pairs_res: PairsResponse = from_json(&res).unwrap();
+    let pairs_res: Vec<PairInfo> = from_json(&res).unwrap();
     assert_eq!(
-        pairs_res.pairs,
+        pairs_res,
         vec![PairInfo {
             liquidity_token: "liquidity0000".to_owned(),
             contract_addr: Addr::unchecked("pair0000"),
@@ -707,53 +707,6 @@ fn register() {
             pair_type: PairType::Xyk {},
         }]
     );
-
-    let query_msg = QueryMsg::Pairs {
-        start_after: Some(asset_infos.clone()),
-        limit: None,
-    };
-
-    let res = query(deps.as_ref(), env.clone(), query_msg).unwrap();
-    let pairs_res: PairsResponse = from_json(&res).unwrap();
-    assert_eq!(
-        pairs_res.pairs,
-        vec![PairInfo {
-            liquidity_token: "liquidity0001".to_owned(),
-            contract_addr: Addr::unchecked("pair0001"),
-            asset_infos: asset_infos_2.clone(),
-            pair_type: PairType::Xyk {},
-        }]
-    );
-
-    // Deregister from wrong acc
-    let env = mock_env();
-    let info = mock_info("wrong_addr0000", &[]);
-    let res = execute(
-        deps.as_mut(),
-        env.clone(),
-        info,
-        ExecuteMsg::Deregister {
-            asset_infos: asset_infos_2.clone(),
-        },
-    )
-    .unwrap_err();
-
-    assert_eq!(res, ContractError::Unauthorized {});
-
-    // Proper deregister
-    let env = mock_env();
-    let info = mock_info(owner, &[]);
-    let res = execute(
-        deps.as_mut(),
-        env.clone(),
-        info,
-        ExecuteMsg::Deregister {
-            asset_infos: asset_infos_2.clone(),
-        },
-    )
-    .unwrap();
-
-    assert_eq!(res.attributes[0], attr("action", "deregister"));
 
     let query_msg = QueryMsg::Pairs {
         start_after: None,
@@ -761,14 +714,22 @@ fn register() {
     };
 
     let res = query(deps.as_ref(), env.clone(), query_msg).unwrap();
-    let pairs_res: PairsResponse = from_json(&res).unwrap();
+    let pairs_res: Vec<PairInfo> = from_json(&res).unwrap();
     assert_eq!(
-        pairs_res.pairs,
-        vec![PairInfo {
-            liquidity_token: "liquidity0000".to_owned(),
-            contract_addr: Addr::unchecked("pair0000"),
-            asset_infos: asset_infos.clone(),
-            pair_type: PairType::Xyk {},
-        },]
+        pairs_res,
+        vec![
+            PairInfo {
+                asset_infos: asset_infos,
+                contract_addr: Addr::unchecked("pair0000"),
+                liquidity_token: "liquidity0000".to_owned(),
+                pair_type: PairType::Xyk {},
+            },
+            PairInfo {
+                liquidity_token: "liquidity0001".to_owned(),
+                contract_addr: Addr::unchecked("pair0001"),
+                asset_infos: asset_infos_2,
+                pair_type: PairType::Xyk {},
+            }
+        ]
     );
 }

@@ -1,5 +1,3 @@
-#![cfg(not(tarpaulin_include))]
-
 extern crate core;
 
 use std::collections::HashMap;

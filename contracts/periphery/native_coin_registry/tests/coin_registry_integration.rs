@@ -1,5 +1,3 @@
-#![cfg(not(tarpaulin_include))]
-
 use cosmwasm_std::{coin, Addr};
 use cw_multi_test::{App, BankSudo, ContractWrapper, Executor};
 

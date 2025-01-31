@@ -5,7 +5,7 @@ use cw20::{BalanceResponse as Cw20BalanceResponse, Cw20QueryMsg, TokenInfoRespon
 
 use crate::asset::{Asset, AssetInfo, PairInfo};
 use crate::factory::{
-    Config as FactoryConfig, FeeInfoResponse, PairType, PairsResponse, QueryMsg as FactoryQueryMsg,
+    Config as FactoryConfig, FeeInfoResponse, PairType, QueryMsg as FactoryQueryMsg,
 };
 use crate::pair::{QueryMsg as PairQueryMsg, ReverseSimulationResponse, SimulationResponse};
 
@@ -171,30 +171,34 @@ where
 
 /// Accepts two tokens as input and returns a pair's information.
 pub fn query_pair_info(
-    querier: &QuerierWrapper,
-    factory_contract: impl Into<String>,
-    asset_infos: &[AssetInfo],
+    _querier: &QuerierWrapper,
+    _factory_contract: impl Into<String>,
+    _asset_infos: &[AssetInfo],
 ) -> StdResult<PairInfo> {
-    querier.query_wasm_smart(
-        factory_contract,
-        &FactoryQueryMsg::Pair {
-            asset_infos: asset_infos.to_vec(),
-        },
-    )
+    todo!()
+    // querier.query_wasm_smart(
+    //     factory_contract,
+    //     &FactoryQueryMsg::PairsByAssetInfos {
+    //         asset_infos: asset_infos.to_vec(),
+    //         start_after: None,
+    //         limit: None,
+    //     },
+    // )
 }
 
 /// Returns a vector that contains items of type [`PairInfo`] which
 /// symbolize pairs instantiated in the Astroport factory
 pub fn query_pairs_info(
-    querier: &QuerierWrapper,
-    factory_contract: impl Into<String>,
-    start_after: Option<Vec<AssetInfo>>,
-    limit: Option<u32>,
-) -> StdResult<PairsResponse> {
-    querier.query_wasm_smart(
-        factory_contract,
-        &FactoryQueryMsg::Pairs { start_after, limit },
-    )
+    _querier: &QuerierWrapper,
+    _factory_contract: impl Into<String>,
+    _start_after: Option<Vec<AssetInfo>>,
+    _limit: Option<u32>,
+) -> StdResult<Vec<PairInfo>> {
+    todo!()
+    // querier.query_wasm_smart(
+    //     factory_contract,
+    //     &FactoryQueryMsg::Pairs { start_after, limit },
+    // )
 }
 
 /// Returns information about a swap simulation using a [`SimulationResponse`] object.

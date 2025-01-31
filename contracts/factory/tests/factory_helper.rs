@@ -1,5 +1,3 @@
-#![cfg(not(tarpaulin_include))]
-
 use anyhow::Result as AnyResult;
 use cosmwasm_std::{Addr, Binary};
 use cw20::MinterResponse;
@@ -9,8 +7,6 @@ use astroport::asset::AssetInfo;
 use astroport::factory::{PairConfig, PairType};
 
 pub struct FactoryHelper {
-    pub owner: Addr,
-    pub astro_token: Addr,
     pub factory: Addr,
     pub cw20_token_code_id: u64,
 }
@@ -90,6 +86,15 @@ impl FactoryHelper {
                     is_generator_disabled: false,
                     permissioned: true,
                 },
+                PairConfig {
+                    code_id: pair_code_id,
+                    pair_type: PairType::Custom("yet_another_xyk".to_string()),
+                    total_fee_bps: 100,
+                    maker_fee_bps: 10,
+                    is_disabled: false,
+                    is_generator_disabled: false,
+                    permissioned: false,
+                },
             ],
             token_code_id: cw20_token_code_id,
             fee_address: None,
@@ -110,8 +115,6 @@ impl FactoryHelper {
             .unwrap();
 
         Self {
-            owner: owner.clone(),
-            astro_token,
             factory,
             cw20_token_code_id,
         }

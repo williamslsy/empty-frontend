@@ -1,4 +1,3 @@
-#![cfg(not(tarpaulin_include))]
 #![allow(dead_code)]
 
 use std::collections::HashMap;
@@ -262,9 +261,13 @@ impl Helper {
 
         app.execute_contract(owner.clone(), factory.clone(), &init_pair_msg, &[])?;
 
-        let resp: PairInfo = app.wrap().query_wasm_smart(
+        let resp: Vec<PairInfo> = app.wrap().query_wasm_smart(
             &factory,
-            &astroport::factory::QueryMsg::Pair { asset_infos },
+            &astroport::factory::QueryMsg::PairsByAssetInfos {
+                asset_infos,
+                start_after: None,
+                limit: None,
+            },
         )?;
 
         Ok(Self {
@@ -273,8 +276,8 @@ impl Helper {
             assets: asset_infos_vec.into_iter().collect(),
             factory,
             generator: generator_address,
-            pair_addr: resp.contract_addr,
-            lp_token: resp.liquidity_token,
+            pair_addr: resp[0].contract_addr.clone(),
+            lp_token: resp[0].liquidity_token.clone(),
             fake_maker,
         })
     }

@@ -268,20 +268,6 @@ impl Helper {
         )
     }
 
-    pub fn deactivate_pool_full_flow(
-        &mut self,
-        asset_infos: &[AssetInfo],
-    ) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
-            self.owner.clone(),
-            self.factory.clone(),
-            &factory::ExecuteMsg::Deregister {
-                asset_infos: asset_infos.to_vec(),
-            },
-            &[],
-        )
-    }
-
     pub fn block_tokens(&mut self, from: &Addr, tokens: &[AssetInfo]) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             from.clone(),
@@ -636,12 +622,15 @@ impl Helper {
     pub fn query_pair_info(&self, asset_infos: &[AssetInfo]) -> PairInfo {
         self.app
             .wrap()
-            .query_wasm_smart(
+            .query_wasm_smart::<Vec<PairInfo>>(
                 &self.factory,
-                &factory::QueryMsg::Pair {
+                &factory::QueryMsg::PairsByAssetInfos {
                     asset_infos: asset_infos.to_vec(),
+                    start_after: None,
+                    limit: None,
                 },
             )
+            .map(|x| x[0].clone())
             .unwrap()
     }
 

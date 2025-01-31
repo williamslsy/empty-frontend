@@ -1,5 +1,3 @@
-#![cfg(not(tarpaulin_include))]
-
 use cosmwasm_std::testing::MockApi;
 use cosmwasm_std::{attr, to_json_binary, Addr, Coin, Decimal, Uint128};
 use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
@@ -522,7 +520,7 @@ fn test_compatibility_of_tokens_with_different_precision() {
     app.execute_contract(owner.clone(), factory_instance.clone(), &msg, &[])
         .unwrap();
 
-    let msg = FactoryQueryMsg::Pair {
+    let msg = FactoryQueryMsg::PairsByAssetInfos {
         asset_infos: vec![
             AssetInfo::Token {
                 contract_addr: token_x_instance.clone(),
@@ -531,14 +529,16 @@ fn test_compatibility_of_tokens_with_different_precision() {
                 contract_addr: token_y_instance.clone(),
             },
         ],
+        start_after: None,
+        limit: None,
     };
 
-    let res: PairInfo = app
+    let res: Vec<PairInfo> = app
         .wrap()
         .query_wasm_smart(&factory_instance, &msg)
         .unwrap();
 
-    let pair_instance = res.contract_addr;
+    let pair_instance = res[0].contract_addr.clone();
 
     let msg = Cw20ExecuteMsg::IncreaseAllowance {
         spender: pair_instance.to_string(),
@@ -1140,7 +1140,6 @@ fn test_imbalanced_withdraw_is_disabled() {
         .wrap()
         .query_wasm_smart(pair_instance.to_string(), &QueryMsg::Pair {})
         .unwrap();
-    let lp_token = Addr::unchecked(res.liquidity_token);
 
     assert_eq!(
         res.asset_infos,
@@ -1349,7 +1348,7 @@ fn test_fee_share(
     app.execute_contract(owner.clone(), factory_instance.clone(), &msg, &[])
         .unwrap();
 
-    let msg = FactoryQueryMsg::Pair {
+    let msg = FactoryQueryMsg::PairsByAssetInfos {
         asset_infos: vec![
             AssetInfo::Token {
                 contract_addr: token_x_instance.clone(),
@@ -1358,14 +1357,16 @@ fn test_fee_share(
                 contract_addr: token_y_instance.clone(),
             },
         ],
+        start_after: None,
+        limit: None,
     };
 
-    let res: PairInfo = app
+    let res: Vec<PairInfo> = app
         .wrap()
         .query_wasm_smart(&factory_instance, &msg)
         .unwrap();
 
-    let pair_instance = res.contract_addr;
+    let pair_instance = res[0].contract_addr.clone();
 
     let msg = Cw20ExecuteMsg::IncreaseAllowance {
         spender: pair_instance.to_string(),

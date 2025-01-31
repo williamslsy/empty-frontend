@@ -1,5 +1,3 @@
-#![cfg(not(tarpaulin_include))]
-
 use cosmwasm_std::{attr, Addr};
 use cw_multi_test::{App, ContractWrapper, Executor};
 
@@ -139,33 +137,11 @@ fn test_create_pair() {
         .create_pair(&mut app, &owner, PairType::Xyk {}, [&token1, &token2], None)
         .unwrap();
 
-    let err = helper
-        .create_pair(&mut app, &owner, PairType::Xyk {}, [&token1, &token2], None)
-        .unwrap_err();
-    assert_eq!(err.root_cause().to_string(), "Pair was already created");
-
     assert_eq!(res.events[1].attributes[1], attr("action", "create_pair"));
     assert_eq!(
         res.events[1].attributes[2],
         attr("pair", format!("{}-{}", token1.as_str(), token2.as_str()))
     );
-
-    let res: PairInfo = app
-        .wrap()
-        .query_wasm_smart(
-            helper.factory.clone(),
-            &QueryMsg::Pair {
-                asset_infos: vec![
-                    AssetInfo::Token {
-                        contract_addr: token1.clone(),
-                    },
-                    AssetInfo::Token {
-                        contract_addr: token2.clone(),
-                    },
-                ],
-            },
-        )
-        .unwrap();
 
     // Create disabled pair type
     app.execute_contract(
@@ -366,4 +342,75 @@ fn test_create_permissioned_pair() {
             None,
         )
         .unwrap();
+}
+
+#[test]
+fn test_indexed_queries() {
+    let mut app = App::default();
+    let owner = app.api().addr_make("owner");
+    let mut helper = FactoryHelper::init(&mut app, &owner);
+
+    let token1 = instantiate_token(&mut app, helper.cw20_token_code_id, &owner, "tokenX", None);
+    let token2 = instantiate_token(&mut app, helper.cw20_token_code_id, &owner, "tokenY", None);
+    let token3 = instantiate_token(&mut app, helper.cw20_token_code_id, &owner, "tokenZ", None);
+
+    // Create several pool for the same pair of assets
+    for pair_type in [
+        PairType::Xyk {},
+        PairType::Xyk {},
+        PairType::Custom("yet_another_xyk".to_string()),
+    ] {
+        helper
+            .create_pair(&mut app, &owner, pair_type, [&token1, &token2], None)
+            .unwrap();
+    }
+
+    helper
+        .create_pair(&mut app, &owner, PairType::Xyk {}, [&token1, &token3], None)
+        .unwrap();
+
+    // Query all pairs
+    let pairs: Vec<PairInfo> = app
+        .wrap()
+        .query_wasm_smart(
+            &helper.factory,
+            &QueryMsg::Pairs {
+                start_after: None,
+                limit: None,
+            },
+        )
+        .unwrap();
+    assert_eq!(pairs.len(), 4);
+
+    let duplicated_asset_infos = vec![
+        AssetInfo::cw20(token1.clone()),
+        AssetInfo::cw20(token2.clone()),
+    ];
+    let pairs: Vec<PairInfo> = app
+        .wrap()
+        .query_wasm_smart(
+            &helper.factory,
+            &QueryMsg::PairsByAssetInfos {
+                asset_infos: duplicated_asset_infos.clone(),
+                start_after: None,
+                limit: None,
+            },
+        )
+        .unwrap();
+    assert_eq!(pairs.len(), 3);
+
+    for pair in pairs.iter() {
+        assert_eq!(pair.asset_infos, duplicated_asset_infos);
+    }
+
+    let pair: PairInfo = app
+        .wrap()
+        .query_wasm_smart(
+            &helper.factory,
+            &QueryMsg::PairByLpToken {
+                lp_token: pairs[0].liquidity_token.clone(),
+            },
+        )
+        .unwrap();
+    assert_eq!(pair, pairs[0]);
 }

@@ -132,11 +132,6 @@ pub enum ExecuteMsg {
         /// Optional binary serialised parameters for custom pool types
         init_params: Option<Binary>,
     },
-    /// Deregister removes a previously created pair.
-    Deregister {
-        /// The assets for which we deregister a pool
-        asset_infos: Vec<AssetInfo>,
-    },
     /// ProposeNewOwner creates a proposal to change contract ownership.
     /// The validity period for the proposal is set in the `expires_in` variable.
     ProposeNewOwner {
@@ -158,18 +153,28 @@ pub enum QueryMsg {
     /// Config returns contract settings specified in the custom [`ConfigResponse`] structure.
     #[returns(ConfigResponse)]
     Config {},
-    /// Pair returns information about a specific pair according to the specified assets.
-    #[returns(PairInfo)]
-    Pair {
+    /// PairsByAssetInfos returns a list of pairs for the specified assets.
+    #[returns(Vec<PairInfo>)]
+    PairsByAssetInfos {
         /// The assets for which we return a pair
         asset_infos: Vec<AssetInfo>,
+        /// The pair address to start reading from. Optional
+        start_after: Option<String>,
+        /// The number of pairs to read and return. Optional
+        limit: Option<u32>,
+    },
+    /// PairByLpToken returns a pair info for the specified liquidity token.
+    #[returns(PairInfo)]
+    PairByLpToken {
+        /// The liquidity token address for which we return a pair
+        lp_token: String,
     },
     /// Pairs returns an array of pairs and their information according to the specified parameters in `start_after` and `limit` variables.
-    #[returns(PairsResponse)]
+    #[returns(Vec<PairInfo>)]
     Pairs {
-        /// The pair item to start reading from. It is an [`Option`] type that accepts [`AssetInfo`] elements.
-        start_after: Option<Vec<AssetInfo>>,
-        /// The number of pairs to read and return. It is an [`Option`] type.
+        /// The pair address to start reading from. Optional
+        start_after: Option<String>,
+        /// The number of pairs to read and return. Optional
         limit: Option<u32>,
     },
     /// FeeInfo returns fee parameters for a specific pair. The response is returned using a [`FeeInfoResponse`] structure
@@ -198,13 +203,6 @@ pub struct ConfigResponse {
     pub incentives_address: Option<Addr>,
     /// The address of the contract that contains the coins and their accuracy
     pub coin_registry_address: Addr,
-}
-
-/// A custom struct for each query response that returns an array of objects of type [`PairInfo`].
-#[cw_serde]
-pub struct PairsResponse {
-    /// Arrays of structs containing information about multiple pairs
-    pub pairs: Vec<PairInfo>,
 }
 
 /// A custom struct for each query response that returns an object of type [`FeeInfoResponse`].

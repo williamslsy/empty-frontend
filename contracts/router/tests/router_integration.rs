@@ -1,5 +1,3 @@
-#![cfg(not(tarpaulin_include))]
-
 use cosmwasm_std::{coins, from_json, to_json_binary, Addr, Empty, StdError};
 use cw20::Cw20ExecuteMsg;
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};

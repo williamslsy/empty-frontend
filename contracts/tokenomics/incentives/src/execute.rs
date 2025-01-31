@@ -182,14 +182,8 @@ fn deposit(
 ) -> Result<Response, ContractError> {
     let staker = addr_opt_validate(deps.api, &recipient)?.unwrap_or(sender);
 
-    let pair_info = query_pair_info(deps.as_ref(), &maybe_lp.info)?;
     let config = CONFIG.load(deps.storage)?;
-    is_pool_registered(
-        deps.querier,
-        &config,
-        &pair_info,
-        &maybe_lp.info.to_string(),
-    )?;
+    is_pool_registered(deps.querier, &config, &maybe_lp.info.to_string())?;
 
     let mut pool_info = PoolInfo::may_load(deps.storage, &maybe_lp.info)?.unwrap_or_default();
     let mut user_info = UserInfo::may_load_position(deps.storage, &staker, &maybe_lp.info)?
@@ -296,7 +290,7 @@ pub fn setup_pools(
             let maybe_lp = determine_asset_info(&lp_token, deps.api)?;
             let pair_info = query_pair_info(deps.as_ref(), &maybe_lp)?;
 
-            is_pool_registered(deps.querier, &config, &pair_info, &lp_token)?;
+            is_pool_registered(deps.querier, &config, &lp_token)?;
 
             // check if assets in the blocked list
             for asset in &pair_info.asset_infos {
