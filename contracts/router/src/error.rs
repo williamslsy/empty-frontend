@@ -37,10 +37,4 @@ pub enum ContractError {
 
     #[error("The swap operation limit was exceeded!")]
     SwapLimitExceeded {},
-
-    #[error("Native swap operations are not supported!")]
-    NativeSwapNotSupported {},
-
-    #[error("Contract can't be migrated!")]
-    MigrationError {},
 }

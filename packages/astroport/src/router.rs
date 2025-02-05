@@ -1,5 +1,4 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-
 use cosmwasm_std::{Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
 
@@ -7,41 +6,14 @@ use crate::asset::AssetInfo;
 
 pub const MAX_SWAP_OPERATIONS: usize = 50;
 
-/// This structure holds the parameters used for creating a contract.
 #[cw_serde]
-pub struct InstantiateMsg {
-    /// The astroport factory contract address
-    pub astroport_factory: String,
-}
-
-/// This enum describes a swap operation.
-#[cw_serde]
-pub enum SwapOperation {
-    /// Native swap
-    NativeSwap {
-        /// The name (denomination) of the native asset to swap from
-        offer_denom: String,
-        /// The name (denomination) of the native asset to swap to
-        ask_denom: String,
-    },
-    /// ASTRO swap
-    AstroSwap {
-        /// Information about the asset being swapped
-        offer_asset_info: AssetInfo,
-        /// Information about the asset we swap to
-        ask_asset_info: AssetInfo,
-    },
-}
-
-impl SwapOperation {
-    pub fn get_target_asset_info(&self) -> AssetInfo {
-        match self {
-            SwapOperation::NativeSwap { ask_denom, .. } => AssetInfo::NativeToken {
-                denom: ask_denom.clone(),
-            },
-            SwapOperation::AstroSwap { ask_asset_info, .. } => ask_asset_info.clone(),
-        }
-    }
+pub struct SwapOperation {
+    /// The address of the pair contract
+    pub pair_address: String,
+    /// Information about the asset being swapped
+    pub offer_asset_info: AssetInfo,
+    /// Information about the asset we swap to
+    pub ask_asset_info: AssetInfo,
 }
 
 /// This structure describes the execute messages available in the contract.
@@ -56,7 +28,6 @@ pub enum ExecuteMsg {
         to: Option<String>,
         max_spread: Option<Decimal>,
     },
-
     /// Internal use
     /// ExecuteSwapOperation executes a single swap operation
     ExecuteSwapOperation {
@@ -90,9 +61,6 @@ pub enum Cw20HookMsg {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    /// Config returns configuration parameters for the contract using a custom [`ConfigResponse`] structure
-    #[returns(ConfigResponse)]
-    Config {},
     /// SimulateSwapOperations simulates multi-hop swap operations
     #[returns(SimulateSwapOperationsResponse)]
     SimulateSwapOperations {
@@ -103,21 +71,9 @@ pub enum QueryMsg {
     },
 }
 
-/// This structure describes a custom struct to return a query response containing the base contract configuration.
-#[cw_serde]
-pub struct ConfigResponse {
-    /// The Astroport factory contract address
-    pub astroport_factory: String,
-}
-
 /// This structure describes a custom struct to return a query response containing the end amount of a swap simulation
 #[cw_serde]
 pub struct SimulateSwapOperationsResponse {
     /// The amount of tokens received in a swap simulation
     pub amount: Uint128,
 }
-
-/// This structure describes a migration message.
-/// We currently take no arguments for migrations.
-#[cw_serde]
-pub struct MigrateMsg {}

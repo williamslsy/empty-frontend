@@ -1,15 +1,17 @@
+use std::collections::HashMap;
+
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
+use cosmwasm_std::testing::{MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_json, to_json_binary, Addr, Binary, Coin, ContractResult, Empty, OwnedDeps, Querier,
     QuerierResult, QueryRequest, SystemError, SystemResult, Uint128, WasmQuery,
 };
-use std::collections::HashMap;
+use cw20::{BalanceResponse, Cw20QueryMsg, TokenInfoResponse};
 
 use astroport::asset::{Asset, AssetInfo, PairInfo};
 use astroport::factory::PairType;
 use astroport::pair::SimulationResponse;
-use cw20::{BalanceResponse, Cw20QueryMsg, TokenInfoResponse};
+use astroport_test::legacy_mock_api::LegacyMockApi;
 
 #[cw_serde]
 pub enum QueryMsg {
@@ -26,13 +28,13 @@ pub enum QueryMsg {
 /// This uses the Astroport CustomQuerier.
 pub fn mock_dependencies(
     contract_balance: &[Coin],
-) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
+) -> OwnedDeps<MockStorage, LegacyMockApi, WasmMockQuerier> {
     let custom_querier: WasmMockQuerier =
         WasmMockQuerier::new(MockQuerier::new(&[(MOCK_CONTRACT_ADDR, contract_balance)]));
 
     OwnedDeps {
         storage: MockStorage::default(),
-        api: MockApi::default(),
+        api: LegacyMockApi,
         querier: custom_querier,
         custom_query_type: Default::default(),
     }

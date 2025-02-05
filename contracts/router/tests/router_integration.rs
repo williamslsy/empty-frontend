@@ -1,10 +1,12 @@
-use cosmwasm_std::{coins, from_json, to_json_binary, Addr, Empty, StdError};
-use cw20::Cw20ExecuteMsg;
+use cosmwasm_std::{coins, from_json, to_json_binary, Empty, StdError, Uint128};
+use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
-use astroport::asset::{native_asset_info, token_asset_info};
+use astroport::asset::{native_asset_info, token_asset_info, AssetInfo};
 use astroport::factory::PairType;
-use astroport::router::{ExecuteMsg, InstantiateMsg, SwapOperation, SwapResponseData};
+use astroport::router::{
+    ExecuteMsg, QueryMsg, SimulateSwapOperationsResponse, SwapOperation, SwapResponseData,
+};
 use astroport_router::error::ContractError;
 
 use crate::factory_helper::{instantiate_token, mint, mint_native, FactoryHelper};
@@ -26,8 +28,8 @@ fn router_contract() -> Box<dyn Contract<Empty>> {
 fn router_does_not_enforce_spread_assertion() {
     let mut app = App::default();
 
-    let owner = Addr::unchecked("owner");
-    let mut helper = FactoryHelper::init(&mut app, &owner);
+    let mut helper = FactoryHelper::init(&mut app);
+    let owner = helper.owner.clone();
 
     let token_x = instantiate_token(&mut app, helper.cw20_token_code_id, &owner, "TOX", None);
     let token_y = instantiate_token(&mut app, helper.cw20_token_code_id, &owner, "TOY", None);
@@ -57,20 +59,29 @@ fn router_does_not_enforce_spread_assertion() {
 
     let router_code = app.store_code(router_contract());
     let router = app
-        .instantiate_contract(
-            router_code,
-            owner.clone(),
-            &InstantiateMsg {
-                astroport_factory: helper.factory.to_string(),
-            },
-            &[],
-            "router",
-            None,
-        )
+        .instantiate_contract(router_code, owner.clone(), &Empty {}, &[], "router", None)
         .unwrap();
 
     // Triggering swap with a huge spread fees
     mint(&mut app, &owner, &token_x, 50_000_000000, &owner).unwrap();
+    let pair_1 = helper
+        .query_pair_by_asset_infos(
+            &mut app,
+            &[
+                AssetInfo::cw20(token_x.clone()),
+                AssetInfo::cw20(token_y.clone()),
+            ],
+        )
+        .unwrap();
+    let pair_2 = helper
+        .query_pair_by_asset_infos(
+            &mut app,
+            &[
+                AssetInfo::cw20(token_y.clone()),
+                AssetInfo::cw20(token_z.clone()),
+            ],
+        )
+        .unwrap();
     let resp = app
         .execute_contract(
             owner.clone(),
@@ -80,11 +91,13 @@ fn router_does_not_enforce_spread_assertion() {
                 amount: 50_000_000000u128.into(),
                 msg: to_json_binary(&ExecuteMsg::ExecuteSwapOperations {
                     operations: vec![
-                        SwapOperation::AstroSwap {
+                        SwapOperation {
+                            pair_address: pair_1.to_string(),
                             offer_asset_info: token_asset_info(token_x.clone()),
                             ask_asset_info: token_asset_info(token_y.clone()),
                         },
-                        SwapOperation::AstroSwap {
+                        SwapOperation {
+                            pair_address: pair_2.to_string(),
                             offer_asset_info: token_asset_info(token_y.clone()),
                             ask_asset_info: token_asset_info(token_z.clone()),
                         },
@@ -115,7 +128,8 @@ fn router_does_not_enforce_spread_assertion() {
                 contract: router.to_string(),
                 amount: 50_000_000000u128.into(),
                 msg: to_json_binary(&ExecuteMsg::ExecuteSwapOperations {
-                    operations: vec![SwapOperation::AstroSwap {
+                    operations: vec![SwapOperation {
+                        pair_address: pair_1.to_string(),
                         offer_asset_info: token_asset_info(token_x.clone()),
                         ask_asset_info: token_asset_info(token_y.clone()),
                     }],
@@ -138,8 +152,8 @@ fn router_does_not_enforce_spread_assertion() {
 fn route_through_pairs_with_natives() {
     let mut app = App::default();
 
-    let owner = Addr::unchecked("owner");
-    let mut helper = FactoryHelper::init(&mut app, &owner);
+    let mut helper = FactoryHelper::init(&mut app);
+    let owner = helper.owner.clone();
 
     let denom_x = "denom_x";
     let denom_y = "denom_y";
@@ -172,16 +186,7 @@ fn route_through_pairs_with_natives() {
 
     let router_code = app.store_code(router_contract());
     let router = app
-        .instantiate_contract(
-            router_code,
-            owner.clone(),
-            &InstantiateMsg {
-                astroport_factory: helper.factory.to_string(),
-            },
-            &[],
-            "router",
-            None,
-        )
+        .instantiate_contract(router_code, owner.clone(), &Empty {}, &[], "router", None)
         .unwrap();
 
     // Sanity checks
@@ -191,7 +196,8 @@ fn route_through_pairs_with_natives() {
             owner.clone(),
             router.clone(),
             &ExecuteMsg::ExecuteSwapOperation {
-                operation: SwapOperation::AstroSwap {
+                operation: SwapOperation {
+                    pair_address: "".to_string(),
                     offer_asset_info: native_asset_info(denom_x.to_string()),
                     ask_asset_info: native_asset_info(denom_y.to_string()),
                 },
@@ -206,33 +212,14 @@ fn route_through_pairs_with_natives() {
         err.downcast::<ContractError>().unwrap(),
         ContractError::Unauthorized {}
     );
-    let err = app
-        .execute_contract(
-            owner.clone(),
-            router.clone(),
-            &ExecuteMsg::ExecuteSwapOperations {
-                operations: vec![SwapOperation::NativeSwap {
-                    offer_denom: denom_x.to_string(),
-                    ask_denom: denom_y.to_string(),
-                }],
-                to: None,
-                max_spread: None,
-                minimum_receive: None,
-            },
-            &[],
-        )
-        .unwrap_err();
-    assert_eq!(
-        err.downcast::<ContractError>().unwrap(),
-        ContractError::NativeSwapNotSupported {}
-    );
 
     let err = app
         .execute_contract(
             owner.clone(),
             router.clone(),
             &ExecuteMsg::ExecuteSwapOperations {
-                operations: vec![SwapOperation::AstroSwap {
+                operations: vec![SwapOperation {
+                    pair_address: "".to_string(),
                     offer_asset_info: native_asset_info(denom_x.to_string()),
                     ask_asset_info: native_asset_info(denom_x.to_string()),
                 }],
@@ -254,17 +241,31 @@ fn route_through_pairs_with_natives() {
     // End sanity checks
 
     mint_native(&mut app, &denom_x, 50_000_000000, &owner).unwrap();
+    let pair_1 = helper
+        .query_pair_by_asset_infos(
+            &mut app,
+            &[AssetInfo::native(denom_x), AssetInfo::native(denom_y)],
+        )
+        .unwrap();
+    let pair_2 = helper
+        .query_pair_by_asset_infos(
+            &mut app,
+            &[AssetInfo::native(denom_y), AssetInfo::native(denom_z)],
+        )
+        .unwrap();
     let resp = app
         .execute_contract(
             owner.clone(),
             router.clone(),
             &ExecuteMsg::ExecuteSwapOperations {
                 operations: vec![
-                    SwapOperation::AstroSwap {
+                    SwapOperation {
+                        pair_address: pair_1.to_string(),
                         offer_asset_info: native_asset_info(denom_x.to_string()),
                         ask_asset_info: native_asset_info(denom_y.to_string()),
                     },
-                    SwapOperation::AstroSwap {
+                    SwapOperation {
+                        pair_address: pair_2.to_string(),
                         offer_asset_info: native_asset_info(denom_y.to_string()),
                         ask_asset_info: native_asset_info(denom_z.to_string()),
                     },
@@ -288,11 +289,13 @@ fn route_through_pairs_with_natives() {
             router,
             &ExecuteMsg::ExecuteSwapOperations {
                 operations: vec![
-                    SwapOperation::AstroSwap {
+                    SwapOperation {
+                        pair_address: pair_1.to_string(),
                         offer_asset_info: native_asset_info(denom_x.to_string()),
                         ask_asset_info: native_asset_info(denom_y.to_string()),
                     },
-                    SwapOperation::AstroSwap {
+                    SwapOperation {
+                        pair_address: pair_2.to_string(),
                         offer_asset_info: native_asset_info(denom_y.to_string()),
                         ask_asset_info: native_asset_info(denom_z.to_string()),
                     },
@@ -316,17 +319,10 @@ fn route_through_pairs_with_natives() {
 
 #[test]
 fn test_swap_route() {
-    use crate::factory_helper::{instantiate_token, mint, FactoryHelper};
-    use astroport::asset::AssetInfo;
-    use astroport::factory::PairType;
-    use astroport::router::{
-        ExecuteMsg, InstantiateMsg, QueryMsg, SimulateSwapOperationsResponse, SwapOperation,
-    };
-    use cosmwasm_std::{to_json_binary, Addr, Uint128};
-    use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
     let mut app = App::default();
-    let owner = Addr::unchecked("owner");
-    let mut helper = FactoryHelper::init(&mut app, &owner);
+
+    let mut helper = FactoryHelper::init(&mut app);
+    let owner = helper.owner.clone();
     let astro = instantiate_token(&mut app, helper.cw20_token_code_id, &owner, "astro", None);
     let inj = instantiate_token(&mut app, helper.cw20_token_code_id, &owner, "inj", None);
     let atom = instantiate_token(&mut app, helper.cw20_token_code_id, &owner, "atom", None);
@@ -351,24 +347,28 @@ fn test_swap_route() {
     }
     let router_code = app.store_code(router_contract());
     let router = app
-        .instantiate_contract(
-            router_code,
-            owner.clone(),
-            &InstantiateMsg {
-                astroport_factory: helper.factory.to_string(),
-            },
-            &[],
-            "router",
-            None,
-        )
+        .instantiate_contract(router_code, owner.clone(), &Empty {}, &[], "router", None)
         .unwrap();
 
     let swap_amount = Uint128::new(10_000_000);
 
     // Try to swap with a bad batch of path
     // route: astro -> inj, atom -> osmo
+    let pair_1 = helper
+        .query_pair_by_asset_infos(
+            &mut app,
+            &[AssetInfo::cw20(astro.clone()), AssetInfo::cw20(inj.clone())],
+        )
+        .unwrap();
+    let pair_2 = helper
+        .query_pair_by_asset_infos(
+            &mut app,
+            &[AssetInfo::cw20(atom.clone()), AssetInfo::cw20(osmo.clone())],
+        )
+        .unwrap();
     let swap_operations = vec![
-        SwapOperation::AstroSwap {
+        SwapOperation {
+            pair_address: pair_1.to_string(),
             offer_asset_info: AssetInfo::Token {
                 contract_addr: astro.clone(),
             },
@@ -376,7 +376,8 @@ fn test_swap_route() {
                 contract_addr: inj.clone(),
             },
         },
-        SwapOperation::AstroSwap {
+        SwapOperation {
+            pair_address: pair_2.to_string(),
             offer_asset_info: AssetInfo::Token {
                 contract_addr: atom.clone(),
             },
@@ -399,15 +400,27 @@ fn test_swap_route() {
     assert_eq!(
         err,
         StdError::generic_err(
-            "Querier contract error: The next offer asset must be \
-    the same as the previous ask asset; contract3 --> contract4 --> contract5"
+            format!("Querier contract error: The next offer asset must be the same as the previous ask asset; {} --> {} --> {}",  &inj, &atom, &osmo)
         )
     );
 
     // swap astro for osmo
     // route: astro -> inj, inj -> osmo, osmo -> atom, atom -> osmo
+    let pair_3 = helper
+        .query_pair_by_asset_infos(
+            &mut app,
+            &[AssetInfo::cw20(inj.clone()), AssetInfo::cw20(osmo.clone())],
+        )
+        .unwrap();
+    let pair_4 = helper
+        .query_pair_by_asset_infos(
+            &mut app,
+            &[AssetInfo::cw20(osmo.clone()), AssetInfo::cw20(atom.clone())],
+        )
+        .unwrap();
     let swap_operations = vec![
-        SwapOperation::AstroSwap {
+        SwapOperation {
+            pair_address: pair_1.to_string(),
             offer_asset_info: AssetInfo::Token {
                 contract_addr: astro.clone(),
             },
@@ -415,7 +428,8 @@ fn test_swap_route() {
                 contract_addr: inj.clone(),
             },
         },
-        SwapOperation::AstroSwap {
+        SwapOperation {
+            pair_address: pair_3.to_string(),
             offer_asset_info: AssetInfo::Token {
                 contract_addr: inj.clone(),
             },
@@ -423,7 +437,8 @@ fn test_swap_route() {
                 contract_addr: osmo.clone(),
             },
         },
-        SwapOperation::AstroSwap {
+        SwapOperation {
+            pair_address: pair_2.to_string(),
             offer_asset_info: AssetInfo::Token {
                 contract_addr: osmo.clone(),
             },
@@ -431,7 +446,8 @@ fn test_swap_route() {
                 contract_addr: atom.clone(),
             },
         },
-        SwapOperation::AstroSwap {
+        SwapOperation {
+            pair_address: pair_4.to_string(),
             offer_asset_info: AssetInfo::Token {
                 contract_addr: atom.clone(),
             },
@@ -459,7 +475,7 @@ fn test_swap_route() {
         simulate_res.amount
     );
 
-    let user = Addr::unchecked("user");
+    let user = app.api().addr_make("user");
     mint(&mut app, &owner, &astro, swap_amount.u128(), &user).unwrap();
 
     // query balance
@@ -493,7 +509,7 @@ fn test_swap_route() {
     )
     .unwrap();
 
-    let attacker = Addr::unchecked("attacker");
+    let attacker = app.api().addr_make("attacker");
     let donated_atom: u128 = 1;
 
     mint(&mut app, &owner, &atom, donated_atom, &attacker).unwrap();
@@ -654,7 +670,8 @@ fn test_swap_route() {
             attacker.clone(),
             router.clone(),
             &ExecuteMsg::ExecuteSwapOperations {
-                operations: vec![SwapOperation::AstroSwap {
+                operations: vec![SwapOperation {
+                    pair_address: pair_2.to_string(),
                     offer_asset_info: AssetInfo::Token {
                         contract_addr: osmo.clone(),
                     },
@@ -769,7 +786,7 @@ fn test_swap_route() {
     assert_eq!(balance_res.balance, swap_amount);
 
     // attacker2 front-run tx
-    let attacker2 = Addr::unchecked("attacker2");
+    let attacker2 = app.api().addr_make("attacker2");
 
     // assume the market is bad and user wants to get as much as they can
     let donated_atom = Uint128::new(9_000_000);
@@ -847,7 +864,8 @@ fn test_swap_route() {
             attacker2.clone(),
             router.clone(),
             &ExecuteMsg::ExecuteSwapOperations {
-                operations: vec![SwapOperation::AstroSwap {
+                operations: vec![SwapOperation {
+                    pair_address: pair_2.to_string(),
                     offer_asset_info: AssetInfo::Token {
                         contract_addr: osmo.clone(),
                     },

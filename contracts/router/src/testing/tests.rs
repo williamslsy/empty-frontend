@@ -1,13 +1,13 @@
 use cosmwasm_std::testing::{message_info, mock_env, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_json, to_json_binary, Addr, Coin, MessageInfo, ReplyOn, SubMsg, Uint128, WasmMsg,
+    from_json, to_json_binary, Addr, Coin, Empty, MessageInfo, ReplyOn, SubMsg, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 
 use astroport::asset::{native_asset_info, AssetInfo};
 use astroport::router::{
-    ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
-    SimulateSwapOperationsResponse, SwapOperation, MAX_SWAP_OPERATIONS,
+    Cw20HookMsg, ExecuteMsg, QueryMsg, SimulateSwapOperationsResponse, SwapOperation,
+    MAX_SWAP_OPERATIONS,
 };
 
 use crate::contract::{execute, instantiate, query, AFTER_SWAP_REPLY_ID};
@@ -22,34 +22,20 @@ fn mock_info(sender: &str, funds: &[Coin]) -> MessageInfo {
 fn proper_initialization() {
     let mut deps = mock_dependencies(&[]);
 
-    let msg = InstantiateMsg {
-        astroport_factory: String::from("astroportfactory"),
-    };
-
     let env = mock_env();
     let info = mock_info("addr0000", &[]);
 
-    // We can just call .unwrap() to assert this was a success
-    let _res = instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-    // It worked, let's query the state
-    let config: ConfigResponse =
-        from_json(&query(deps.as_ref(), env, QueryMsg::Config {}).unwrap()).unwrap();
-    assert_eq!("astroportfactory", config.astroport_factory.as_str());
+    instantiate(deps.as_mut(), env.clone(), info, Empty {}).unwrap();
 }
 
 #[test]
 fn execute_swap_operations() {
     let mut deps = mock_dependencies(&[]);
-    let msg = InstantiateMsg {
-        astroport_factory: String::from("astroportfactory"),
-    };
 
     let env = mock_env();
     let info = mock_info("addr0000", &[]);
 
-    // We can just call .unwrap() to assert this was a success
-    let _res = instantiate(deps.as_mut(), env, info, msg).unwrap();
+    instantiate(deps.as_mut(), env, info, Empty {}).unwrap();
 
     let msg = ExecuteMsg::ExecuteSwapOperations {
         operations: vec![],
@@ -65,7 +51,8 @@ fn execute_swap_operations() {
 
     let msg = ExecuteMsg::ExecuteSwapOperations {
         operations: vec![
-            SwapOperation::AstroSwap {
+            SwapOperation {
+                pair_address: "".to_string(),
                 offer_asset_info: AssetInfo::NativeToken {
                     denom: "ukrw".to_string(),
                 },
@@ -73,7 +60,8 @@ fn execute_swap_operations() {
                     contract_addr: Addr::unchecked("asset0001"),
                 },
             },
-            SwapOperation::AstroSwap {
+            SwapOperation {
+                pair_address: "".to_string(),
                 offer_asset_info: AssetInfo::Token {
                     contract_addr: Addr::unchecked("asset0001"),
                 },
@@ -81,7 +69,8 @@ fn execute_swap_operations() {
                     denom: "uluna".to_string(),
                 },
             },
-            SwapOperation::AstroSwap {
+            SwapOperation {
+                pair_address: "".to_string(),
                 offer_asset_info: AssetInfo::NativeToken {
                     denom: "uluna".to_string(),
                 },
@@ -106,7 +95,8 @@ fn execute_swap_operations() {
                     contract_addr: String::from(MOCK_CONTRACT_ADDR),
                     funds: vec![],
                     msg: to_json_binary(&ExecuteMsg::ExecuteSwapOperation {
-                        operation: SwapOperation::AstroSwap {
+                        operation: SwapOperation {
+                            pair_address: "".to_string(),
                             offer_asset_info: AssetInfo::NativeToken {
                                 denom: "ukrw".to_string(),
                             },
@@ -131,7 +121,8 @@ fn execute_swap_operations() {
                     contract_addr: String::from(MOCK_CONTRACT_ADDR),
                     funds: vec![],
                     msg: to_json_binary(&ExecuteMsg::ExecuteSwapOperation {
-                        operation: SwapOperation::AstroSwap {
+                        operation: SwapOperation {
+                            pair_address: "".to_string(),
                             offer_asset_info: AssetInfo::Token {
                                 contract_addr: Addr::unchecked("asset0001"),
                             },
@@ -156,7 +147,8 @@ fn execute_swap_operations() {
                     contract_addr: String::from(MOCK_CONTRACT_ADDR),
                     funds: vec![],
                     msg: to_json_binary(&ExecuteMsg::ExecuteSwapOperation {
-                        operation: SwapOperation::AstroSwap {
+                        operation: SwapOperation {
+                            pair_address: "".to_string(),
                             offer_asset_info: AssetInfo::NativeToken {
                                 denom: "uluna".to_string(),
                             },
@@ -184,7 +176,8 @@ fn execute_swap_operations() {
         amount: Uint128::from(1000000u128),
         msg: to_json_binary(&Cw20HookMsg::ExecuteSwapOperations {
             operations: vec![
-                SwapOperation::AstroSwap {
+                SwapOperation {
+                    pair_address: "".to_string(),
                     offer_asset_info: AssetInfo::NativeToken {
                         denom: "ukrw".to_string(),
                     },
@@ -192,7 +185,8 @@ fn execute_swap_operations() {
                         contract_addr: Addr::unchecked("asset0001"),
                     },
                 },
-                SwapOperation::AstroSwap {
+                SwapOperation {
+                    pair_address: "".to_string(),
                     offer_asset_info: AssetInfo::Token {
                         contract_addr: Addr::unchecked("asset0001"),
                     },
@@ -200,7 +194,8 @@ fn execute_swap_operations() {
                         denom: "uluna".to_string(),
                     },
                 },
-                SwapOperation::AstroSwap {
+                SwapOperation {
+                    pair_address: "".to_string(),
                     offer_asset_info: AssetInfo::NativeToken {
                         denom: "uluna".to_string(),
                     },
@@ -227,7 +222,8 @@ fn execute_swap_operations() {
                     contract_addr: String::from(MOCK_CONTRACT_ADDR),
                     funds: vec![],
                     msg: to_json_binary(&ExecuteMsg::ExecuteSwapOperation {
-                        operation: SwapOperation::AstroSwap {
+                        operation: SwapOperation {
+                            pair_address: "".to_string(),
                             offer_asset_info: AssetInfo::NativeToken {
                                 denom: "ukrw".to_string(),
                             },
@@ -252,7 +248,8 @@ fn execute_swap_operations() {
                     contract_addr: String::from(MOCK_CONTRACT_ADDR),
                     funds: vec![],
                     msg: to_json_binary(&ExecuteMsg::ExecuteSwapOperation {
-                        operation: SwapOperation::AstroSwap {
+                        operation: SwapOperation {
+                            pair_address: "".to_string(),
                             offer_asset_info: AssetInfo::Token {
                                 contract_addr: Addr::unchecked("asset0001"),
                             },
@@ -277,7 +274,8 @@ fn execute_swap_operations() {
                     contract_addr: String::from(MOCK_CONTRACT_ADDR),
                     funds: vec![],
                     msg: to_json_binary(&ExecuteMsg::ExecuteSwapOperation {
-                        operation: SwapOperation::AstroSwap {
+                        operation: SwapOperation {
+                            pair_address: "".to_string(),
                             offer_asset_info: AssetInfo::NativeToken {
                                 denom: "uluna".to_string(),
                             },
@@ -304,15 +302,11 @@ fn execute_swap_operations() {
 #[test]
 fn execute_swap_operation() {
     let mut deps = mock_dependencies(&[]);
-    let msg = InstantiateMsg {
-        astroport_factory: String::from("astroportfactory"),
-    };
 
     let env = mock_env();
     let info = mock_info("addr0000", &[]);
 
-    // We can just call .unwrap() to assert this was a success
-    let _res = instantiate(deps.as_mut(), env, info, msg).unwrap();
+    instantiate(deps.as_mut(), env, info, Empty {}).unwrap();
 
     deps.querier
         .with_astroport_pairs(&[(&"uusdasset".to_string(), &String::from("pair"))]);
@@ -334,7 +328,8 @@ fn execute_swap_operation() {
         )],
     )]);
     let msg = ExecuteMsg::ExecuteSwapOperation {
-        operation: SwapOperation::AstroSwap {
+        operation: SwapOperation {
+            pair_address: "pair".to_string(),
             offer_asset_info: AssetInfo::Token {
                 contract_addr: Addr::unchecked("asset"),
             },
@@ -381,20 +376,16 @@ fn execute_swap_operation() {
 fn query_buy_with_routes() {
     let mut deps = mock_dependencies(&[]);
 
-    let msg = InstantiateMsg {
-        astroport_factory: String::from("astroportfactory"),
-    };
-
     let env = mock_env();
     let info = mock_info("addr0000", &[]);
 
-    // We can just call .unwrap() to assert this was a success
-    let _res = instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
+    instantiate(deps.as_mut(), env.clone(), info, Empty {}).unwrap();
 
     let msg = QueryMsg::SimulateSwapOperations {
         offer_amount: Uint128::from(1000000u128),
         operations: vec![
-            SwapOperation::AstroSwap {
+            SwapOperation {
+                pair_address: "".to_string(),
                 offer_asset_info: AssetInfo::NativeToken {
                     denom: "ukrw".to_string(),
                 },
@@ -402,7 +393,8 @@ fn query_buy_with_routes() {
                     contract_addr: Addr::unchecked("asset0000"),
                 },
             },
-            SwapOperation::AstroSwap {
+            SwapOperation {
+                pair_address: "".to_string(),
                 offer_asset_info: AssetInfo::Token {
                     contract_addr: Addr::unchecked("asset0000"),
                 },
@@ -432,36 +424,23 @@ fn query_buy_with_routes() {
             amount: Uint128::from(1000000u128),
         }
     );
-
-    let msg = QueryMsg::SimulateSwapOperations {
-        offer_amount: Uint128::from(1000000u128),
-        operations: vec![SwapOperation::NativeSwap {
-            offer_denom: "ukrw".to_string(),
-            ask_denom: "test".to_string(),
-        }],
-    };
-    let err = query(deps.as_ref(), env.clone(), msg).unwrap_err();
-    assert_eq!(err, ContractError::NativeSwapNotSupported {});
 }
 
 #[test]
 fn assert_maximum_receive_swap_operations() {
     let mut deps = mock_dependencies(&[]);
-    let msg = InstantiateMsg {
-        astroport_factory: String::from("astroportfactory"),
-    };
 
     let env = mock_env();
     let info = mock_info("addr0000", &[]);
 
-    // We can just call .unwrap() to assert this was a success
-    let _res = instantiate(deps.as_mut(), env, info, msg).unwrap();
+    instantiate(deps.as_mut(), env, info, Empty {}).unwrap();
 
     let msg = ExecuteMsg::ExecuteSwapOperations {
         operations: vec![
-            SwapOperation::NativeSwap {
-                offer_denom: "uusd".to_string(),
-                ask_denom: "ukrw".to_string(),
+            SwapOperation {
+                pair_address: "".to_string(),
+                offer_asset_info: AssetInfo::native("uusd"),
+                ask_asset_info: AssetInfo::native("ukrw"),
             };
             MAX_SWAP_OPERATIONS + 1
         ],

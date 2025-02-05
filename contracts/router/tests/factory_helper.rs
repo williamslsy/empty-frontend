@@ -9,40 +9,18 @@ use astroport::factory::{PairConfig, PairType, QueryMsg};
 pub struct FactoryHelper {
     pub factory: Addr,
     pub cw20_token_code_id: u64,
+    pub owner: Addr,
 }
 
 impl FactoryHelper {
-    pub fn init(router: &mut App, owner: &Addr) -> Self {
+    pub fn init(app: &mut App) -> Self {
         let astro_token_contract = Box::new(ContractWrapper::new_with_empty(
             cw20_base::contract::execute,
             cw20_base::contract::instantiate,
             cw20_base::contract::query,
         ));
 
-        let cw20_token_code_id = router.store_code(astro_token_contract);
-
-        let msg = cw20_base::msg::InstantiateMsg {
-            name: String::from("Astro token"),
-            symbol: String::from("ASTRO"),
-            decimals: 6,
-            initial_balances: vec![],
-            mint: Some(MinterResponse {
-                minter: owner.to_string(),
-                cap: None,
-            }),
-            marketing: None,
-        };
-
-        let astro_token = router
-            .instantiate_contract(
-                cw20_token_code_id,
-                owner.clone(),
-                &msg,
-                &[],
-                String::from("ASTRO"),
-                None,
-            )
-            .unwrap();
+        let cw20_token_code_id = app.store_code(astro_token_contract);
 
         let pair_contract = Box::new(
             ContractWrapper::new_with_empty(
@@ -53,7 +31,7 @@ impl FactoryHelper {
             .with_reply_empty(astroport_pair::contract::reply),
         );
 
-        let pair_code_id = router.store_code(pair_contract);
+        let pair_code_id = app.store_code(pair_contract);
 
         let factory_contract = Box::new(
             ContractWrapper::new_with_empty(
@@ -64,7 +42,9 @@ impl FactoryHelper {
             .with_reply_empty(astroport_factory::contract::reply),
         );
 
-        let factory_code_id = router.store_code(factory_contract);
+        let factory_code_id = app.store_code(factory_contract);
+
+        let owner = app.api().addr_make("owner");
 
         let msg = astroport::factory::InstantiateMsg {
             pair_configs: vec![
@@ -91,10 +71,10 @@ impl FactoryHelper {
             fee_address: None,
             incentives_address: None,
             owner: owner.to_string(),
-            coin_registry_address: "coin_registry".to_string(),
+            coin_registry_address: app.api().addr_make("coin_registry").to_string(),
         };
 
-        let factory = router
+        let factory = app
             .instantiate_contract(
                 factory_code_id,
                 owner.clone(),
@@ -108,6 +88,7 @@ impl FactoryHelper {
         Self {
             factory,
             cw20_token_code_id,
+            owner,
         }
     }
 
@@ -127,8 +108,16 @@ impl FactoryHelper {
 
         router.execute_contract(sender.clone(), self.factory.clone(), &msg, &[])?;
 
-        let res: PairInfo = router.wrap().query_wasm_smart(
-            self.factory.clone(),
+        self.query_pair_by_asset_infos(router, &asset_infos)
+    }
+
+    pub fn query_pair_by_asset_infos(
+        &self,
+        app: &App,
+        asset_infos: &[AssetInfo],
+    ) -> AnyResult<Addr> {
+        let res: Vec<PairInfo> = app.wrap().query_wasm_smart(
+            &self.factory,
             &QueryMsg::PairsByAssetInfos {
                 asset_infos: asset_infos.to_vec(),
                 start_after: None,
@@ -136,7 +125,7 @@ impl FactoryHelper {
             },
         )?;
 
-        Ok(res.contract_addr)
+        Ok(res[0].contract_addr.clone())
     }
 }
 
