@@ -3,7 +3,7 @@ use cosmwasm_std::{
 };
 use cw20::{BalanceResponse as Cw20BalanceResponse, Cw20QueryMsg, TokenInfoResponse};
 
-use crate::asset::{AssetInfo, PairInfo};
+use crate::asset::AssetInfo;
 use crate::factory::{
     Config as FactoryConfig, FeeInfoResponse, PairType, QueryMsg as FactoryQueryMsg,
 };
@@ -166,21 +166,4 @@ where
         total_fee_rate: Decimal::from_ratio(res.total_fee_bps, 10000u16),
         maker_fee_rate: Decimal::from_ratio(res.maker_fee_bps, 10000u16),
     })
-}
-
-/// Accepts two tokens as input and returns a pair's information.
-pub fn query_pair_info(
-    _querier: &QuerierWrapper,
-    _factory_contract: impl Into<String>,
-    _asset_infos: &[AssetInfo],
-) -> StdResult<PairInfo> {
-    todo!()
-    // querier.query_wasm_smart(
-    //     factory_contract,
-    //     &FactoryQueryMsg::PairsByAssetInfos {
-    //         asset_infos: asset_infos.to_vec(),
-    //         start_after: None,
-    //         limit: None,
-    //     },
-    // )
 }
