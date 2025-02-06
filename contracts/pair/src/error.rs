@@ -1,7 +1,8 @@
-use astroport::{asset::MINIMUM_LIQUIDITY_AMOUNT, pair::MAX_FEE_SHARE_BPS};
 use cosmwasm_std::{ConversionOverflowError, OverflowError, StdError, Uint128};
 use cw_utils::{ParseReplyError, PaymentError};
 use thiserror::Error;
+
+use astroport::{asset::MINIMUM_LIQUIDITY_AMOUNT, pair::MAX_FEE_SHARE_BPS};
 
 /// This enum describes pair contract errors
 #[derive(Error, Debug, PartialEq)]
@@ -17,6 +18,9 @@ pub enum ContractError {
 
     #[error("{0}")]
     ParseReplyError(#[from] ParseReplyError),
+
+    #[error("{0}")]
+    OverflowError(#[from] OverflowError),
 
     #[error("Unauthorized")]
     Unauthorized {},
@@ -78,10 +82,4 @@ pub enum ContractError {
         MAX_FEE_SHARE_BPS
     )]
     FeeShareOutOfBounds {},
-}
-
-impl From<OverflowError> for ContractError {
-    fn from(o: OverflowError) -> Self {
-        StdError::from(o).into()
-    }
 }
