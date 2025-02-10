@@ -1,0 +1,11 @@
+{
+  "admin": "terra1nw5455d3x7fqthr54wml7xvt5v63f53zxsg4sr",
+  "fee_address": "terra1nw5455d3x7fqthr54wml7xvt5v63f53zxsg4sr",
+  "incentivize_fee": {
+    "fee": {
+      "denom": "uluna",
+      "amount": "1000000"
+    },
+    "fee_receiver": "terra1nw5455d3x7fqthr54wml7xvt5v63f53zxsg4sr"
+  }
+}
