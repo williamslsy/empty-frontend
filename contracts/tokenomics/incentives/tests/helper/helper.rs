@@ -659,7 +659,7 @@ impl Helper {
             .wrap()
             .query_wasm_smart::<Uint128>(
                 &self.generator,
-                &QueryMsg::Deposit {
+                &QueryMsg::QueryDeposit {
                     lp_token: lp_token.to_string(),
                     user: user.to_string(),
                 },

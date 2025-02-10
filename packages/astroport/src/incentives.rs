@@ -227,7 +227,7 @@ pub enum QueryMsg {
     Config {},
     /// Deposit returns the LP token amount deposited in a specific generator
     #[returns(Uint128)]
-    Deposit { lp_token: String, user: String },
+    QueryDeposit { lp_token: String, user: String },
     /// PendingToken returns the amount of rewards that can be claimed by an account that deposited a specific LP token in a generator
     #[returns(Vec<Asset>)]
     PendingRewards { lp_token: String, user: String },

@@ -78,38 +78,6 @@
       "additionalProperties": false
     },
     {
-      "description": "WithdrawLiquidity allows someone to withdraw liquidity from the pool",
-      "type": "object",
-      "required": [
-        "withdraw_liquidity"
-      ],
-      "properties": {
-        "withdraw_liquidity": {
-          "type": "object",
-          "properties": {
-            "assets": {
-              "default": [],
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Asset"
-              }
-            },
-            "min_assets_to_receive": {
-              "type": [
-                "array",
-                "null"
-              ],
-              "items": {
-                "$ref": "#/definitions/Asset"
-              }
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
       "description": "Swap performs a swap in the pool",
       "type": "object",
       "required": [

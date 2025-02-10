@@ -106,7 +106,8 @@
         "denom": {
           "type": "string"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "IncentivizationFeeInfo": {
       "type": "object",

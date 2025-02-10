@@ -20,7 +20,7 @@ use crate::utils::{asset_info_key, from_key_to_asset_info};
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     match msg {
         QueryMsg::Config {} => Ok(to_json_binary(&CONFIG.load(deps.storage)?)?),
-        QueryMsg::Deposit { lp_token, user } => {
+        QueryMsg::QueryDeposit { lp_token, user } => {
             let lp_asset = determine_asset_info(&lp_token, deps.api)?;
             let user_addr = deps.api.addr_validate(&user)?;
             let amount = UserInfo::may_load_position(deps.storage, &user_addr, &lp_asset)?

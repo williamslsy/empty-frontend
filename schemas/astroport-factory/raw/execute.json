@@ -27,7 +27,7 @@
                 "null"
               ]
             },
-            "generator_address": {
+            "incentives_address": {
               "description": "Contract address where Lp tokens can be auto_staked after someone provides liquidity in an incentivized Astroport pool",
               "type": [
                 "string",
@@ -40,46 +40,6 @@
                 "integer",
                 "null"
               ],
-              "format": "uint64",
-              "minimum": 0.0
-            },
-            "whitelist_code_id": {
-              "description": "CW1 whitelist contract code id used to store 3rd party rewards for staking Astroport LP tokens",
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "uint64",
-              "minimum": 0.0
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "update_tracker_config"
-      ],
-      "properties": {
-        "update_tracker_config": {
-          "type": "object",
-          "required": [
-            "tracker_code_id"
-          ],
-          "properties": {
-            "token_factory_addr": {
-              "description": "Token factory module address",
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "tracker_code_id": {
-              "description": "Tracking contract code id",
-              "type": "integer",
               "format": "uint64",
               "minimum": 0.0
             }
@@ -155,32 +115,6 @@
                   "$ref": "#/definitions/PairType"
                 }
               ]
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "description": "Deregister removes a previously created pair.",
-      "type": "object",
-      "required": [
-        "deregister"
-      ],
-      "properties": {
-        "deregister": {
-          "type": "object",
-          "required": [
-            "asset_infos"
-          ],
-          "properties": {
-            "asset_infos": {
-              "description": "The assets for which we deregister a pool",
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/AssetInfo"
-              }
             }
           },
           "additionalProperties": false
@@ -360,7 +294,7 @@
       "additionalProperties": false
     },
     "PairType": {
-      "description": "This enum describes available pair types. ## Available pool types ``` # use astroport::factory::PairType::{Custom, Stable, Xyk}; Xyk {}; Stable {}; Custom(String::from(\"Custom\")); ```",
+      "description": "This enum describes available pair types. ## Available pool types ``` # use astroport::factory::PairType::{Custom, Concentrated, Xyk}; Xyk {}; Concentrated {}; Custom(String::from(\"Custom\")); ```",
       "oneOf": [
         {
           "description": "XYK pair type",
@@ -377,13 +311,13 @@
           "additionalProperties": false
         },
         {
-          "description": "Stable pair type",
+          "description": "Concentrated liquidity type",
           "type": "object",
           "required": [
-            "stable"
+            "concentrated"
           ],
           "properties": {
-            "stable": {
+            "concentrated": {
               "type": "object",
               "additionalProperties": false
             }

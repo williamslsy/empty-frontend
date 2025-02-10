@@ -20,10 +20,10 @@
       "description": "Deposit returns the LP token amount deposited in a specific generator",
       "type": "object",
       "required": [
-        "deposit"
+        "query_deposit"
       ],
       "properties": {
-        "deposit": {
+        "query_deposit": {
           "type": "object",
           "required": [
             "lp_token",

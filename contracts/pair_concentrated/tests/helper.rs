@@ -432,7 +432,7 @@ impl Helper {
             .wrap()
             .query_wasm_smart(
                 &self.generator,
-                &astroport::incentives::QueryMsg::Deposit {
+                &astroport::incentives::QueryMsg::QueryDeposit {
                     lp_token: denom.into(),
                     user: user.to_string(),
                 },

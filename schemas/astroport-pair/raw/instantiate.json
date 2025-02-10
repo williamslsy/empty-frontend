@@ -107,7 +107,7 @@
       "type": "string"
     },
     "PairType": {
-      "description": "This enum describes available pair types. ## Available pool types ``` # use astroport::factory::PairType::{Custom, Stable, Xyk}; Xyk {}; Stable {}; Custom(String::from(\"Custom\")); ```",
+      "description": "This enum describes available pair types. ## Available pool types ``` # use astroport::factory::PairType::{Custom, Concentrated, Xyk}; Xyk {}; Concentrated {}; Custom(String::from(\"Custom\")); ```",
       "oneOf": [
         {
           "description": "XYK pair type",
@@ -124,13 +124,13 @@
           "additionalProperties": false
         },
         {
-          "description": "Stable pair type",
+          "description": "Concentrated liquidity type",
           "type": "object",
           "required": [
-            "stable"
+            "concentrated"
           ],
           "properties": {
-            "stable": {
+            "concentrated": {
               "type": "object",
               "additionalProperties": false
             }

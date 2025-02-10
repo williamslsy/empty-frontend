@@ -7,8 +7,7 @@
     "coin_registry_address",
     "owner",
     "pair_configs",
-    "token_code_id",
-    "whitelist_code_id"
+    "token_code_id"
   ],
   "properties": {
     "coin_registry_address": {
@@ -30,7 +29,7 @@
         }
       ]
     },
-    "generator_address": {
+    "incentives_address": {
       "description": "Address of contract used to auto_stake LP tokens for Astroport pairs that are incentivized",
       "anyOf": [
         {
@@ -58,12 +57,6 @@
     },
     "token_code_id": {
       "description": "CW20 token contract code identifier",
-      "type": "integer",
-      "format": "uint64",
-      "minimum": 0.0
-    },
-    "whitelist_code_id": {
-      "description": "CW1 whitelist contract code id used to store 3rd party rewards for staking Astroport LP tokens",
       "type": "integer",
       "format": "uint64",
       "minimum": 0.0
@@ -130,7 +123,7 @@
       "additionalProperties": false
     },
     "PairType": {
-      "description": "This enum describes available pair types. ## Available pool types ``` # use astroport::factory::PairType::{Custom, Stable, Xyk}; Xyk {}; Stable {}; Custom(String::from(\"Custom\")); ```",
+      "description": "This enum describes available pair types. ## Available pool types ``` # use astroport::factory::PairType::{Custom, Concentrated, Xyk}; Xyk {}; Concentrated {}; Custom(String::from(\"Custom\")); ```",
       "oneOf": [
         {
           "description": "XYK pair type",
@@ -147,13 +140,13 @@
           "additionalProperties": false
         },
         {
-          "description": "Stable pair type",
+          "description": "Concentrated liquidity type",
           "type": "object",
           "required": [
-            "stable"
+            "concentrated"
           ],
           "properties": {
-            "stable": {
+            "concentrated": {
               "type": "object",
               "additionalProperties": false
             }
