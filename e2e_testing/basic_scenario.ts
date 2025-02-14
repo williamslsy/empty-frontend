@@ -1,4 +1,4 @@
-import deployed from "./deployed.json";
+import deployed from "./bbn-testnet/deployed.json";
 import config from "./config.json";
 import {AstroportFactoryClient} from "./sdk/AstroportFactory.client";
 import {getClientAndAddress} from "./lib";
