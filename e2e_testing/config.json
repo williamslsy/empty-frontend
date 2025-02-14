@@ -1,11 +1,11 @@
 {
-  "admin": "terra1nw5455d3x7fqthr54wml7xvt5v63f53zxsg4sr",
-  "fee_address": "terra1nw5455d3x7fqthr54wml7xvt5v63f53zxsg4sr",
+  "admin": "bbn1knv468atwzjk4v0d22jwa497v0sd0zez3lh7g3",
+  "fee_address": "bbn1knv468atwzjk4v0d22jwa497v0sd0zez3lh7g3",
   "incentivize_fee": {
     "fee": {
-      "denom": "uluna",
+      "denom": "ubbn",
       "amount": "1000000"
     },
-    "fee_receiver": "terra1nw5455d3x7fqthr54wml7xvt5v63f53zxsg4sr"
+    "fee_receiver": "bbn1knv468atwzjk4v0d22jwa497v0sd0zez3lh7g3"
   }
 }

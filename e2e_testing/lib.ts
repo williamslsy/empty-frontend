@@ -3,18 +3,20 @@ import {SigningCosmWasmClient} from "@cosmjs/cosmwasm-stargate";
 import {GasPrice} from "@cosmjs/stargate";
 import {stringToPath} from "@cosmjs/crypto";
 
-const rpcEndpoint = "http://localhost:26657/";
-const mnemonic = "bachelor sell sell excuse crop mansion embark finger level empty forum sad brain hazard stay morning tonight drip apology energy country any video kick";
-const gasPrice = GasPrice.fromString("0.0025uluna");
-const prefix = "terra"
-const hdPaths = [stringToPath("m/44'/330'/0'/0/0")]
+const rpcEndpoint = "https://babylon-testnet-rpc.nodes.guru";
+const mnemonic = "noise upon meadow minute purse utility first verb surprise blood debate dentist refuse spoon load panic demise celery strong nerve again word possible human";
+const gasPrice = GasPrice.fromString("0.0025ubbn");
+const prefix = "bbn"
+// const hdPaths = [stringToPath("m/44'/118'/0'/0/0")]
 
 export const getClientAndAddress = async () => {
     const wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
         prefix,
-        hdPaths,
+        // hdPaths,
     });
     const [account] = await wallet.getAccounts();
+
+    console.log(Buffer.from(account.pubkey).toString('base64'));
 
     return SigningCosmWasmClient.connectWithSigner(rpcEndpoint, wallet, {
         gasPrice

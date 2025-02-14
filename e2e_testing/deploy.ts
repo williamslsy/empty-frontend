@@ -40,6 +40,10 @@ async function main() {
     const cw20_resp = await client.upload(address, cw20_code, "auto", "Upload CW20 token");
     contracts["cw20_token"] = cw20_resp.codeId;
 
+    // Write contract code IDs to JSON file
+    console.log("Writing contract code IDs to contracts.json");
+    fs.writeFileSync("contracts.json", JSON.stringify(contracts, null, 2));
+
     let deployed: Deployed = {};
 
     // Init coin registry
