@@ -88,7 +88,7 @@ const main = async () => {
         {
             assetInfos: [
                 {native_token: {denom: "ibc/2278567FFA6D754BDD8C159CE1770D8AF27649BFB58E5132CF530460591E479D"}},
-                {native_token: {denom: "ibc/ubbn"}},
+                {native_token: {denom: "ubbn"}},
             ],
             pairType: {xyk: {}}
         },
