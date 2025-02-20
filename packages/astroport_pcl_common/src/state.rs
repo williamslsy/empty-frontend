@@ -381,7 +381,7 @@ impl PoolState {
 
 pub struct Precisions(Vec<(String, u8)>);
 
-impl <'a>Precisions {
+impl<'a> Precisions {
     /// Stores map of AssetInfo (as String) -> precision
     pub const PRECISIONS: Map<&'a str, u8> = Map::new("precisions");
     pub fn new(storage: &dyn Storage) -> StdResult<Self> {
