@@ -325,11 +325,10 @@ mod testing {
     #[test]
     fn test_invalid_operations() {
         // Empty error
-        assert_eq!(true, assert_operations(&[]).is_err());
+        assert!(assert_operations(&[]).is_err());
 
         // uluna output
-        assert_operations(&vec![
-            SwapOperation {
+        assert_operations(&[SwapOperation {
                 pair_address: "".to_string(),
                 offer_asset_info: AssetInfo::NativeToken {
                     denom: "ukrw".to_string(),
@@ -346,8 +345,7 @@ mod testing {
                 ask_asset_info: AssetInfo::NativeToken {
                     denom: "uluna".to_string(),
                 },
-            },
-        ])
+            }])
         .unwrap();
 
         // asset0002 output

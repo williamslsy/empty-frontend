@@ -61,10 +61,10 @@ fn store_factory_code(app: &mut App) -> u64 {
 }
 
 fn instantiate_pair(mut app: &mut App, owner: &Addr) -> Addr {
-    let token_contract_code_id = store_token_code(&mut app);
+    let token_contract_code_id = store_token_code(app);
 
-    let pair_contract_code_id = store_pair_code(&mut app);
-    let factory_code_id = store_factory_code(&mut app);
+    let pair_contract_code_id = store_pair_code(app);
+    let factory_code_id = store_factory_code(app);
 
     let init_msg = FactoryInstantiateMsg {
         fee_address: None,
@@ -109,7 +109,9 @@ fn instantiate_pair(mut app: &mut App, owner: &Addr) -> Addr {
         init_params: None,
     };
 
-    let pair = app
+    
+
+    app
         .instantiate_contract(
             pair_contract_code_id,
             owner.clone(),
@@ -118,9 +120,7 @@ fn instantiate_pair(mut app: &mut App, owner: &Addr) -> Addr {
             String::from("PAIR"),
             None,
         )
-        .unwrap();
-
-    pair
+        .unwrap()
 }
 
 #[test]
@@ -362,16 +362,16 @@ fn provide_liquidity_msg(
                 info: AssetInfo::NativeToken {
                     denom: "uusd".to_string(),
                 },
-                amount: uusd_amount.clone(),
+                amount: uusd_amount,
             },
             Asset {
                 info: AssetInfo::NativeToken {
                     denom: "uluna".to_string(),
                 },
-                amount: uluna_amount.clone(),
+                amount: uluna_amount,
             },
         ],
-        slippage_tolerance: Option::from(slippage_tolerance),
+        slippage_tolerance: slippage_tolerance,
         auto_stake: None,
         receiver,
         min_lp_to_receive: None,
@@ -380,11 +380,11 @@ fn provide_liquidity_msg(
     let coins = [
         Coin {
             denom: "uluna".to_string(),
-            amount: uluna_amount.clone(),
+            amount: uluna_amount,
         },
         Coin {
             denom: "uusd".to_string(),
-            amount: uusd_amount.clone(),
+            amount: uusd_amount,
         },
     ];
 

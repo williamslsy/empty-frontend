@@ -1091,7 +1091,7 @@ mod tests {
     fn test_try_from_asset_info_for_denom() {
         let denom = Denom::Native("uusd".to_string());
         let info = AssetInfo::native("uusd");
-        let denom2: Denom = info.try_into().unwrap();
+        let denom2: Denom = info.into();
         assert_eq!(denom, denom2);
     }
 

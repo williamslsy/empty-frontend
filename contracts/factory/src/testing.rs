@@ -287,7 +287,7 @@ fn update_owner() {
 
     // Let's query the state
     let config: ConfigResponse =
-        from_json(&query(deps.as_ref(), env.clone(), QueryMsg::Config {}).unwrap()).unwrap();
+        from_json(query(deps.as_ref(), env.clone(), QueryMsg::Config {}).unwrap()).unwrap();
     assert_eq!(new_owner, config.owner.as_str());
 }
 
@@ -719,7 +719,7 @@ fn register() {
         pairs_res,
         vec![
             PairInfo {
-                asset_infos: asset_infos,
+                asset_infos,
                 contract_addr: Addr::unchecked("pair0000"),
                 liquidity_token: "liquidity0000".to_owned(),
                 pair_type: PairType::Xyk {},
