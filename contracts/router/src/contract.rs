@@ -252,7 +252,7 @@ pub fn migrate(_deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, Contr
 /// * **offer_amount** amount of offer assets being swapped.
 ///
 /// * **operations** is a vector that contains objects of type [`SwapOperation`].
-/// These are all the swap operations for which we perform a simulation.
+///   These are all the swap operations for which we perform a simulation.
 fn simulate_swap_operations(
     deps: Deps,
     offer_amount: Uint128,

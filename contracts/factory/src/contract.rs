@@ -349,7 +349,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
 /// * **QueryMsg::Pair { asset_infos }** Returns a [`PairInfo`] object with information about a specific Astroport pair.
 ///
 /// * **QueryMsg::Pairs { start_after, limit }** Returns an array that contains items of type [`PairInfo`].
-/// This returns information about multiple Astroport pairs
+///   This returns information about multiple Astroport pairs
 ///
 /// * **QueryMsg::FeeInfo { pair_type }** Returns the fee structure (total and maker fees) for a specific pair type.
 ///
@@ -410,7 +410,7 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
 /// Returns a vector with pair data that contains items of type [`PairInfo`].
 /// Querying starts at `start_after` and returns `limit` pairs.
 /// * **start_after** is a field which accepts an address [`String`].
-/// This is the pair from which we start a query.
+///   This is the pair from which we start a query.
 ///
 /// * **limit** sets the number of pairs to be retrieved.
 pub fn query_pairs(
