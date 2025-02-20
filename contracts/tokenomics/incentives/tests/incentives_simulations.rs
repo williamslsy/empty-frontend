@@ -88,7 +88,9 @@ fn update_total_rewards(
                 lp_map
                     .entry(reward.clone())
                     .and_modify(|v| {
-                        v.left = v.left.checked_sub(claimed_amount).unwrap_or_else(|| panic!("Tried to claim more than available: {v:?} - {claimed_amount}"))
+                        v.left = v.left.checked_sub(claimed_amount).unwrap_or_else(|| {
+                            panic!("Tried to claim more than available: {v:?} - {claimed_amount}")
+                        })
                     })
                     .or_insert_with(|| {
                         panic!("Reward {reward} not found in {lp_token} rewards map");

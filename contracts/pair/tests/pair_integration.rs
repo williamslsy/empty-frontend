@@ -109,18 +109,15 @@ fn instantiate_pair(mut app: &mut App, owner: &Addr) -> Addr {
         init_params: None,
     };
 
-    
-
-    app
-        .instantiate_contract(
-            pair_contract_code_id,
-            owner.clone(),
-            &msg,
-            &[],
-            String::from("PAIR"),
-            None,
-        )
-        .unwrap()
+    app.instantiate_contract(
+        pair_contract_code_id,
+        owner.clone(),
+        &msg,
+        &[],
+        String::from("PAIR"),
+        None,
+    )
+    .unwrap()
 }
 
 #[test]

@@ -342,9 +342,7 @@ mod tests {
 
         let gamma = 0.000145;
 
-        let x_range = (1000u128..=100_000)
-            .step_by(10000)
-            .collect_vec();
+        let x_range = (1000u128..=100_000).step_by(10000).collect_vec();
         let mut a_range = (100u128..=10000u128).step_by(1000).collect_vec();
         a_range.push(1);
 
