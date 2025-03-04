@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: theme(colors.tw-bg);
+  --foregroung: theme(colors.tw-foreground);
+}
+
+@theme {
+  --spacing: 1px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: theme(colors.tw-bg);
+    --foreground: theme(colors.tw-foreground);
+  }
+}
+
+@layer base {
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input,
+  input:focus {
+    outline: none;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  font-family: theme("fontFamily.inter");
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+::-moz-selection {
+  color: black;
+  background: theme("colors.tw-orange.300");
+}
+
+::selection {
+  color: black;
+  background: theme("colors.tw-orange.300");
+}
+
+.ml--1 {
+  margin-left: -1rem;
+  z-index: 9;
+}
+
+.ml--2 {
+  margin-left: -1rem;
+  z-index: 8;
+}
+
+.ml--3 {
+  margin-left: -1rem;
+  z-index: 7;
+}
+
+.img-select-none {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -o-user-select: none;
+  user-select: none;
+}
