@@ -1,22 +1,20 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    "skipLibCheck": true,
+    "target": "es2022",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "strict": true,
+    "jsx": "preserve",
+    "module": "preserve",
+    "moduleResolution": "bundler",
     "lib": [
       "dom",
       "dom.iterable",
       "esnext"
     ],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "incremental": true,
     "plugins": [
       {
         "name": "next"
@@ -26,7 +24,9 @@
       "~/*": [
         "./*"
       ]
-    }
+    },
+    "noEmit": true,
+    "incremental": true
   },
   "include": [
     "next-env.d.ts",
@@ -36,5 +36,13 @@
   ],
   "exclude": [
     "node_modules"
+  ],
+  "references": [
+    {
+      "path": "../types"
+    },
+    {
+      "path": "../trpc"
+    }
   ]
 }
