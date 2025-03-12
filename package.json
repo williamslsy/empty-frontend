@@ -1,13 +1,14 @@
 {
   "name": "tower-monorepo",
-  "packageManager": "pnpm@10.0.0",
+  "packageManager": "pnpm@9.15.9",
   "engines": {
-    "pnpm": ">=10.0.0",
+    "pnpm": ">=9.0.0",
     "node": ">=22.0.0"
   },
   "scripts": {
     "turbo": "turbo",
-    "dev:app": "turbo dev"
+    "dev:app": "turbo dev",
+    "build:app": "turbo build"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
