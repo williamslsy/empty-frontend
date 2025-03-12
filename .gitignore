@@ -1,0 +1,39 @@
+# macOS
+.DS_Store
+
+# Text file backups
+**/*.rs.bk
+
+# Build results
+target/
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+
+# Auto-gen
+.cargo-ok
+/scripts/.env
+#/scripts/package-lock.json
+/artifacts/
+/contracts/**/schema/
+/e2e/config.json
+
+**/keys/**
+
+
+# UI
+**/.wrangler
+**/.next
+**/.vercel
+**/.turbo
+**/build
+**/node_modules
+**/tsconfig.tsbuildinfo
+next-env.d.ts
+
+# Supabase
+.branches
+.temp
+.env
