@@ -23,7 +23,9 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250303.0",
+    "@towerfi/indexer": "workspace:^",
     "@towerfi/types": "workspace:^",
+    "@types/pg": "^8.11.11",
     "typescript": "catalog:",
     "wrangler": "catalog:"
   },
