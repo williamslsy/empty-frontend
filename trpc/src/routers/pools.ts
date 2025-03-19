@@ -4,11 +4,14 @@ import { createCallerFactory, createTRPCPublicProcedure, createTRPCRouter } from
 import { appRouter } from "../router.js";
 
 import type {
+  PoolInfo,
   BaseCurrency,
   ConfigResponse,
   CumulativePricesResponse,
   PairInfo,
   PoolResponse,
+  PoolType,
+  WithPrice,
 } from "@towerfi/types";
 import { fromBase64, fromUtf8 } from "cosmi/utils";
 import { getInnerValueFromAsset } from "../utils/assets.js";
@@ -41,13 +44,17 @@ export const poolsRouter = createTRPCRouter({
       const { address } = input;
       const caller = createCallerFactory(appRouter)(ctx);
 
-      const config = await caller.local.pools.getPoolConfig({ address });
-      const { params } = config;
+      const [pool, config, cumulativePrices] = await Promise.all([
+        caller.local.pools.getPool({ address }),
+        caller.local.pools.getPoolConfig({ address }),
+        publicClient.queryContractSmart<CumulativePricesResponse>({
+          address,
+          msg: { cumulative_prices: {} },
+        }),
+      ]);
 
-      const cumulativePrices = await publicClient.queryContractSmart<CumulativePricesResponse>({
-        address,
-        msg: { cumulative_prices: {} },
-      });
+      const { params } = config;
+      const pairType = Object.keys(pool.pair_type)[0] as string;
 
       if (!cumulativePrices) throw new Error("Pool not found or invalid");
       const [token0, token1] = cumulativePrices.assets;
@@ -65,13 +72,30 @@ export const poolsRouter = createTRPCRouter({
 
       const poolAmount0 = Number(token0Amount) / 10 ** assetInfo0.decimals;
       const poolAmount1 = Number(token1Amount) / 10 ** assetInfo1.decimals;
+
+      if (pairType === "xyk") {
+        const optimalRatio: number = poolAmount0 / poolAmount1;
+        return optimalRatio;
+      }
+
       const priceScale = Number(params.price_scale);
 
       const optimalRatio: number = poolAmount0 / (poolAmount1 * priceScale);
 
       return optimalRatio;
     }),
-  getPools: createTRPCPublicProcedure.query(async ({ ctx }) => {
+  getPool: createTRPCPublicProcedure
+    .input(z.object({ address: z.string() }))
+    .query<PairInfo>(async ({ ctx, input }) => {
+      const { publicClient } = ctx;
+      const { address } = input;
+
+      return await publicClient.queryContractSmart<PairInfo>({
+        address,
+        msg: { pair: {} },
+      });
+    }),
+  getPools: createTRPCPublicProcedure.query<PoolInfo[]>(async ({ ctx }) => {
     const { publicClient, contracts } = ctx;
 
     const pools: PairInfo[] = await publicClient.queryContractSmart<PairInfo[]>({
@@ -91,21 +115,21 @@ export const poolsRouter = createTRPCRouter({
         const [token1, token2] = pool.asset_infos;
         if (!token1 || !token2) throw new Error("Invalid pool");
 
-        const t1: BaseCurrency = await caller.local.assets.getAsset({
+        const t1: WithPrice<BaseCurrency> = await caller.local.assets.getAsset({
           asset: getInnerValueFromAsset(token1),
         });
 
-        const t2: BaseCurrency = await caller.local.assets.getAsset({
+        const t2: WithPrice<BaseCurrency> = await caller.local.assets.getAsset({
           asset: getInnerValueFromAsset(token2),
         });
 
-        const name: string = `${t1.symbol} / ${t2.symbol}`;
+        const name = `${t1.symbol} / ${t2.symbol}`;
 
         return {
-          name: name,
+          name,
           poolAddress: pool.contract_addr,
           lpAddress: pool.liquidity_token,
-          poolType: Object.keys(pool.pair_type)[0],
+          poolType: Object.keys(pool.pair_type)[0] as PoolType,
           assets: [t1, t2],
           poolLiquidity: info.total_share,
 
