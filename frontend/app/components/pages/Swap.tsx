@@ -1,88 +1,137 @@
 "use client";
 
-import { IconChevronDown, IconSettingsFilled } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
+import { IconReload, IconRepeat, IconSettingsFilled } from "@tabler/icons-react";
 import { Button } from "../atoms/Button";
 import { ModalTypes } from "~/types/modal";
 import { useModal } from "~/app/providers/ModalProvider";
 import { motion } from "motion/react";
-import RotateButton from "../atoms/RotateButton";
-import { mockTokens } from "~/utils/consts";
 import SwapInfoAccordion from "../molecules/Swap/SwapInfoAccordion";
 import { useAccount } from "@cosmi/react";
+import { Tab, TabList, TabContent, Tabs } from "../atoms/Tabs";
+import { Swap } from "../organisms/swap/Swap";
+import { Bridge } from "../organisms/swap/Bridge";
+import { useSkipClient } from "~/app/hooks/useSkipClient";
+import { FormProvider, useForm } from "react-hook-form";
+import { useToast } from "~/app/hooks";
+import { useMemo, useState } from "react";
+import { useSwapStore } from "~/app/hooks/useSwapStore";
 
 const SwapComponent: React.FC = () => {
-  const [fromToken, setFromToken] = useState(mockTokens[0]);
-  const [toToken, setToToken] = useState(mockTokens[1]);
-  const [_isConnected, _setIsConnected] = useState(false);
-  const { isConnected } = useAccount();
+  const [action, setAction] = useState("swap");
+  const { isConnected, address } = useAccount();
   const { showModal } = useModal();
-  const [activeTab, setActiveTab] = useState<"swap" | "bridge">("swap");
+  const { slippage } = useSwapStore();
+  const methods = useForm();
+  const { formState, handleSubmit, reset } = methods;
+  const { toast } = useToast();
+  const { errors, isValid } = formState;
 
-  useEffect(() => {
-    _setIsConnected(isConnected);
-  }, [isConnected]);
+  const { skipClient, simulation: simulationResult } = useSkipClient({ cacheKey: action });
+  const { data: simulation, isLoading, isError } = simulationResult;
+
+  const { isDisabled, text } = useMemo(() => {
+    if (isError) return { isDisabled: true, text: "No routes found" };
+    if (Object.keys(errors).length) return { isDisabled: true, text: "Insufficient Balance" };
+    if (isValid) return { isDisabled: false, text: "Swap" };
+    return { isDisabled: true, text: "Choose Amount" };
+  }, [isValid, errors, isError]);
+
+  const onSubmit = handleSubmit(async () => {
+    if (!skipClient || !simulation) throw new Error("error: no client or simulation");
+    const { requiredChainAddresses } = simulation;
+    const slippageTolerancePercent = slippage === "auto" ? undefined : slippage;
+
+    await skipClient?.executeRoute({
+      route: simulation,
+      slippageTolerancePercent,
+      userAddresses: requiredChainAddresses.map((chainID) => ({
+        chainID,
+        address: address as string,
+      })),
+      onTransactionCompleted: async (chainID, txHash, status) => {
+        toast.success({
+          title: "Success",
+          description: `Route completed with tx hash: ${txHash} & status: ${status.state}`,
+        });
+      },
+      onTransactionBroadcast: async ({ txHash, chainID }) => {
+        toast.success({
+          title: "Success",
+          description: `Transaction broadcasted with tx hash: ${txHash}`,
+        });
+      },
+      onTransactionTracked: async ({ txHash, chainID }) => {
+        console.log(`Transaction tracked with tx hash: ${txHash}`);
+        toast.success({
+          title: "Success",
+          description: `Transaction tracked with tx hash: ${txHash}`,
+        });
+      },
+      onTransactionSigned: async ({ chainID }) => {
+        toast.success({
+          title: "Success",
+          description: `Transaction signed with chain ID: ${chainID}`,
+        });
+      },
+    });
+  });
 
   return (
     <>
-      <div className="flex flex-col gap-4 max-w-[434px] mx-auto py-8 px-4 relative z-20">
-        <div className="w-full flex-1 flex items-center justify-center bg-tw-sub-bg rounded-2xl p-2 flex-col">
-          <div className="flex items-center justify-between w-full p-4">
-            <p className="text-xl">Swap </p>
+      <form
+        className="flex flex-col gap-4 max-w-[434px] mx-auto py-8 px-4 relative z-20"
+        onSubmit={onSubmit}
+      >
+        <FormProvider {...methods}>
+          <div className="w-full flex-1 flex items-center justify-center bg-tw-sub-bg rounded-2xl p-2 flex-col relative">
             <motion.button
+              type="button"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => showModal(ModalTypes.swap_settings, true)}
+              className="absolute top-[10px] right-2 p-2 bg-tw-bg rounded-full z-10"
             >
               <IconSettingsFilled className="w-5 h-5" />
             </motion.button>
+
+            <Tabs
+              defaultKey="swap"
+              selectedKey={action}
+              onSelectionChange={(a) => [reset(), setAction(a)]}
+            >
+              <TabList>
+                <Tab tabKey="swap">
+                  <IconRepeat className="w-5 h-5" />
+                  <p>Swap</p>
+                </Tab>
+                <Tab tabKey="bridge" disabled>
+                  <IconReload className="w-5 h-5" />
+                  <p>Bridge</p>
+                </Tab>
+              </TabList>
+
+              <TabContent tabKey="swap">
+                <Swap />
+              </TabContent>
+              <TabContent tabKey="bridge">
+                <Bridge />
+              </TabContent>
+            </Tabs>
           </div>
-          <div className="flex flex-col gap-2 w-full items-center justify-center">
-            <div className="w-full rounded-xl p-4 bg-tw-bg">
-              <div className="flex items-center justify-between">
-                <motion.button
-                  className="flex items-center gap-2 p-2 bg-white/5 rounded-full"
-                  onClick={() => showModal(ModalTypes.select_asset, true)}
-                >
-                  <img src={fromToken.logoURI} alt={fromToken.name} className="w-7 h-7" />
-                  <p>{fromToken.symbol}</p>
-                  <IconChevronDown className="h-4 w-4" />
-                </motion.button>
-                <p>0.00</p>
-              </div>
-            </div>
-            <RotateButton />
-            <div className="w-full rounded-xl p-4 bg-tw-bg">
-              <div className="flex items-center justify-between">
-                <motion.button
-                  className="flex items-center gap-2 p-2 bg-white/5 rounded-full"
-                  onClick={() => showModal(ModalTypes.select_asset, true)}
-                >
-                  <img src={toToken.logoURI} alt={toToken.name} className="w-7 h-7" />
-                  <p>{toToken.symbol}</p>
-                  <IconChevronDown className="h-4 w-4" />
-                </motion.button>
-                <p>0.00</p>
-              </div>
-            </div>
+          <div className="w-full px-4 flex flex-col gap-6">
+            {isConnected ? (
+              <Button fullWidth type="submit" isDisabled={isLoading || isDisabled}>
+                {text}
+              </Button>
+            ) : (
+              <Button onPress={() => showModal(ModalTypes.connect_wallet)} fullWidth>
+                Connect wallet
+              </Button>
+            )}
+            <SwapInfoAccordion simulation={simulation} />
           </div>
-        </div>
-        <div className="w-full px-4 flex flex-col gap-6">
-          {_isConnected ? (
-            <Button fullWidth>Swap</Button>
-          ) : (
-            <Button onPress={() => showModal(ModalTypes.connect_wallet)} fullWidth>
-              Connect wallet
-            </Button>
-          )}
-          <SwapInfoAccordion
-            fee={1.54}
-            minimumReceived="0.345 BTC"
-            priceImpact={-0.034}
-            maxSlippage={1}
-          />
-        </div>
-      </div>
+        </FormProvider>
+      </form>
       <img
         src="/tower-gradient.png"
         alt="letters"
