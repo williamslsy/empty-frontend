@@ -14,7 +14,8 @@ import { IconDots } from "@tabler/icons-react";
 import { ModalTypes } from "~/types/modal";
 import Link from "next/link";
 import { CellDataToken } from "../../atoms/cells/CellDataToken";
-import type { PoolInfo, UserPoolBalances } from "@towerfi/types";
+import type { Asset, PoolInfo, UserPoolBalances } from "@towerfi/types";
+import { useDexClient } from "~/app/hooks/useDexClient";
 
 const columns = [
   { key: "name", title: "Pool" },
@@ -26,12 +27,12 @@ const columns = [
 ];
 
 interface Props {
-  pools: { poolInfo: PoolInfo; userBalance: UserPoolBalances }[];
+  pools: { poolInfo: PoolInfo; userBalance: UserPoolBalances; incentives: Asset[] }[];
   isLoading: boolean;
 }
 
 export const UserPools: React.FC<Props> = ({ pools, isLoading }) => {
-  const gridClass = "grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_2fr] gap-4";
+  const gridClass = "grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_4rem] gap-4";
   const { showModal } = useModal();
   const { address } = useAccount();
 
@@ -58,7 +59,7 @@ export const UserPools: React.FC<Props> = ({ pools, isLoading }) => {
   return (
     <Table columns={columns} gridClass={gridClass}>
       {isLoading && <PoolsDashboardSkeleton className={twMerge(gridClass)} />}
-      {pools.map(({ poolInfo, userBalance }, i) => {
+      {pools.map(({ poolInfo, userBalance, incentives }, i) => {
         return (
           <TableRow key={i} gridClass={twMerge("flex flex-wrap lg:grid ", gridClass)}>
             <CellPoolName
@@ -84,8 +85,8 @@ export const UserPools: React.FC<Props> = ({ pools, isLoading }) => {
               className="order-5 w-[45%] lg:w-auto"
             />
             <CellClaimRewards
-              rewardAmount="$0.0"
-              claimAction={() => {}}
+              rewards={incentives}
+              poolToken={userBalance.lpToken}
               className="order-6 w-[45%] lg:w-auto"
             />
             <div className="order-2 lg:order-7 flex items-end justify-end w-fit lg:w-auto">
@@ -100,7 +101,7 @@ export const UserPools: React.FC<Props> = ({ pools, isLoading }) => {
                     <li
                       className="px-3 py-2 rounded-lg hover:text-tw-orange-400 hover:bg-tw-orange-400/20 w-full transition-all cursor-pointer"
                       onClick={() =>
-                        showModal(ModalTypes.stake_liquidity, true, {
+                        showModal(ModalTypes.stake_liquidity, false, {
                           pool: poolInfo,
                           balance: userBalance,
                         })
@@ -111,7 +112,7 @@ export const UserPools: React.FC<Props> = ({ pools, isLoading }) => {
                     <li
                       className="px-3 py-2 rounded-lg hover:text-tw-orange-400 hover:bg-tw-orange-400/20 w-full transition-all cursor-pointer"
                       onClick={() =>
-                        showModal(ModalTypes.unstake_liquidity, true, {
+                        showModal(ModalTypes.unstake_liquidity, false, {
                           pool: poolInfo,
                           balance: userBalance,
                         })
@@ -121,14 +122,14 @@ export const UserPools: React.FC<Props> = ({ pools, isLoading }) => {
                     </li>
                     <li
                       className="px-3 py-2 rounded-lg hover:text-tw-orange-400 hover:bg-tw-orange-400/20 w-full transition-all cursor-pointer"
-                      onClick={() => showModal(ModalTypes.add_liquidity, true, { pool: poolInfo })}
+                      onClick={() => showModal(ModalTypes.add_liquidity, false, { pool: poolInfo })}
                     >
                       Add
                     </li>
                     <li
                       className="px-3 py-2 rounded-lg hover:text-tw-orange-400 hover:bg-tw-orange-400/20 w-full transition-all cursor-pointer"
                       onClick={() =>
-                        showModal(ModalTypes.remove_liquidity, true, {
+                        showModal(ModalTypes.remove_liquidity, false, {
                           pool: poolInfo,
                           balance: userBalance,
                         })
