@@ -30,7 +30,8 @@ const Pools: React.FC = () => {
 
   const gridClass = "grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr] gap-3";
 
-  const filteredPools = pools.filter((pool) =>
+  const PCLPools = pools.filter((pool) => pool.poolType === "concentrated");
+  const filteredPools = PCLPools.filter((pool) =>
     pool.name.toLowerCase().includes(searchText.toLowerCase()),
   );
 
@@ -65,7 +66,7 @@ const Pools: React.FC = () => {
             <div className="flex lg:items-end lg:justify-end">
               <Button
                 variant="flat"
-                onPress={() => showModal(ModalTypes.add_liquidity, true, { pool })}
+                onPress={() => showModal(ModalTypes.add_liquidity, false, { pool })}
               >
                 Add Liquidity
               </Button>

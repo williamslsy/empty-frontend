@@ -15,13 +15,12 @@ import { ModalTypes } from "~/types/modal";
 import Link from "next/link";
 import { CellDataToken } from "../../atoms/cells/CellDataToken";
 import type { Asset, PoolInfo, UserPoolBalances } from "@towerfi/types";
-import { useDexClient } from "~/app/hooks/useDexClient";
 
 const columns = [
   { key: "name", title: "Pool" },
   { key: "apr", title: "APR" },
-  { key: "staked", title: "Staked" },
-  { key: "unstaked", title: "Unstaked" },
+  { key: "deposit", title: "Deposit" },
+  /*  { key: "unstaked", title: "Unstaked" }, */
   { key: "claimableRewards", title: "Claimable Rewards" },
   { key: "actions", title: "" },
 ];
@@ -29,10 +28,11 @@ const columns = [
 interface Props {
   pools: { poolInfo: PoolInfo; userBalance: UserPoolBalances; incentives: Asset[] }[];
   isLoading: boolean;
+  refreshUserPools?: () => void;
 }
 
-export const UserPools: React.FC<Props> = ({ pools, isLoading }) => {
-  const gridClass = "grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_4rem] gap-4";
+export const UserPools: React.FC<Props> = ({ pools, isLoading, refreshUserPools }) => {
+  const gridClass = "grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_8rem] gap-4";
   const { showModal } = useModal();
   const { address } = useAccount();
 
@@ -77,13 +77,13 @@ export const UserPools: React.FC<Props> = ({ pools, isLoading }) => {
               tokens={poolInfo.assets}
               className="order-4 w-[45%] lg:w-auto"
             />
-            <CellDataToken
+            {/* <CellDataToken
               title="Unstaked"
               poolAddress={poolInfo.poolAddress}
               amount={userBalance.unstaked_share_amount}
               tokens={poolInfo.assets}
               className="order-5 w-[45%] lg:w-auto"
-            />
+            /> */}
             <CellClaimRewards
               rewards={incentives}
               poolToken={userBalance.lpToken}
@@ -99,7 +99,7 @@ export const UserPools: React.FC<Props> = ({ pools, isLoading }) => {
                 </PopoverTrigger>
                 <PopoverContent className="min-w-[10rem] p-1">
                   <ul className="w-full">
-                    <li
+                    {/* <li
                       className="px-3 py-2 rounded-lg hover:text-tw-orange-400 hover:bg-tw-orange-400/20 w-full transition-all cursor-pointer"
                       onClick={() =>
                         showModal(ModalTypes.stake_liquidity, false, {
@@ -109,8 +109,8 @@ export const UserPools: React.FC<Props> = ({ pools, isLoading }) => {
                       }
                     >
                       Stake
-                    </li>
-                    <li
+                    </li> */}
+                    {/* <li
                       className="px-3 py-2 rounded-lg hover:text-tw-orange-400 hover:bg-tw-orange-400/20 w-full transition-all cursor-pointer"
                       onClick={() =>
                         showModal(ModalTypes.unstake_liquidity, false, {
@@ -120,10 +120,15 @@ export const UserPools: React.FC<Props> = ({ pools, isLoading }) => {
                       }
                     >
                       Unstake
-                    </li>
+                    </li> */}
                     <li
                       className="px-3 py-2 rounded-lg hover:text-tw-orange-400 hover:bg-tw-orange-400/20 w-full transition-all cursor-pointer"
-                      onClick={() => showModal(ModalTypes.add_liquidity, false, { pool: poolInfo })}
+                      onClick={() =>
+                        showModal(ModalTypes.add_liquidity, false, {
+                          pool: poolInfo,
+                          refreshUserPools,
+                        })
+                      }
                     >
                       Add
                     </li>
@@ -133,6 +138,7 @@ export const UserPools: React.FC<Props> = ({ pools, isLoading }) => {
                         showModal(ModalTypes.remove_liquidity, false, {
                           pool: poolInfo,
                           balance: userBalance,
+                          refreshUserPools,
                         })
                       }
                     >
