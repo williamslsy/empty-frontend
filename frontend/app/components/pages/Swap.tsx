@@ -162,7 +162,7 @@ const SwapComponent: React.FC = () => {
                 </Button>
               ) : (
                 <Button onPress={() => showModal(ModalTypes.connect_wallet)} fullWidth>
-                  Connect wallet
+                  Connect Wallet
                 </Button>
               )}
             </div>

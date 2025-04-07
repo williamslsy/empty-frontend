@@ -22,7 +22,7 @@ export const ConnectWallet: React.FC = () => {
   }, [isConnected]);
 
   if (!_isConnected) {
-    return <Button onPress={() => showModal(ModalTypes.connect_wallet)}>Connect wallet</Button>;
+    return <Button onPress={() => showModal(ModalTypes.connect_wallet)}>Connect Wallet</Button>;
   }
 
   return (
@@ -52,7 +52,7 @@ export const MobileConnectWallet: React.FC<{ closeMenu: () => void }> = ({ close
   if (!_isConnected) {
     return (
       <Button fullWidth onPress={() => [showModal(ModalTypes.connect_wallet), closeMenu()]}>
-        Connect wallet
+      Connect Wallet
       </Button>
     );
   }
