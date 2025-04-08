@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { number, z } from "zod";
 import { createCallerFactory, createTRPCPublicProcedure, createTRPCRouter } from "../config.js";
 
 import { appRouter } from "../router.js";
@@ -200,20 +200,25 @@ export const poolsRouter = createTRPCRouter({
         rewards: [],
       } as PoolInfo;
     }),
-  getPools: createTRPCPublicProcedure.query<PoolInfo[]>(async ({ ctx }) => {
-    const { publicClient, contracts } = ctx;
+    
+  getPools: createTRPCPublicProcedure
+    .input(z.object({ limit: z.number().optional(), start_after: z.string().optional() }))
+    .query<PoolInfo[]>(async ({ ctx, input }) => {
+      const { publicClient, contracts } = ctx;
+      const { limit, start_after } = input as { limit?: number; start_after?: string };
 
-    const pools: PairInfo[] = await publicClient.queryContractSmart<PairInfo[]>({
-      address: contracts.factory,
-      msg: { pairs: {} },
-    });
 
-    const caller = createCallerFactory(appRouter)(ctx);
+      const pools: PairInfo[] = await publicClient.queryContractSmart<PairInfo[]>({
+        address: contracts.factory,
+        msg: { pairs: { limit: limit || 100,  start_after } },
+      });
 
-    const poolInfo: PoolInfo[] = await Promise.all(
-      pools.map((pool) => caller.local.pools.getPoolInfo({ pool })),
-    );
+      const caller = createCallerFactory(appRouter)(ctx);
 
-    return poolInfo;
+      const poolInfo: PoolInfo[] = await Promise.all(
+        pools.map((pool) => caller.local.pools.getPoolInfo({ pool })),
+      );
+
+      return poolInfo;
   }),
 });
