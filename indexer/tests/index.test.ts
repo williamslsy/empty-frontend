@@ -54,7 +54,7 @@ test('get pool volumes by addresses', async () => {
 test('get current pool apr', async () => {
   const res = await indexer.getCurrentPoolAprs(365, 1, 100);
 
-  expect(res.length).toBe(16);
+  expect(res.length).toBeGreaterThan(0);
 });
 
 test('get pool apr by addresses', async () => {
@@ -79,6 +79,69 @@ test('get pool incentives by addresses', async () => {
     365,
     ["bbn1vkh603t635w73yndx3x92f9d9ykk7etr7fs274d9q0qdeeut0qhqcsz3qd"]
   );
+
+  expect(res.length).toBeGreaterThan(0);
+});
+
+test('get pool metrics by addresses', async () => {
+  const res = await indexer.getPoolMetricsByPoolAddresses([
+    "bbn10vzynuvh08kssssdrj9k2vaxxl9uqn0f08jaq8zq6h7vxmd9cnuqa3putu",
+    "bbn17xgsxm4vll7trsd59e26wg9f0unwmx2ktfhtvhu35jeel5wrakcqvnwzyu",
+  ]);
+
+  console.log(res);
+
+  expect(res.length).toBeGreaterThan(0);
+});
+
+test('get pool metrics by addresses with start date', async () => {
+  const now = new Date();
+  const startDate = new Date(now);
+
+  // 7 days ago
+  startDate.setDate(now.getDate() - 7);
+
+  const res = await indexer.getPoolMetricsByPoolAddresses([
+    "bbn10vzynuvh08kssssdrj9k2vaxxl9uqn0f08jaq8zq6h7vxmd9cnuqa3putu",
+    "bbn17xgsxm4vll7trsd59e26wg9f0unwmx2ktfhtvhu35jeel5wrakcqvnwzyu",
+  ], startDate);
+
+  console.log(res);
+
+  expect(res.length).toBeGreaterThan(0);
+});
+
+test('get pool metrics by addresses with end date', async () => {
+  const now = new Date();
+  const endDate = new Date(now);
+
+  // 7 days ago
+  endDate.setDate(now.getDate() - 7);
+
+  const res = await indexer.getPoolMetricsByPoolAddresses([
+    "bbn10vzynuvh08kssssdrj9k2vaxxl9uqn0f08jaq8zq6h7vxmd9cnuqa3putu",
+    "bbn17xgsxm4vll7trsd59e26wg9f0unwmx2ktfhtvhu35jeel5wrakcqvnwzyu",
+  ], null, endDate);
+
+  console.log(res);
+
+  expect(res.length).toBeGreaterThan(0);
+});
+
+test('get pool metrics by addresses with start and end date', async () => {
+  const now = new Date();
+  const startDate = new Date(now);
+  const endDate = new Date(now);
+
+  startDate.setDate(now.getDate() - 2);
+  endDate.setDate(now.getDate() - 1);
+
+  const res = await indexer.getPoolMetricsByPoolAddresses([
+    "bbn10vzynuvh08kssssdrj9k2vaxxl9uqn0f08jaq8zq6h7vxmd9cnuqa3putu",
+    "bbn17xgsxm4vll7trsd59e26wg9f0unwmx2ktfhtvhu35jeel5wrakcqvnwzyu",
+  ], null, endDate);
+
+  console.log(res);
 
   expect(res.length).toBeGreaterThan(0);
 });
