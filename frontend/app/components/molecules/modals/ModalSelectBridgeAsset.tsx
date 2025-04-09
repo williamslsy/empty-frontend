@@ -8,18 +8,26 @@ import { useModal } from "~/app/providers/ModalProvider";
 import { convertMicroDenomToDenom } from "~/utils/intl";
 import TruncateText from "../../atoms/TruncateText";
 import { useUserBalances } from "~/app/hooks/useUserBalances";
+import { Button } from "../../atoms/Button";
+import { twMerge } from "~/utils/twMerge";
+import Divider from "../../atoms/Divider";
 
-type ModalSelectAssetProps = {
+type ModalSelectBridgeAssetProps = {
   assets: Currency[];
   onSelectAsset: (asset: Currency) => void;
   onClose: () => void;
 };
 
-const ModalSelectAsset: React.FC<ModalSelectAssetProps> = ({ onSelectAsset, onClose, assets }) => {
+const ModalSelectBridgeAsset: React.FC<ModalSelectBridgeAssetProps> = ({
+  onSelectAsset,
+  onClose,
+  assets,
+}) => {
   const { hideModal } = useModal();
   const [search, setSearch] = useState("");
   const [filteredTokens, setFilteredTokens] = useState(assets);
   const { data: balances } = useUserBalances({ assets });
+  const [selectingAction, setSelectingAction] = useState("network");
 
   const getBalance = useCallback(
     (denom: string) => {
@@ -50,8 +58,55 @@ const ModalSelectAsset: React.FC<ModalSelectAssetProps> = ({ onSelectAsset, onCl
   };
 
   return (
-    <BasicModal title="Select Asset" classNames={{ wrapper: "overflow-hidden" }} onClose={onClose}>
-      <div className="w-full overflow-scroll scrollbar-none h-[25rem] relative">
+    <BasicModal
+      title="Select Asset"
+      classNames={{ wrapper: "overflow-hidden", container: "flex flex-col p-0" }}
+      onClose={onClose}
+    >
+      <div className="flex items-center gap-4 p-4">
+        <div className="flex flex-col gap-2 flex-1">
+          <p className="text-xs">Network</p>
+          <Button
+            color="tertiary"
+            className={twMerge(
+              "bg-white/10 border-2 border-transparent justify-start p-1 text-base",
+              {
+                "border-white/30 bg-white/20": selectingAction === "network",
+              },
+            )}
+            onClick={() => setSelectingAction("network")}
+          >
+            <img
+              src="https://osmosis.zone/assets/icons/osmo-logo-icon.svg"
+              alt="evm"
+              className="h-[26px] w-[26px]"
+            />
+            <p className="text-sm">Osmosis</p>
+          </Button>
+        </div>
+        <div className="flex flex-col gap-2 flex-1">
+          <p className="text-xs">Asset</p>
+          <Button
+            color="tertiary"
+            className={twMerge(
+              "bg-white/10 border-2 border-transparent justify-start p-1 text-base",
+              {
+                "border-white/30 bg-white/20": selectingAction === "asset",
+              },
+            )}
+            onClick={() => setSelectingAction("asset")}
+          >
+            <img
+              src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/2048px-Bitcoin.svg.png"
+              alt="evm"
+              className="h-[26px] w-[26px]"
+            />
+            <p className="text-sm">Bitcoin</p>
+          </Button>
+        </div>
+      </div>
+      <Divider dashed />
+      <div className="w-full relative p-4">
         <div className="w-full sticky top-0 bg-gradient-to-b from-70% from-transparent to-tw-gray-950/80 pb-4 backdrop-blur-sm ">
           <Input
             placeholder="Search by Name, Symbol or Address"
@@ -62,7 +117,7 @@ const ModalSelectAsset: React.FC<ModalSelectAssetProps> = ({ onSelectAsset, onCl
             value={search}
           />
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2  overflow-scroll scrollbar-none h-[25rem] ">
           {filteredTokens.map((token, index) => (
             <div
               key={index}
@@ -88,4 +143,4 @@ const ModalSelectAsset: React.FC<ModalSelectAssetProps> = ({ onSelectAsset, onCl
   );
 };
 
-export default ModalSelectAsset;
+export default ModalSelectBridgeAsset;
