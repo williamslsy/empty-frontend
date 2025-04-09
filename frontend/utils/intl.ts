@@ -79,6 +79,10 @@ export function nFormatter(num: number, digits: number, digitsFrom?: number) {
     : "0";
 }
 
+export function formatDecimals(num: number, decimals?: number): number {
+  return Number.parseFloat(num.toFixed(decimals || 2));
+}
+
 export function graphDateFormatter(date: string, format: "month"): string {
   return new Date(date).toLocaleString("default", { month: "long" });
 }
@@ -106,3 +110,14 @@ export const toPercentage = (num: string | number, decimals = 0): string => {
     ? `${percentage.toFixed(decimals)}%`
     : `${Math.floor(percentage).toFixed(decimals)}%`;
 };
+
+export function toFullNumberString(value: number | string): string {
+  if (typeof value === "number") {
+    return BigInt(value).toString();
+  }
+
+  if (value.includes("e") || value.includes("E")) {
+    return BigInt(Number(value)).toString();
+  }
+  return value;
+}

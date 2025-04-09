@@ -1,129 +1,96 @@
 "use client";
 import Input from "../atoms/Input";
-import { mockPools } from "~/utils/consts";
 import { Button } from "../atoms/Button";
-import Pill from "../atoms/Pill";
 import { twMerge } from "~/utils/twMerge";
-import AssetsStacked from "../atoms/AssetsStacked";
 import { useModal } from "~/app/providers/ModalProvider";
 import { ModalTypes } from "~/types/modal";
 import { trpc } from "~/trpc/client";
 
 import type React from "react";
+import PoolsSkeleton from "../molecules/skeletons/PoolsSkeleton";
+import { CellPoolName } from "../atoms/cells/CellPoolName";
+import { CellTVL } from "../atoms/cells/CellTVL";
+import { CellData } from "../atoms/cells/CellData";
+import { Table, TableRow } from "../atoms/Table";
+import { useEffect, useState } from "react";
+import { Pagination } from "../atoms/Pagination";
+
+const columns = [
+  { key: "name", title: "Pool", className: "col-span-2 lg:col-span-1" },
+  { key: "poolLiquidity", title: "TVL" },
+  { key: "apr", title: "APR" },
+  /* { key: "volume", title: "Volume 24h" },
+  { key: "fees", title: "Fees 24h" }, */
+  { key: "actions", title: "" },
+];
 
 const Pools: React.FC = () => {
   const { showModal } = useModal();
-  const { data: pools = [] } = trpc.local.pools.getPools.useQuery();
+  const gridClass = "grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr] gap-3";
+  const { data: pools = [], isLoading } = trpc.local.pools.getPools.useQuery({
+    limit: 100,
+  });
+  const [searchText, setSearchText] = useState("");
 
-  const gridClass = "grid-cols-[2fr_1fr_1fr_1fr_1fr_2fr]";
+  const filteredPools = pools.filter((pool) =>
+    pool.name.toLowerCase().includes(searchText.toLowerCase()),
+  );
+
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [searchText]);
+
+  const [currentPage, setCurrentPage] = useState(0);
+  const numberPerPage = 10;
+  const totalPools = Math.ceil(filteredPools.length / numberPerPage);
 
   return (
-    <div className="flex flex-col gap-8 px-4">
-      <div className="flex gap-3 justify-between items-center">
+    <div className="flex flex-col gap-8 px-4 pb-20 max-w-[84.5rem] mx-auto w-full min-h-[65vh] lg:pt-8">
+      <div className="flex gap-3 justify-between items-center lg:pl-3 lg:pr-2 pl-3">
         <h1 className="text-xl">Pools</h1>
         <div className="flex gap-3 h-[42px] items-center px-2">
-          <Input isSearch placeholder="Search" />
+          <Input
+            isSearch
+            placeholder="Search"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
         </div>
       </div>
-      {/* <div className="flex flex-col rounded-xl border border-white/10">
-        <PoolsTableHeader />
-      </div> */}
 
-      <div className="flex flex-col gap-3 grays">
-        <div className={twMerge("grid  px-4 text-xs text-white/50", gridClass)}>
-          <p>Pool</p>
-          <p>TVL</p>
-          <p>APR</p>
-          <p>Volume 24h</p>
-          <p>Fees 24h</p>
-          <p></p>
-        </div>
-        <div className="">
-          {pools.map((pool, i) => (
-            <div
-              key={pool.name + i}
-              className={twMerge(
-                "border first:rounded-t-2xl last:rounded-b-2xl border-b-0 last:border-b-1 border-white/10 p-4 grid items-center",
-                gridClass,
-              )}
-            >
-              <div className=" flex items-center gap-3">
-                <AssetsStacked assets={pool.assets} />
-                <span>{pool.name}</span>
-                <Pill>0,3%</Pill>
-              </div>
-              <div className="">{pool.poolLiquidity}</div>
-              <div className="">-</div>
-              <div className="">-</div>
-              <div className="">-</div>
-              <div className=" flex items-end justify-end">
+      <Table columns={columns} gridClass={gridClass}>
+        {isLoading && <PoolsSkeleton className={twMerge("grid", gridClass)} />}
+        {filteredPools
+          .slice(currentPage * numberPerPage, currentPage * numberPerPage + numberPerPage)
+          .map((pool, i) => (
+            <TableRow key={i} gridClass={twMerge("grid", gridClass)}>
+              <CellPoolName
+                assets={pool.assets}
+                name={pool.name}
+                poolType={pool.poolType}
+                config={pool.config}
+              />
+              <CellTVL poolLiquidity={pool.poolLiquidity} />
+              <CellData title="APR" />
+              {/* <CellData title="Volume 24h" />
+            <CellData title="Fees 24h" /> */}
+              <div className="flex lg:items-end lg:justify-end">
                 <Button
                   variant="flat"
-                  onPress={() => showModal(ModalTypes.deposit_lp, true, { pool })}
+                  onPress={() => showModal(ModalTypes.add_liquidity, false, { pool })}
                 >
                   Add Liquidity
                 </Button>
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/*  <div className="overflow-x-scroll scrollbar-none ">
-        <table className="w-full text-white text-left">
-          <thead>
-            <tr className=" text-xs text-white/50 font-normal">
-              <th className="px-4 pb-2">Pool</th>
-              <th className="px-4 pb-2">TVL</th>
-              <th className="px-4 pb-2">APR</th>
-              <th className="px-4 pb-2">Volume 24h</th>
-              <th className="px-4 pb-2">Fees 24h</th>
-              <th className="px-4 pb-2"></th>
-            </tr>
-          </thead>
-          <tbody className="first:border-red-500 last:rounded-b-2xl">
-            {mockPools.map((pool) => (
-              <tr key={pool.id} className="rounded-2xl border border-white/10 p-4">
-                <td className=" flex items-center">
-                  {pool.pairs.map((pair, index) => (
-                    <img key={index} src={pair.image} alt={pair.symbol} className="w-6 h-6 rounded-full" />
-                  ))}
-                  <span>{pool.name}</span>
-                </td>
-                <td className="">{pool.TVL}</td>
-                <td className="">{pool.APR}</td>
-                <td className="">{pool.Volume24h}</td>
-                <td className="">{pool.Fees24h}</td>
-                <td className=" flex items-end justify-end">
-                  <Button variant="flat">Add Liquidity</Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div> */}
-
-      {/* <Table aria-label="Example table with dynamic content" classNames={classNames}>
-        <TableHeader>
-          {columns.map((column) => (
-            <TableColumn key={column}>{column}</TableColumn>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {mockPools.map((pool) => (
-            <TableRow key="test">
-              <TableCell>{pool.name}</TableCell>
-              <TableCell>{pool.TVL}</TableCell>
-              <TableCell>{pool.APR}</TableCell>
-              <TableCell>{pool.Volume24h}</TableCell>
-              <TableCell>{pool.Fees24h}</TableCell>
-              <TableCell>
-                <Button variant="flat">Add Liquidity</Button>
-              </TableCell>
             </TableRow>
           ))}
-        </TableBody>
-      </Table> */}
+      </Table>
+      <Pagination
+        total={totalPools}
+        onPageChange={(page) => setCurrentPage(page - 1)}
+        initialPage={currentPage + 1}
+        className={{ base: "self-center backdrop-blur-xl rounded-3xl p-1" }}
+      />
     </div>
   );
 };

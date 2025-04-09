@@ -33,6 +33,7 @@ const Input = forwardRef<HTMLInputElement, InputProps & Input>(
     {
       className,
       classNames,
+      name,
       label,
       error,
       startContent,
@@ -54,30 +55,31 @@ const Input = forwardRef<HTMLInputElement, InputProps & Input>(
             classNames?.parentClassName,
           )}
         >
-          {/* <div className="w-full flex justify-between">
+          <div className="w-full flex justify-between">
             {label ? (
-              <label className="text-[12px] leading-[13.2px] font-semibold line text-left text-qs-grey-25 uppercase font-ibm">
+              <label htmlFor={name} className="text-sm text-white/50">
                 {label && label}
               </label>
             ) : (
               ""
             )}
-            {subTextLeft && (
-              <div className="text-qs-grey-40 text-xs w-full text-right flex-1 flex items-center  justify-end">{subTextLeft}</div>
-            )}
-          </div> */}
+          </div>
           <div
             className={twMerge(
-              "flex gap-1 relative rounded-full bg-white/5 px-3 items-center border border-transparent",
+              "flex gap-1 relative rounded-2xl bg-white/5 px-3 items-center border border-transparent",
               classNames?.wrapperClassName,
               error && "border border-tw-error/50 bg-tw-error/10",
             )}
           >
-            <div className={twMerge("text-white/50 flex gap-2")}>
-              {isSearch ? <IconSearch className="h-5 w-5" /> : null}
-              {startContent}
-            </div>
+            {(startContent || isSearch) && (
+              <div className={twMerge("text-white/50 flex gap-2")}>
+                {isSearch ? <IconSearch className="h-5 w-5" /> : null}
+                {startContent}
+              </div>
+            )}
+
             <input
+              name={name}
               ref={ref}
               className={twMerge(
                 "text-base py-[6px] bg-transparent disabled:opacity-50 transition-all disabled:cursor-not-allowed border border-transparent placeholder:text-sm placeholder:text-white/50 flex-1",

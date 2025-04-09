@@ -9,6 +9,7 @@ export type WithGasPriceStep<T> = T & {
 };
 
 export type BaseCurrency = {
+  readonly name: string;
   readonly symbol: string;
   readonly denom: string;
   readonly decimals: number;
@@ -20,15 +21,19 @@ export type WithPrice<T> = T & {
   readonly price: number;
 };
 
+export type WithAmount<T> = T & {
+  readonly amount: number;
+};
+
 export type NativeCurrency = Simplify<
   BaseCurrency & {
     readonly type: "native";
   }
 >;
 
-export type ERC20Currency = Simplify<
+export type CW20Currency = Simplify<
   BaseCurrency & {
-    readonly type: "erc-20";
+    readonly type: "cw-20";
     readonly contractAddress: string;
   }
 >;
@@ -48,4 +53,4 @@ export type IBCCurrency = Simplify<
 
 export type FeeCurrency = WithGasPriceStep<NativeCurrency | IBCCurrency>;
 
-export type Currency = NativeCurrency | ERC20Currency | IBCCurrency;
+export type Currency = NativeCurrency | CW20Currency | IBCCurrency;

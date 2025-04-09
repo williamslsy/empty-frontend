@@ -32,8 +32,9 @@ target/
 **/node_modules
 **/tsconfig.tsbuildinfo
 next-env.d.ts
+**/.dev.vars
 
 # Supabase
-.branches
-.temp
-.env
+**/.branches
+**/.temp
+**/.env

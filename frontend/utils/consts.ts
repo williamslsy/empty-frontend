@@ -1,17 +1,22 @@
-export const navLinks: { label: string; to: string; isDisabled?: string; isExternal?: string }[] = [
-  {
-    label: "Swap",
-    to: "/swap",
-  },
-  {
-    label: "Pools",
-    to: "/pools",
-  },
-  {
-    label: "Dashboard",
-    to: "/dashboard",
-  },
-  /* {
+export const navLinks: { label: string; to: string; isDisabled?: boolean; isExternal?: boolean }[] =
+  [
+    {
+      label: "Swap",
+      to: "/swap",
+    },
+    {
+      label: "Pools",
+      to: "/pools",
+    },
+    {
+      label: "Dashboard",
+      to: "/dashboard",
+    },
+    {
+      label: "Faucet",
+      to: "/faucet",
+    },
+    /* {
     label: "Vote",
     to: "/vote",
     isDisabled: true,
@@ -26,6 +31,51 @@ export const navLinks: { label: string; to: string; isDisabled?: string; isExter
     to: "/analytics",
     isDisabled: true,
   }, */
+  ];
+
+export const socialLinks: {
+  label: string;
+  href: string;
+  icon: "discord" | "twitter" | "telegram";
+}[] = [
+  {
+    label: "Twitter",
+    href: "https://x.com/tower",
+    icon: "twitter",
+  },
+  {
+    label: "Discord",
+    href: "https://discord.com/invite/tower",
+    icon: "discord",
+  },
+  {
+    label: "Telegram",
+    href: "https://t.me/tower",
+    icon: "telegram",
+  },
+];
+
+export const supportLinks: { label: string; href: string; isExternal?: boolean }[] = [
+  {
+    label: "About",
+    href: "https://www.tower.fi/",
+    isExternal: true,
+  },
+  {
+    label: "Docs",
+    href: "https://docs.tower.fi/",
+    isExternal: true,
+  },
+  {
+    label: "Privacy Policy",
+    href: "https://www.tower.fi/privacy-policy",
+    isExternal: true,
+  },
+  {
+    label: "Terms of Use",
+    href: "https://www.tower.fi/terms-of-use",
+    isExternal: true,
+  },
 ];
 
 export const mockTokens = [
@@ -108,8 +158,17 @@ export const mockPools = [
     id: 5,
     name: "AVAX/DAI Pool",
     pairs: [
-      { symbol: "AVAX", name: "Avalanche", image: "https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png" },
-      { symbol: "DAI", name: "Dai", image: "https://assets.coingecko.com/coins/images/9956/large/dai.png" },
+      {
+        symbol: "AVAX",
+        name: "Avalanche",
+        image:
+          "https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png",
+      },
+      {
+        symbol: "DAI",
+        name: "Dai",
+        image: "https://assets.coingecko.com/coins/images/9956/large/dai.png",
+      },
     ],
     APR: "5.7%",
     TVL: "$4,900,000",
@@ -120,8 +179,16 @@ export const mockPools = [
     id: 3,
     name: "BNB/USDT Pool",
     pairs: [
-      { symbol: "BNB", name: "Binance Coin", image: "https://assets.coingecko.com/coins/images/825/large/binance-coin-logo.png" },
-      { symbol: "USDT", name: "Tether", image: "https://assets.coingecko.com/coins/images/325/large/Tether-logo.png" },
+      {
+        symbol: "BNB",
+        name: "Binance Coin",
+        image: "https://assets.coingecko.com/coins/images/825/large/binance-coin-logo.png",
+      },
+      {
+        symbol: "USDT",
+        name: "Tether",
+        image: "https://assets.coingecko.com/coins/images/325/large/Tether-logo.png",
+      },
     ],
     APR: "6.1%",
     TVL: "$7,200,000",
@@ -132,8 +199,16 @@ export const mockPools = [
     id: 1,
     name: "ETH/USDC Pool",
     pairs: [
-      { symbol: "ETH", name: "Ethereum", image: "https://assets.coingecko.com/coins/images/279/large/ethereum.png" },
-      { symbol: "USDC", name: "USD Coin", image: "https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png" },
+      {
+        symbol: "ETH",
+        name: "Ethereum",
+        image: "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+      },
+      {
+        symbol: "USDC",
+        name: "USD Coin",
+        image: "https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png",
+      },
     ],
     APR: "5.2%",
     TVL: "$12,500,000",
@@ -144,8 +219,16 @@ export const mockPools = [
     id: 2,
     name: "BTC/ETH Pool",
     pairs: [
-      { symbol: "BTC", name: "Bitcoin", image: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png" },
-      { symbol: "ETH", name: "Ethereum", image: "https://assets.coingecko.com/coins/images/279/large/ethereum.png" },
+      {
+        symbol: "BTC",
+        name: "Bitcoin",
+        image: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png",
+      },
+      {
+        symbol: "ETH",
+        name: "Ethereum",
+        image: "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+      },
     ],
     APR: "4.8%",
     TVL: "$9,800,000",
@@ -157,8 +240,16 @@ export const mockPools = [
     id: 4,
     name: "SOL/USDC Pool",
     pairs: [
-      { symbol: "SOL", name: "Solana", image: "https://assets.coingecko.com/coins/images/4128/large/solana.png" },
-      { symbol: "USDC", name: "USD Coin", image: "https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png" },
+      {
+        symbol: "SOL",
+        name: "Solana",
+        image: "https://assets.coingecko.com/coins/images/4128/large/solana.png",
+      },
+      {
+        symbol: "USDC",
+        name: "USD Coin",
+        image: "https://assets.coingecko.com/coins/images/6319/large/USD_Coin_icon.png",
+      },
     ],
     APR: "7.3%",
     TVL: "$5,600,000",

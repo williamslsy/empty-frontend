@@ -4,11 +4,12 @@ export type {
   BaseCurrency,
   WithPrice,
   Currency,
-  ERC20Currency,
+  CW20Currency,
   FeeCurrency,
   IBCCurrency,
   NativeCurrency,
   WithGasPriceStep,
+  WithAmount,
 } from "./currency.js";
 
 export type { PoolType, PoolInfo } from "./pool.js";
@@ -21,4 +22,8 @@ export type {
   PairType,
   PoolResponse,
   Uint128,
+  ConfigResponse,
+  CumulativePricesResponse,
 } from "./contracts.js";
+
+export type { UserPoolBalances } from "./indexer.js";
