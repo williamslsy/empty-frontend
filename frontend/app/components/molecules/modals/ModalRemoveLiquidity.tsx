@@ -47,7 +47,6 @@ const ModalRemoveLiquidity: React.FC<ModalRemoveLiquidityProps> = ({
         sender: address as string,
         poolAddress: pool.poolAddress,
         lpTokenAddress: pool.lpAddress,
-        lpBalanceTokenAddress: balance.lpToken,
         amount: (staked_share_amount * (percentage / 100)).toFixed(0),
         incentiveAddress: contracts.incentives,
       });
