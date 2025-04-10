@@ -1,3 +1,4 @@
+"use client";
 import type React from "react";
 import { useEffect, useState } from "react";
 import RotateButton from "../../atoms/RotateButton";
@@ -5,11 +6,19 @@ import RotateButton from "../../atoms/RotateButton";
 import { useFormContext } from "react-hook-form";
 import { convertDenomToMicroDenom, convertMicroDenomToDenom } from "~/utils/intl";
 import { useSkipClient } from "~/app/hooks/useSkipClient";
-import { babylonTestnet } from "~/config/chains/babylon-testnet";
+import { babylon } from "~/config/chains/babylon";
 import { AssetInput } from "../../atoms/AssetInput";
 import { Assets } from "~/config";
 
+import { useSearchParams } from "next/navigation";
+
 const assets = Object.values(Assets);
+
+const getAssetBySymbol = (symbol: string) => {
+  const asset = assets.find((asset) => asset.symbol.toLowerCase() === symbol.toLowerCase());
+  console.log(asset);
+  return asset;
+};
 
 export const Swap: React.FC = () => {
   const [activeInput, setActiveInput] = useState<"from" | "to">("from");
@@ -19,6 +28,7 @@ export const Swap: React.FC = () => {
   const { isSubmitting, isDirty } = formState;
   const toAmount = watch("toAmount");
   const fromAmount = watch("fromAmount");
+  const searchParams = useSearchParams();
 
   const { simulation, simulate, skipClient } = useSkipClient({ cacheKey: "swap" });
   const { isLoading } = simulation;
@@ -33,9 +43,9 @@ export const Swap: React.FC = () => {
 
       if (activeInput === "from") {
         const simulation = await simulate({
-          destAssetChainID: babylonTestnet.id as unknown as string,
+          destAssetChainID: babylon.id as unknown as string,
           destAssetDenom,
-          sourceAssetChainID: babylonTestnet.id as unknown as string,
+          sourceAssetChainID: babylon.id as unknown as string,
           sourceAssetDenom,
           allowSwaps: true,
           allowUnsafe: true,
@@ -47,9 +57,9 @@ export const Swap: React.FC = () => {
         });
       } else {
         const simulation = await simulate({
-          destAssetChainID: babylonTestnet.id as unknown as string,
+          destAssetChainID: babylon.id as unknown as string,
           destAssetDenom,
-          sourceAssetChainID: babylonTestnet.id as unknown as string,
+          sourceAssetChainID: babylon.id as unknown as string,
           sourceAssetDenom,
           allowSwaps: true,
           allowUnsafe: true,
@@ -72,6 +82,17 @@ export const Swap: React.FC = () => {
     setValue("toAmount", fromAmount);
     setActiveInput("from");
   };
+
+  useEffect(() => {
+    const fromSymbol = searchParams.get("from");
+    const toSymbol = searchParams.get("to");
+
+    const fromAsset = getAssetBySymbol(fromSymbol ?? assets[0].symbol);
+    const toAsset = getAssetBySymbol(toSymbol ?? assets[1].symbol);
+
+    if (fromAsset) setFromToken(fromAsset);
+    if (toAsset) setToToken(toAsset);
+  }, []);
 
   return (
     <div className="flex flex-col gap-2 w-full items-center justify-center">
