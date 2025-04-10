@@ -14,5 +14,5 @@
       "outputs": [".next/**", "!.next/cache/**", "build/**"]
     }
   },
-  "globalEnv": ["NEXT_PUBLIC_FULLPAGE_KEY"]
+  "globalEnv": ["ENABLE_EXPERIMENTAL_COREPACK", "PNPM_VERSION", "NEXT_PUBLIC_ENV"]
 }
