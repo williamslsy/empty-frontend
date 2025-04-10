@@ -6,7 +6,7 @@ import { useToast } from "~/app/hooks";
 
 import type React from "react";
 import { useAccount, useConnectors } from "@cosmi/react";
-import { babylonTestnet } from "~/config/chains/babylon-testnet";
+import { babylon } from "~/config/chains/babylon";
 import { useEffect } from "react";
 
 function ConnectorButton({ connector, onClick }: { connector: any; onClick: () => void }) {
@@ -56,7 +56,7 @@ const ModalConnectWallet: React.FC = () => {
           <ConnectorButton
             key={connector.uid}
             connector={connector}
-            onClick={() => connector.connect({ chainId: babylonTestnet.id })}
+            onClick={() => connector.connect({ chainId: babylon.id })}
           />
         ))}
       </div>
