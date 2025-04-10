@@ -79,7 +79,12 @@ export const AssetInput: React.FC<AssetInputProps> = ({
 
   const { amount: balance = "0" } = balances.find(({ denom }) => denom === asset.denom) || {};
 
-  const denomBalance = convertMicroDenomToDenom(balance, asset.decimals);
+  const denomBalance = convertMicroDenomToDenom(
+    balance,
+    asset.decimals,
+    asset.decimals === 6 ? 2 : asset.decimals,
+    false,
+  );
 
   return (
     <div className="w-full rounded-xl p-4 bg-tw-bg flex flex-col gap-2">
@@ -87,7 +92,7 @@ export const AssetInput: React.FC<AssetInputProps> = ({
         <motion.button
           type="button"
           disabled={disabled}
-          className="flex items-center gap-2 p-2 bg-white/5 rounded-full"
+          className="flex items-center gap-2 p-2 bg-white/5 rounded-full min-w-fit"
           onClick={selectAsset}
         >
           <img src={asset.logoURI} alt={asset.symbol} className="w-7 h-7" />
@@ -97,7 +102,7 @@ export const AssetInput: React.FC<AssetInputProps> = ({
 
         <input
           {...inputField}
-          className="text-2xl bg-transparent text-right w-[8rem]"
+          className="text-2xl bg-transparent text-right w-full"
           placeholder="0"
           onFocus={onFocus}
           disabled={disabled}
