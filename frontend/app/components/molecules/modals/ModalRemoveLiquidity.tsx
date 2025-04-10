@@ -47,7 +47,6 @@ const ModalRemoveLiquidity: React.FC<ModalRemoveLiquidityProps> = ({
         sender: address as string,
         poolAddress: pool.poolAddress,
         lpTokenAddress: pool.lpAddress,
-        lpBalanceTokenAddress: balance.lpToken,
         amount: (staked_share_amount * (percentage / 100)).toFixed(0),
         incentiveAddress: contracts.incentives,
       });
@@ -101,7 +100,12 @@ const ModalRemoveLiquidity: React.FC<ModalRemoveLiquidityProps> = ({
               <AssetsStacked assets={assets} size="lg" />
               <span>{name}</span>
             </div>
-            <Pill>{pool.config.params.fee_gamma || 0}%</Pill>
+            <Pill>
+              {pool.poolType === "concentrated" 
+                ? `${(Number(pool.config.params.mid_fee || 0) * 100).toFixed(2)}% - ${(Number(pool.config.params.out_fee || 0) * 100).toFixed(2)}%`
+                : "0.30%" // TODO make this dynamic after launch
+              }
+            </Pill>
           </div>
         </div>
         <Divider dashed />
