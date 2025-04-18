@@ -15,6 +15,7 @@ import { Table, TableRow } from "../atoms/Table";
 import { useEffect, useState } from "react";
 import { Pagination } from "../atoms/Pagination";
 import { blockedPoolAddresses } from "~/utils/consts";
+import type { PoolMetric } from "@towerfi/types";
 
 const columns = [
   { key: "name", title: "Pool", className: "col-span-2 lg:col-span-1" },
@@ -33,6 +34,7 @@ const Pools: React.FC = () => {
   });
 
   const [searchText, setSearchText] = useState("");
+  const [aprTimeframe, setAprTimeframe] = useState<'1d' | '7d'>('7d');
 
   const filteredPools = pools
     .filter((pool) => !blockedPoolAddresses.includes(pool.poolAddress))
@@ -50,11 +52,36 @@ const Pools: React.FC = () => {
     (a, b) => Number(b.poolLiquidity) - Number(a.poolLiquidity),
   );
 
+  const startDate = new Date();
+  startDate.setUTCDate(startDate.getUTCDate() - (aprTimeframe === '7d' ? 7 : 1));
+  const {data: metrics, isLoading: isMetricLoading} = trpc.edge.indexer.getPoolMetricsByAddresses.useQuery({
+    addresses: filteredPools.map((pool) => pool.poolAddress),
+    startDate: startDate.toUTCString()
+  })
+
   return (
     <div className="flex flex-col gap-8 px-4 pb-20 max-w-[84.5rem] mx-auto w-full min-h-[65vh] lg:pt-8">
       <div className="flex gap-3 justify-between items-center lg:pl-3 lg:pr-2 pl-3">
         <h1 className="text-xl">Pools</h1>
         <div className="flex gap-3 h-[42px] items-center px-2">
+          <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1">
+            <button
+              onClick={() => setAprTimeframe('1d')}
+              className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                aprTimeframe === '1d' ? 'bg-white/10' : 'hover:bg-white/5'
+              }`}
+            >
+              1D
+            </button>
+            <button
+              onClick={() => setAprTimeframe('7d')}
+              className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                aprTimeframe === '7d' ? 'bg-white/10' : 'hover:bg-white/5'
+              }`}
+            >
+              7D
+            </button>
+          </div>
           <Input
             isSearch
             placeholder="Search"
@@ -81,7 +108,10 @@ const Pools: React.FC = () => {
                 poolAddress={pool.poolAddress}
                 assets={pool.assets}
               />
-              <CellData title="APR" />
+              <CellData 
+                title={`APR (${aprTimeframe})`} 
+                data={isMetricLoading || !metrics ? "..." : ((metrics as Record<string, PoolMetric>)[pool.poolAddress]?.average_apr ? `${((metrics as Record<string, PoolMetric>)[pool.poolAddress].average_apr).toFixed(2)}%` : "0%")}
+              />
               {/* <CellData title="Volume 24h" />
             <CellData title="Fees 24h" /> */}
               <div className="flex lg:items-end lg:justify-end">
