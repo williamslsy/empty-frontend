@@ -48,7 +48,7 @@ export const CellPoints: React.FC<Props> = ({ assets, className }) => {
   
   return (
     <div className={className}>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 relative">
         {/* Tower Points - Always shown */}
         <div className="flex items-center gap-1">
           <img 
@@ -56,7 +56,6 @@ export const CellPoints: React.FC<Props> = ({ assets, className }) => {
             alt="TowerFi" 
             className="w-5 h-5"
           />
-          <span className="text-sm"></span>
         </div>
         
         {/* EBaby Points */}
@@ -67,7 +66,6 @@ export const CellPoints: React.FC<Props> = ({ assets, className }) => {
               alt="EBaby" 
               className="w-5 h-5"
             />
-            <span className="text-sm"></span>
           </div>
         )}
         
@@ -77,7 +75,7 @@ export const CellPoints: React.FC<Props> = ({ assets, className }) => {
             <img 
               src={getUnionLogo()} 
               alt={`Union ${unionMultiplier}x`} 
-              className="w-12 h-12"
+              className="h-6 w-auto"
             />
           </div>
         )}
