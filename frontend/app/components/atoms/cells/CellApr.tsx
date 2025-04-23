@@ -17,7 +17,7 @@ const CellApr: React.FC<Props> = ({ title, metrics, incentives, isLoading, class
 
   const { getPrice } = usePrices();
 
-  const apr = metrics?.average_apr || 0;
+  const apr = metrics?.average_apr * 100 || 0;
   const formattedApr = isLoading || !metrics ? "..." : `${apr.toFixed(2)}%`;
 
   const yearInSeconds = 31557600;
