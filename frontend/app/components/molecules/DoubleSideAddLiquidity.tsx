@@ -41,6 +41,15 @@ export const DoubleSideAddLiquidity: React.FC<Props> = ({ pool, submitRef }) => 
 
   const [token0, token1] = pool.assets;
 
+  // Handle nested form data for tokens with dots in their symbols
+  const getFormValue = (data: any, symbol: string) => {
+    if (symbol.includes('.')) {
+      const [prefix, suffix] = symbol.split('.');
+      return data[prefix]?.[suffix];
+    }
+    return data[symbol];
+  };
+
   const token0Amount = watch(token0.symbol, "");
   const token1Amount = watch(token1.symbol, "");
 
@@ -57,15 +66,15 @@ export const DoubleSideAddLiquidity: React.FC<Props> = ({ pool, submitRef }) => 
       const id = toast.loading(
         {
           title: "Depositing",
-          description: `Depositing ${data[token0.symbol]} ${token0.symbol} and ${data[token1.symbol]} ${token1.symbol} to the pool`,
+          description: `Depositing ${getFormValue(data, token0.symbol)} ${token0.symbol} and ${getFormValue(data, token1.symbol)} ${token1.symbol} to the pool`,
         },
         { duration: Number.POSITIVE_INFINITY },
       );
       try {
         if (!signingClient) throw new Error("we couldn't submit the tx");
-
-        const token0Amount = convertDenomToMicroDenom(data[token0.symbol], token0.decimals);
-        const token1Amount = convertDenomToMicroDenom(data[token1.symbol], token1.decimals);
+        
+        const token0Amount = convertDenomToMicroDenom(getFormValue(data, token0.symbol), token0.decimals);
+        const token1Amount = convertDenomToMicroDenom(getFormValue(data, token1.symbol), token1.decimals);
 
         if (token0.type === "cw-20") {
           await increaseAllowance({
@@ -86,7 +95,12 @@ export const DoubleSideAddLiquidity: React.FC<Props> = ({ pool, submitRef }) => 
         const sortedTokens = [
           { amount: token0Amount, info: token0 },
           { amount: token1Amount, info: token1 },
-        ].sort((a, b) => a.info.denom.localeCompare(b.info.denom));
+        ].sort((a, b) => {
+          if (a.info.type === 'cw-20' || b.info.type === 'cw-20') {
+            return 0;
+          }
+          return a.info.denom.localeCompare(b.info.denom);
+        });
 
         await signingClient.addLiquidity({
           slipageTolerance,
@@ -108,7 +122,7 @@ export const DoubleSideAddLiquidity: React.FC<Props> = ({ pool, submitRef }) => 
         console.error(error);
         toast.error({
           title: "Deposit failed",
-          description: `Failed to deposit ${data[token0.symbol]} ${token0.symbol} and ${data[token1.symbol]} ${token1.symbol} to the pool. ${new TxError(message).pretty()}`,
+          description: `Failed to deposit ${getFormValue(data, token0.symbol)} ${token0.symbol} and ${getFormValue(data, token1.symbol)} ${token1.symbol} to the pool. ${new TxError(message).pretty()}`,
         });
       } finally {
         toast.dismiss(id);
