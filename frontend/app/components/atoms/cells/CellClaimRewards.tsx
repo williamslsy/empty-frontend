@@ -11,6 +11,8 @@ import { getInnerValueFromAsset } from "@towerfi/trpc";
 import { convertMicroDenomToDenom } from "~/utils/intl";
 import Tooltip from "../Tooltip";
 import { useToast } from "~/app/hooks";
+import { usePrices } from "~/app/hooks/usePrices";
+
 interface Props {
   rewards: Asset[];
   poolToken: string;
@@ -28,6 +30,7 @@ export const CellClaimRewards: React.FC<Props> = ({
   const { data: signingClient } = useDexClient();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { getPrice } = usePrices();
 
   const { mutateAsync: claimReward, isLoading } = useMutation({
     mutationFn: async () => {
@@ -70,6 +73,19 @@ export const CellClaimRewards: React.FC<Props> = ({
       return denom;
     }),
   });
+  
+  const totalValue = assets?.reduce((sum, asset, i) => {
+    const amount = convertMicroDenomToDenom(rewards[i].amount, asset.decimals, asset.decimals, false);
+    const price = getPrice(amount, asset.denom, { format: false });
+    return sum + price;
+  }, 0) || 0;
+
+  const totalValueformatted = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(totalValue);
+
+  const hasRewards = totalValue > 0 || rewards.some(r => Number(r.amount) > 0);
 
   if (!stakedAmount) {
     return (
@@ -94,30 +110,32 @@ export const CellClaimRewards: React.FC<Props> = ({
     <div className={twMerge("flex flex-col gap-2", className)}>
       <p className="text-xs text-white/50 lg:hidden">Claimable Rewards</p>
       <div className="flex gap-2 items-center">
-        <Tooltip
-          content={
-            <div className="flex flex-col gap-2">
-              <p className="text-tw-orange-400">Total assets</p>
-              <div className="flex flex-col gap-1">
-                {assets?.map((asset, i) => {
-                  return (
-                    <div key={i} className="flex items-center justify-between gap-4">
-                      <div className="flex gap-1 items-center">
-                        <img src={asset.logoURI} alt={asset.symbol} className="w-4 h-4" />
-                        <p className="text-xs text-white/50">{asset.symbol}</p>
+        {hasRewards ? (
+          <Tooltip
+            content={
+              <div className="flex flex-col gap-2">
+                <p className="text-tw-orange-400">Total assets</p>
+                <div className="flex flex-col gap-1">
+                  {assets?.map((asset, i) => {
+                    return (
+                      <div key={i} className="flex items-center justify-between gap-4">
+                        <div className="flex gap-1 items-center">
+                          <img src={asset.logoURI} alt={asset.symbol} className="w-4 h-4" />
+                          <p className="text-xs text-white/50">{asset.symbol}</p>
+                        </div>
+                        <p className="flex gap-2 flex-col text-center">
+                          {convertMicroDenomToDenom(rewards[i].amount, asset.decimals)}
+                        </p>
                       </div>
-                      <p className="flex gap-2 flex-col text-center">
-                        {convertMicroDenomToDenom(rewards[i].amount, asset.decimals)}
-                      </p>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          }
-        >
-          $0
-        </Tooltip>
+            }
+          >
+            {totalValueformatted}
+          </Tooltip>
+        ) : "$0.00"}
         <Button
           color="secondary"
           size="sm"
