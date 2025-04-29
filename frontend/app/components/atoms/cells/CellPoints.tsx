@@ -25,11 +25,6 @@ const SATLAYER_ASSETS: Record<string, number> = {
   "bbn1j2nchmpuhkq0yj93g84txe33j5lhw2y7p3anhqjhvamqxsev6rmsneu85x": 2.5, //satuniBTC.e
 };
 
-const SATLAYER_ASSETS: Record<string, number> = {
-  "bbn17y5zvse30629t7r37xsdj73xsqp7qsdr7gpnh966wf5aslpn66rq5ekwsz": 2.0, // uniBTC
-  "bbn1j2nchmpuhkq0yj93g84txe33j5lhw2y7p3anhqjhvamqxsev6rmsneu85x": 2.5, //satuniBTC.e
-};
-
 
 export const CellPoints: React.FC<Props> = ({ assets, className }) => {
   const [token0, token1] = assets;
