@@ -1,8 +1,9 @@
-import { Currency } from "@towerfi/types";
+import { Currency, PairType } from "@towerfi/types";
 import type React from "react";
 
 interface Props {
   assets: Currency[];
+  poolType: string,
   className?: string;
 }
 
@@ -17,7 +18,6 @@ const UNION_ASSETS: Record<string, number> = {
   "bbn1jr0xpgy90hqmaafdq3jtapr2p63tv59s9hcced5j4qqgs5ed9x7sr3sv0d": 1.0, // PumpBTC
   "bbn1ccylwef8yfhafxpmtzq4ps24kxce9cfnz0wnkucsvf2rylfh0jzswhk5ks": 1.0, // stBTC
   "bbn1j2nchmpuhkq0yj93g84txe33j5lhw2y7p3anhqjhvamqxsev6rmsneu85x": 1.5, //satuniBTC
-  EBABY_ADDRESS: 1.5,
 };
 
 const SATLAYER_ASSETS: Record<string, number> = {
@@ -26,13 +26,15 @@ const SATLAYER_ASSETS: Record<string, number> = {
 };
 
 
-export const CellPoints: React.FC<Props> = ({ assets, className }) => {
+export const CellPoints: React.FC<Props> = ({ assets, poolType, className }) => {
   const [token0, token1] = assets;
   
   const hasEBaby = token0.denom === EBABY_ADDRESS || token1.denom === EBABY_ADDRESS;
-  const hasUnion = UNION_ASSETS[token0.denom] || UNION_ASSETS[token1.denom] || (token0.denom === EBABY_ADDRESS && token1.denom === BABY) || (token0.denom === BABY && token1.denom === EBABY_ADDRESS);
+  const hasUnion = UNION_ASSETS[token0.denom] || UNION_ASSETS[token1.denom];
+  const hasUnionOrEscher = hasUnion || (token0.denom === EBABY_ADDRESS && token1.denom === BABY) || (token0.denom === BABY && token1.denom === EBABY_ADDRESS);
   const hasSatlayer = SATLAYER_ASSETS[token0.denom] || SATLAYER_ASSETS[token1.denom];
   
+
   // Calculate average multiplier for Union assets
   const getUnionMultiplier = () => {
     const multipliers = [];
@@ -63,6 +65,25 @@ export const CellPoints: React.FC<Props> = ({ assets, className }) => {
     return "/union/1x.svg";
   };
 
+  const getTowerMultiplier = (): number => {
+    const multiplier = poolType === 'concentrated' ? 2 : 1;
+    if (hasUnion) {
+      return multiplier + 0.5;
+    }
+    return multiplier;
+  };
+
+  const towerMultiplier = getTowerMultiplier();
+  
+  // Determine which Union logo to show based on multiplier
+  const getTowerLogo = () => {
+    if (towerMultiplier >= 2.5) return "/tower/2.5x.svg";
+    if (towerMultiplier >= 2.0) return "/tower/2x.svg";
+    if (towerMultiplier >= 1.5) return "/tower/1.5x.svg";
+    if (towerMultiplier >= 1.0) return "/tower/1x.svg";
+    return "/favicon.svg";
+  };
+
   const getSatlayerMultiplier = () => {
     // TODO add logic to differentiate between 2x and 2.5x
     return 2.0
@@ -77,45 +98,45 @@ export const CellPoints: React.FC<Props> = ({ assets, className }) => {
   
   return (
     <div className={className}>
-      <div className="flex items-center gap-2 relative">
+      <div className="flex flex-wrap items-center gap-0">
         {/* Tower Points - Always shown */}
         <div className="flex items-center gap-1">
           <img 
-            src="/favicon.png" 
+            src={getTowerLogo()} 
             alt="TowerFi" 
-            className="w-5 h-5"
+            className="w-auto h-7 overflow-x-auto"
           />
         </div>
         
         {/* EBaby Points */}
         {hasEBaby && (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 overflow-x-auto">
             <img 
-              src="/escher/logo.svg" 
+              src="/escher/2.5x_no_background_all_white.svg" 
               alt="EBaby" 
-              className="w-5 h-5"
+              className="w-auto h-7 flex-shrink-0 overflow-x-auto"
             />
           </div>
         )}
         
         {/* Union Points */}
-        {hasUnion && (
-          <div className="flex items-center gap-1">
+        {hasUnionOrEscher && (
+          <div className="flex items-center gap-1 overflow-x-auto">
             <img 
               src={getUnionLogo()} 
               alt={`Union ${unionMultiplier}x`} 
-              className="h-6 w-auto"
+              className="h-6 w-auto flex-shrink-0 overflow-x-auto"
             />
           </div>
         )}
 
         {/* Satlayer point */}
         {hasSatlayer && (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 overflow-x-auto">
             <img 
               src={getSatLayerLogo()} 
               alt={`SatLayer ${satlayerMultiplier}x`} 
-              className="h-8 w-auto"
+              className="h-8 w-auto flex-shrink-0 overflow-x-auto"
             />
           </div>
         )}
