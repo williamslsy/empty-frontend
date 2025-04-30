@@ -1,17 +1,17 @@
 "use client";
-import type React from "react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import RotateButton from "../../atoms/RotateButton";
-
 import { useFormContext } from "react-hook-form";
 import { convertDenomToMicroDenom, convertMicroDenomToDenom } from "~/utils/intl";
 import { useSkipClient } from "~/app/hooks/useSkipClient";
 import { babylon } from "~/config/chains/babylon";
 import { AssetInput } from "../../atoms/AssetInput";
 import { Assets } from "~/config";
-
 import { useSearchParams } from "next/navigation";
 import type { Currency } from "@towerfi/types";
+import { usePrices } from "~/app/hooks/usePrices";
+import { SwapPriceImpactWarning } from "../../molecules/Swap/SlippageImpactWarning";
+import { useSimulationStatus } from "~/app/hooks/useSimulationStatus";
 
 const assets = Object.values(Assets);
 
@@ -28,9 +28,16 @@ export const Swap: React.FC = () => {
   const toAmount = watch("toAmount");
   const fromAmount = watch("fromAmount");
   const searchParams = useSearchParams();
-
+  const { getPrice } = usePrices();
   const { simulation, simulate, skipClient } = useSkipClient({ cacheKey: "swap" });
-  const { isLoading } = simulation;
+  const { isLoading, isFetching } = simulation;
+
+  const { pendingSimulation, hasFreshSimulation } = useSimulationStatus({
+    fromAmount,
+    toAmount,
+    activeInput,
+    isSimulationLoading: isLoading,
+  });
 
   useEffect(() => {
     if (!skipClient || !isDirty || (!toAmount && !fromAmount)) return;
@@ -84,6 +91,16 @@ export const Swap: React.FC = () => {
     })();
   }, [fromAmount, toAmount, fromToken, toToken]);
 
+  // Calculate price impact only when we have simulation data
+  const priceImpact = useMemo(() => {
+    if (!simulation?.data) return 0;
+    
+    const amountInUSD = getPrice(Number(fromAmount), fromToken.denom, { format: false });
+    const amountOutUSD = getPrice(Number(toAmount), toToken.denom, { format: false });
+    const impact = amountInUSD > 0 ? ((amountInUSD - amountOutUSD) / amountInUSD) * 100 : 0;
+    return Math.abs(impact);
+  }, [simulation, fromAmount, toAmount]);
+
   const onRotate = () => {
     const fToken = { ...fromToken };
     const tToken = { ...toToken };
@@ -130,6 +147,10 @@ export const Swap: React.FC = () => {
         onSelect={setToToken}
         onFocus={() => setActiveInput("to")}
         validateBalance={false}
+      />
+      <SwapPriceImpactWarning 
+        priceImpact={priceImpact} 
+        isLoading={isLoading || isFetching} 
       />
     </div>
   );
