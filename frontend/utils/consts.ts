@@ -1,3 +1,9 @@
+import type {
+  BaseCurrency,
+  CW20Currency,
+  PoolIncentive,
+  PoolMetricSerialized,
+} from "@towerfi/types";
 import { isTestnet } from "./global";
 
 export const navLinks: { label: string; to: string; isDisabled?: boolean; isExternal?: boolean }[] =
@@ -85,5 +91,59 @@ export const blockedPoolAddresses = [
   "bbn1hquvz7s2wm44snh4rcmqe9mx757xgacw3p5h4q23crgwg2n3pk9quhu0fg",
   "bbn1lpxsk8a8dxdpy8r6yqlz0gmjc7427wg9h25sj46c8d6jaglmzxsq6u09de",
   "bbn1pptvg76q2kfhzvpnsadz2ws2y6e0fvafzy3vkyak0fpmyzrc94qqnv0ark",
-  "bbn1rdr5nhhcuawc8y34llx3urmtlf9yszfluhyhhj9ctypk4tnkg0nq7ywdxw"
+  "bbn1rdr5nhhcuawc8y34llx3urmtlf9yszfluhyhhj9ctypk4tnkg0nq7ywdxw",
 ];
+
+export function DefaultPoolMetric(): PoolMetricSerialized {
+  return {
+    pool_address: "",
+    height: "0",
+    token0_denom: "",
+    token0_balance: "0",
+    token0_decimals: 0,
+    token0_price: 0,
+    token0_swap_volume: 0,
+    token1_denom: "",
+    token1_balance: "0",
+    token1_decimals: 0,
+    token1_price: 0,
+    token1_swap_volume: 0,
+    tvl_usd: 0,
+    average_apr: 0,
+    lp_token_address: "",
+    total_incentives: "0",
+    metric_start_height: null,
+    metric_end_height: null,
+  };
+}
+
+export function DefaultPoolIncentive(): PoolIncentive {
+  return {
+    lp_token_address: "",
+    pool_address: "",
+    rewards_per_second: 0,
+    reward_token: "",
+    total_incentives: "",
+    token_decimals: 0,
+    start_ts: "",
+    end_ts: "",
+  };
+}
+
+export function DefaultBaseCurrency(): BaseCurrency {
+  return {
+    name: "",
+    symbol: "",
+    denom: "",
+    decimals: 0,
+    logoURI: "",
+  };
+}
+
+export function DefaultCW20Currency(): CW20Currency {
+  return {
+    ...DefaultBaseCurrency(),
+    type: "cw-20",
+    contractAddress: "",
+  };
+}

@@ -8,7 +8,16 @@ import { twMerge } from "~/utils/twMerge";
 import { Assets } from "~/config";
 
 interface Props {
-  simulation?: RouteResponse | null;
+  simulation?: Pick<
+    RouteResponse,
+    | "estimatedFees"
+    | "amountIn"
+    | "amountOut"
+    | "estimatedAmountOut"
+    | "swapPriceImpactPercent"
+    | "destAssetDenom"
+    | "sourceAssetDenom"
+  > | null;
   className?: string;
 }
 
@@ -49,7 +58,11 @@ const SwapInfoAccordion: React.FC<Props> = ({ simulation, className }) => {
     >
       <div className="flex items-center justify-between h-4">
         <p>
-          1 {fromDenom?.symbol} = {rate} {toDenom?.symbol}
+          {Number.isNaN(rate) ? null : (
+            <span>
+              1 {fromDenom?.symbol} = {rate} {toDenom?.symbol}
+            </span>
+          )}
         </p>
         <div className="flex gap-2 items-center">
           <IconCoins className="" />

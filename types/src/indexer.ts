@@ -50,6 +50,27 @@ export type PoolMetric = {
   metric_end_height: bigint | null;
 };
 
+export type PoolMetricSerialized = {
+  pool_address: string;
+  height: string;
+  token0_denom: string;
+  token0_balance: string;
+  token0_decimals: number;
+  token0_price: number;
+  token0_swap_volume: number;
+  token1_denom: string;
+  token1_balance: string;
+  token1_decimals: number;
+  token1_price: number;
+  token1_swap_volume: number;
+  tvl_usd: number;
+  average_apr: number;
+  lp_token_address: string;
+  total_incentives: string;
+  metric_start_height: string | null;
+  metric_end_height: string | null;
+};
+
 export type AggregatedMetrics = {
   total_liquidity_usd: number;
   total_swap_fees: number;
@@ -62,13 +83,13 @@ export type AggregatedMetrics = {
   total_incentives_done: number | null;
   metric_start_height: bigint | null;
   metric_end_height: bigint | null;
-}
+};
 
 export interface PoolIncentive {
   lp_token_address: string;
   pool_address: string;
   rewards_per_second: number;
-  reward_token: string,
+  reward_token: string;
   total_incentives: string;
   token_decimals: number;
   start_ts: string;

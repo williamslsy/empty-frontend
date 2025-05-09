@@ -14,30 +14,41 @@ const getPriceImpactWarning = (impact: number) => {
       message: "Price Impact is very high",
       className: "bg-red-900/50 text-red-200",
     };
-  } else if (impact >= 3) {
+  }
+
+  if (impact >= 3) {
     return {
       message: "Price Impact is high",
       className: "bg-amber-900/50 text-amber-200",
     };
-  } else if (impact >= 1) {
+  }
+
+  if (impact >= 1) {
     return {
       message: "Price Impact is moderate",
       className: "bg-olive-900/50 text-olive-200",
     };
   }
+
   return {
-    message: `Price Impact`,
+    message: "Price Impact",
     className: "bg-tw-bg/50 text-tw-text",
   };
 };
 
 export const SwapPriceImpactWarning: React.FC<Props> = ({ priceImpact, className, isLoading }) => {
   const warning = getPriceImpactWarning(priceImpact);
-  
+
   if (!warning) return null;
 
   return (
-    <div className={twMerge("p-2 rounded-lg flex items-center gap-2 w-full", warning.className, className)}>
+    <div
+      className={twMerge(
+        "p-2 rounded-lg flex items-center gap-2 w-full",
+        !isLoading && warning.className,
+        className,
+      )}
+    >
       <IconInfoCircle size={20} />
       {isLoading ? (
         <div className="flex items-center gap-2">
@@ -45,8 +56,10 @@ export const SwapPriceImpactWarning: React.FC<Props> = ({ priceImpact, className
           <span>Calculating price impact...</span>
         </div>
       ) : (
-        <span>{warning.message} (-{priceImpact.toFixed(2)}%)</span>
+        <span>
+          {warning.message} (-{priceImpact.toFixed(2)}%)
+        </span>
       )}
     </div>
   );
-}; 
+};
