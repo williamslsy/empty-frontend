@@ -46,6 +46,8 @@ import {
   type IncreaseAllowanceParameters,
   type IncreaseAllowanceReturnType,
 } from "./increaseAllowance";
+import { poolSwap, type PoolSwapParameters, type PoolSwapReturnType } from "./poolSwap";
+import { ClientWithActions } from "~/multisig/client/types";
 
 export type DexActions<
   _transport extends Transport = Transport,
@@ -60,13 +62,14 @@ export type DexActions<
   getCw20Allowance: (args: GetCw20AllowanceParameters) => GetCw20AllowanceReturnType;
   getCw20Balance: (args: GetCw20BalanceParameters) => GetCw20BalanceReturnType;
   increaseAllowance: (args: IncreaseAllowanceParameters) => IncreaseAllowanceReturnType;
+  poolSwap: (args: PoolSwapParameters) => PoolSwapReturnType;
 };
 
 export function dexActions<
   transport extends Transport = Transport,
   chain extends Chain | undefined = Chain | undefined,
   account extends Account | undefined = Account | undefined,
->(client: Client<transport, chain, account>): DexActions<transport, chain, account> {
+>(client: ClientWithActions<transport, chain, account>): DexActions<transport, chain, account> {
   return {
     addLiquidity: (args) => addLiquidity(client, args),
     withdrawLiquidity: (args) => withdrawLiquidity(client, args),
@@ -76,5 +79,6 @@ export function dexActions<
     getCw20Allowance: (args) => getCw20Allowance(client, args),
     getCw20Balance: (args) => getCw20Balance(client, args),
     increaseAllowance: (args) => increaseAllowance(client, args),
+    poolSwap: (args) => poolSwap(client, args),
   };
 }

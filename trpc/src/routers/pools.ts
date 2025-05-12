@@ -135,7 +135,6 @@ export const poolsRouter = createTRPCRouter({
         return Number.isNaN(optimalRatio) ? 1 : optimalRatio;
       } else {
         const { params } = config;
-        console.log(params)
         const priceScale: number = Number(params.price_scale);
 
         return priceScale;
@@ -198,17 +197,16 @@ export const poolsRouter = createTRPCRouter({
         rewards: [],
       } as PoolInfo;
     }),
-    
+
   getPools: createTRPCPublicProcedure
     .input(z.object({ limit: z.number().optional(), start_after: z.string().optional() }))
     .query<PoolInfo[]>(async ({ ctx, input }) => {
       const { publicClient, contracts } = ctx;
       const { limit, start_after } = input as { limit?: number; start_after?: string };
 
-
       const pools: PairInfo[] = await publicClient.queryContractSmart<PairInfo[]>({
         address: contracts.factory,
-        msg: { pairs: { limit: limit || 100,  start_after } },
+        msg: { pairs: { limit: limit || 100, start_after } },
       });
 
       const caller = createCallerFactory(appRouter)(ctx);
@@ -218,5 +216,5 @@ export const poolsRouter = createTRPCRouter({
       );
 
       return poolInfo;
-  }),
+    }),
 });

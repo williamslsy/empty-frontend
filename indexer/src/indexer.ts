@@ -1,8 +1,13 @@
-import {drizzle} from "drizzle-orm/node-postgres";
-import {Pool} from "pg";
-import {asc, desc, eq, sql, type SQL} from "drizzle-orm";
-import {StringChunk} from "drizzle-orm/sql/sql";
-import type {AggregatedMetrics, PoolIncentive, PoolMetric} from "@towerfi/types";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+import { asc, desc, eq, sql, type SQL } from "drizzle-orm";
+import { StringChunk } from "drizzle-orm/sql/sql";
+import type {
+  AggregatedMetrics,
+  PoolIncentive,
+  PoolMetric,
+  PoolMetricSerialized,
+} from "@towerfi/types";
 
 import {
   materializedAddLiquidityInV1Cosmos,
@@ -16,7 +21,7 @@ import {
   materializedUnstakeLiquidityInV1Cosmos,
   materializedWithdrawLiquidityInV1Cosmos,
 } from "./drizzle/schema.js";
-import {integer, pgSchema, serial, text} from "drizzle-orm/pg-core";
+import { integer, pgSchema, serial, text } from "drizzle-orm/pg-core";
 
 const v1Cosmos = pgSchema("v1_cosmos");
 const userShares = v1Cosmos.table("pool_user_shares", {
@@ -82,9 +87,21 @@ export type Indexer = {
   ) => Promise<Record<string, PoolIncentive> | null>;
   getCurrentPoolVolumes: (page: number, limit: number) => Promise<Record<string, unknown>[] | null>;
   getPoolVolumesByPoolAddresses: (addresses: string[]) => Promise<Record<string, unknown>[] | null>;
-  getPoolMetricsByPoolAddresses: (addresses: string[], startDate?: Date | null, endDate?: Date | null) => Promise<Record<string, PoolMetric> | null>;
-  getPoolIncentiveAprsByPoolAddresses: (addresses: string[], startDate?: Date | null, endDate?: Date | null) => Promise<Record<string, unknown> | null>;
-  getAggregatedMetricsByPoolAddresses: (addresses: string[], startDate?: Date | null, endDate?: Date | null) => Promise<AggregatedMetrics | null>;
+  getPoolMetricsByPoolAddresses: (
+    addresses: string[],
+    startDate?: Date | null,
+    endDate?: Date | null,
+  ) => Promise<Record<string, PoolMetricSerialized> | null>;
+  getPoolIncentiveAprsByPoolAddresses: (
+    addresses: string[],
+    startDate?: Date | null,
+    endDate?: Date | null,
+  ) => Promise<Record<string, unknown> | null>;
+  getAggregatedMetricsByPoolAddresses: (
+    addresses: string[],
+    startDate?: Date | null,
+    endDate?: Date | null,
+  ) => Promise<AggregatedMetrics | null>;
 };
 
 export type IndexerFilters = {
@@ -113,7 +130,7 @@ export const createIndexerService = (config: IndexerDbCredentials) => {
 
     if (!filters) return await query;
 
-    const {orderBy = "asc", page = 1, limit = 50, orderByColumn} = filters;
+    const { orderBy = "asc", page = 1, limit = 50, orderByColumn } = filters;
 
     const dynamicQuery = query.$dynamic();
 
@@ -135,7 +152,7 @@ export const createIndexerService = (config: IndexerDbCredentials) => {
         .leftJoin(poolLpToken, eq(poolLpToken.pool, userShares.pool_address))
         .where(eq(userShares.owner, address));
 
-      return response.map(({pool_user_shares, pool_lp_token}) => ({
+      return response.map(({ pool_user_shares, pool_lp_token }) => ({
         ...pool_user_shares,
         lpToken: pool_lp_token?.lp_token,
       }));
@@ -494,18 +511,20 @@ export const createIndexerService = (config: IndexerDbCredentials) => {
 
     try {
       const result = await client.execute(query);
-      return result.rows.reduce<Record<string, PoolIncentive>>((acc, row) => ({
-        ...acc,
-        [row.pool_address as string]: {
-          ...row as unknown as PoolIncentive
-        } as PoolIncentive,
-      }), {});    } catch (error) {
+      return result.rows.reduce<Record<string, PoolIncentive>>(
+        (acc, row) => ({
+          ...acc,
+          [row.pool_address as string]: {
+            ...(row as unknown as PoolIncentive),
+          } as PoolIncentive,
+        }),
+        {},
+      );
+    } catch (error) {
       console.error("Error executing raw query:", error);
       throw error;
     }
   }
-
-
 
   async function getPoolIncentiveAprsByPoolAddresses(
     addresses: string[],
@@ -572,7 +591,7 @@ export const createIndexerService = (config: IndexerDbCredentials) => {
 
       return results.rows;
     } catch (error) {
-      console.error('Error calculating incentive APR for pools (raw query):', error);
+      console.error("Error calculating incentive APR for pools (raw query):", error);
       return [];
     }
   }
@@ -865,14 +884,17 @@ export const createIndexerService = (config: IndexerDbCredentials) => {
     try {
       const result = await client.execute(query);
 
-      return result.rows.reduce<Record<string, PoolMetric>>((acc, row) => ({
-        ...acc,
-        [row.pool_address as string]: {
-          ...row as Omit<PoolMetric, 'metric_start_height' | 'metric_end_height'>,
-          metric_start_height: startHeight ? startHeight.toString() : null,
-          metric_end_height: endHeight ? endHeight.toString() : null,
-        } as PoolMetric,
-      }), {});
+      return result.rows.reduce<Record<string, PoolMetric>>(
+        (acc, row) => ({
+          ...acc,
+          [row.pool_address as string]: {
+            ...(row as Omit<PoolMetric, "metric_start_height" | "metric_end_height">),
+            metric_start_height: startHeight ? startHeight.toString() : null,
+            metric_end_height: endHeight ? endHeight.toString() : null,
+          } as PoolMetric,
+        }),
+        {},
+      );
     } catch (error) {
       console.error("Error executing raw query:", error);
 
@@ -1086,9 +1108,12 @@ export const createIndexerService = (config: IndexerDbCredentials) => {
     return sql.raw(Math.min(Math.max(1, interval), 365).toString());
   }
 
-  async function findHeightsByDateRange(startDate?: Date, endDate?: Date): Promise<{
-    startHeight: bigint | null,
-    endHeight: bigint | null
+  async function findHeightsByDateRange(
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<{
+    startHeight: bigint | null;
+    endHeight: bigint | null;
   }> {
     let startHeight: bigint | null;
     let endHeight: bigint | null;
@@ -1105,27 +1130,32 @@ export const createIndexerService = (config: IndexerDbCredentials) => {
       try {
         const heightsResult = await client.execute(minMaxHeightsQuery);
         if (heightsResult.rows.length > 0) {
-          startHeight = heightsResult.rows[0]?.min_height as bigint ?? null;
-          endHeight = heightsResult.rows[0]?.max_height as bigint ?? null;
+          startHeight = (heightsResult.rows[0]?.min_height as bigint) ?? null;
+          endHeight = (heightsResult.rows[0]?.max_height as bigint) ?? null;
 
-          return {startHeight: startHeight, endHeight: endHeight}
+          return { startHeight: startHeight, endHeight: endHeight };
         }
-
       } catch (error) {
         console.error("Error fetching min/max heights:", error);
         throw error;
       }
     }
 
-    return {startHeight: null, endHeight: null}
+    return { startHeight: null, endHeight: null };
   }
 
-  function createHeightsFilterSql(table: string, startHeight?: bigint | null, endHeight?: bigint | null) {
+  function createHeightsFilterSql(
+    table: string,
+    startHeight?: bigint | null,
+    endHeight?: bigint | null,
+  ) {
     let heightFilter = sql``;
 
     if (startHeight || endHeight) {
       if (startHeight !== null && endHeight !== null) {
-        heightFilter = sql.raw(`AND ${table}.height >= ${startHeight} AND ${table}.height <= ${endHeight}`);
+        heightFilter = sql.raw(
+          `AND ${table}.height >= ${startHeight} AND ${table}.height <= ${endHeight}`,
+        );
       } else if (startHeight !== null) {
         heightFilter = sql.raw(`AND ${table}.height >= ${startHeight}`);
       } else if (endHeight !== null) {
@@ -1158,6 +1188,6 @@ export const createIndexerService = (config: IndexerDbCredentials) => {
     getPoolIncentivesByPoolAddresses,
     getPoolMetricsByPoolAddresses,
     getPoolIncentiveAprsByPoolAddresses,
-    getAggregatedMetricsByPoolAddresses
+    getAggregatedMetricsByPoolAddresses,
   } as Indexer;
 };

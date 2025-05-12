@@ -1,6 +1,7 @@
 export type { Cache, CacheSetOptions } from "./cache.js";
 
 export type {
+  Bridge,
   BaseCurrency,
   WithPrice,
   Currency,
@@ -26,4 +27,10 @@ export type {
   CumulativePricesResponse,
 } from "./contracts.js";
 
-export type { UserPoolBalances, PoolMetric, AggregatedMetrics, PoolIncentive} from "./indexer.js";
+export type {
+  UserPoolBalances,
+  PoolMetric,
+  PoolMetricSerialized,
+  PoolIncentive,
+  AggregatedMetrics,
+} from "./indexer.js";
