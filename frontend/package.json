@@ -9,7 +9,6 @@
   },
   "dependencies": {
     "@amplitude/analytics-browser": "^2.13.0",
-    "@cosmi/react": "^0.2.7",
     "@dicebear/collection": "^9.2.2",
     "@dicebear/core": "^9.2.2",
     "@headlessui/react": "^2.2.0",
@@ -22,15 +21,12 @@
     "@skip-go/client": "^0.16.27",
     "@tabler/icons-react": "^3.31.0",
     "@tanstack/react-query": "^4.36.1",
-    "@towerfi/trpc": "workspace:^",
     "@trpc/client": "^10.45.2",
     "@trpc/react-query": "^10.45.2",
     "@trpc/server": "^10.45.2",
     "@types/mixpanel-browser": "^2.54.0",
     "bignumber.js": "^9.1.2",
     "clsx": "^2.1.1",
-    "cosmi": "^0.2.7",
-    "cosmjs-types": "^0.9.0",
     "ky": "^1.7.5",
     "lru-cache": "^11.0.2",
     "mipd": "^0.0.7",
@@ -51,7 +47,6 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@towerfi/types": "workspace:^",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/use-sync-external-store": "^0.0.6",
