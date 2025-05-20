@@ -4,18 +4,13 @@ import BasicModal from "~/app/components/templates/BasicModal";
 import { twMerge } from "~/utils/twMerge";
 
 import Divider from "~/app/components/atoms/Divider";
-import { contracts } from "~/config";
 
-import type { PoolInfo, UserPoolBalances } from "@towerfi/types";
 import AssetsStacked from "../../atoms/AssetsStacked";
 import Pill from "../../atoms/Pill";
 import Input from "../../atoms/Input";
 import { RangeSelector } from "../../atoms/RangeSelector";
-import { useDexClient } from "~/app/hooks/useDexClient";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useAccount } from "@cosmi/react";
 import { AssetAmountSquare } from "../../atoms/AssetAmountSquare";
-import { useWithdrawSimulation } from "~/app/hooks/useWithdrawSimulation";
 import { useToast } from "~/app/hooks";
 import { useModal } from "~/app/providers/ModalProvider";
 

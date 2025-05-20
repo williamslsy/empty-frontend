@@ -5,8 +5,6 @@ import { useModal } from "~/app/providers/ModalProvider";
 import { useToast } from "~/app/hooks";
 
 import type React from "react";
-import { useAccount, useConnectors } from "@cosmi/react";
-import { babylon } from "~/config/chains/babylon";
 import { useEffect } from "react";
 
 function ConnectorButton({ connector, onClick }: { connector: any; onClick: () => void }) {
@@ -42,6 +40,7 @@ function ConnectorButton({ connector, onClick }: { connector: any; onClick: () =
 }
 
 const ModalConnectWallet: React.FC = () => {
+  // TODO setup wagmi for wallet connection
   const connectors = useConnectors();
   const { isConnected } = useAccount();
   const { toast } = useToast();
