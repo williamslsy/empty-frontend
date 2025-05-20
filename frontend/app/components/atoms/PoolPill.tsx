@@ -1,67 +1,63 @@
 import { IconInfoCircleFilled } from "@tabler/icons-react";
-import type { PoolIncentive, PoolInfo } from "@towerfi/types";
 import Pill from "./Pill";
 import Tooltip from "./Tooltip";
-import { convertMicroDenomToDenom } from "~/utils/intl";
-import { Assets } from "~/config";
 import { twMerge } from "~/utils/twMerge";
 
-export const getPoolTypeDescription = (poolType: string, params?: PoolInfo["config"]["params"]) => {
-  if (poolType === "concentrated") {
-    if (!params) return "PCL";
+export type PoolType = "xyk" | "concentrated" | "stable" | "weighted";
 
-    const amp = params.amp;
-    const gamma = params.gamma;
+export type PoolConfig = {
+  type: PoolType;
+  fee: {
+    min: number;
+    max: number;
+  };
+};
 
-    if (amp && gamma) {
-      if (amp === "12") {
-        return "PCL Wide";
-      }
-      if (amp === "75") {
-        return "PCL Narrow";
-      }
-      if (amp === "950") {
-        return "PCL Correlated";
-      }
-      return `PCL Custom ${amp}/${gamma}`;
-    }
+export type Incentive = {
+  symbol: string;
+  amount: number;
+  startDate: Date;
+  endDate: Date;
+};
 
-    return "PCL";
+// needs EVM pool support
+export const getPoolTypeDescription = (poolType: PoolType) => {
+  switch (poolType) {
+    case "concentrated":
+      return "PCL";
+    case "xyk":
+      return "XYK";
+    case "stable":
+      return "Stable";
+    case "weighted":
+      return "Weighted";
   }
-
-  return poolType.toUpperCase();
 };
 
 export const PoolTypePill: React.FC<{
-  poolType: string;
-  config: PoolInfo["config"];
-}> = ({ poolType, config }) => {
+  poolType: PoolType;
+}> = ({ poolType }) => {
   return (
     <Pill color={poolType === "xyk" ? "green" : "blue"}>
-      {getPoolTypeDescription(poolType, config.params)}
+      {getPoolTypeDescription(poolType)}
     </Pill>
   );
 };
 
 export const PoolFeePill: React.FC<{
-  poolType: string;
-  config: PoolInfo["config"];
-}> = ({ poolType, config }) => {
+  fee: number;
+}> = ({ fee }) => {
   return (
     <Pill>
-      {
-        poolType === "concentrated"
-          ? `${(Number(config.params.mid_fee || 0) * 100).toFixed(2)}% - ${(Number(config.params.out_fee || 0) * 100).toFixed(2)}%`
-          : "0.30%" // TODO make this dynamic after launch
-      }
+      {`${(fee * 100).toFixed(2)}%`}
     </Pill>
   );
 };
 
 export const PoolIncentivesPill: React.FC<{
-  incentives: PoolIncentive | undefined;
+  incentive?: Incentive;
   className?: string;
-}> = ({ incentives, className }) => {
+}> = ({ incentive, className }) => {
   const tooltipContent = (
     <div className="flex flex-col gap-3 p-2">
       <div className="flex items-center gap-2">
@@ -75,31 +71,25 @@ export const PoolIncentivesPill: React.FC<{
           View campaigns
         </a>
       </div>
-      {incentives && (
+      {incentive && (
         <div className="flex flex-col gap-2">
           <div className="text-sm text-white/50">Current Campaigns:</div>
           <div className="flex flex-col gap-1">
             <div className="flex justify-between items-center text-sm">
               <span className="text-white/80">
-                ${Assets[incentives.reward_token]?.symbol || incentives.reward_token.toUpperCase()}
+                {incentive.symbol}
               </span>
               <span className="text-white/80 ml-2">
-                {convertMicroDenomToDenom(
-                  Number(incentives.rewards_per_second) * 60 * 60 * 24, // Convert to daily
-                  incentives.token_decimals,
-                  incentives.token_decimals,
-                  true,
-                )}
-                /day
+                {incentive.amount}/day
               </span>
             </div>
             <div className="text-xs text-white/50">
-              {new Date(Number(incentives.start_ts) * 1000).toLocaleDateString("en-US", {
+              {incentive.startDate.toLocaleDateString("en-US", {
                 day: "numeric",
                 month: "short",
               })}{" "}
               →{" "}
-              {new Date(Number(incentives.end_ts) * 1000).toLocaleDateString("en-US", {
+              {incentive.endDate.toLocaleDateString("en-US", {
                 day: "numeric",
                 month: "short",
               })}
@@ -112,7 +102,7 @@ export const PoolIncentivesPill: React.FC<{
 
   return (
     <div className={twMerge("flex items-center gap-2", className)}>
-      {!!incentives && (
+      {!!incentive && (
         <Pill color="yellow">
           <Tooltip content={tooltipContent}>
             <div className="flex items-center gap-1">
