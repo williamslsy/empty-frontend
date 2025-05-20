@@ -2,75 +2,75 @@
 
 import type React from "react";
 import { Button } from "../atoms/Button";
-import { trpc } from "~/trpc/client";
 import { useAccount } from "@cosmi/react";
 import { UserPools } from "../organisms/dashboard/UserPools";
-import { useDexClient } from "~/app/hooks/useDexClient";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { contracts } from "~/config";
 import { useToast } from "~/app/hooks";
 import Link from "next/link";
 
+// Mock data
+const MOCK_POOLS = [
+  {
+    poolInfo: {
+      poolType: "xyk",
+    },
+    userBalance: {
+      staked_share_amount: 150,
+      lpToken: "mock-lp-token-1"
+    },
+    incentives: []
+  },
+  {
+    poolInfo: {
+      poolType: "stable",
+    },
+    userBalance: {
+      staked_share_amount: 50,
+      lpToken: "mock-lp-token-2"
+    },
+    incentives: []
+  }
+];
+
 const Dashboard: React.FC = () => {
   const { address, chain } = useAccount();
-  const { data: signingClient } = useDexClient();
-  const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const {
-    data: pools = [],
-    isLoading: isPoolLoading,
-    refetch: refreshUserPools,
-  } = trpc.local.pools.getUserPools.useQuery({
-    address,
-  });
+  // Mock loading state
+  const isPoolLoading = false;
 
-  const filteredPools = pools.filter((pool) => {
+  const filteredPools = MOCK_POOLS.filter((pool) => {
     if (pool.poolInfo.poolType === "xyk") {
       return pool.userBalance.staked_share_amount > 100;
     }
     return pool.userBalance.staked_share_amount > 0;
   });
 
-  const { mutateAsync: claimAll, isLoading } = useMutation({
-    mutationFn: async () => {
-      if (!signingClient || !address) return;
-      return await signingClient.claimRewards({
-        sender: address,
-        incentiveAddress: contracts.incentives,
-        lpTokens: filteredPools.map((pool) => pool.userBalance.lpToken),
-      });
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries(trpc.local.pools.getUserPools.getQueryKey({ address }));
+  const handleClaimAll = async () => {
+    try {
+      // Mock successful claim
+      const mockTxHash = "mock-tx-hash-123";
       toast.success({
         title: "Claim successful",
         component: () => (
           <div className="flex flex-col gap-1">
-            {data ? (
-              <a
-                className="underline hover:no-underline"
-                target="_blank"
-                href={`${chain?.blockExplorers?.default.url}/tx/${data}`}
-                rel="noreferrer"
-              >
-                See tx
-              </a>
-            ) : (
-              <p>All your rewards were claimed</p>
-            )}
+            <a
+              className="underline hover:no-underline"
+              target="_blank"
+              href={`${chain?.blockExplorers?.default.url}/tx/${mockTxHash}`}
+              rel="noreferrer"
+            >
+              See tx
+            </a>
           </div>
         ),
       });
-      refreshUserPools();
-    },
-    onError: (error: Error) => {
+    } catch (error) {
       toast.error({
         title: "Claim Failed",
-        description: `Failed to claim all your rewards. ${error.message}`,
+        description: `Failed to claim all your rewards. ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
-    },
-  });
+    }
+  };
 
   //TODO: Replace for !address when there is rewards
   const claimAllDisabled = true;
@@ -83,7 +83,7 @@ const Dashboard: React.FC = () => {
           <Button color="tertiary" as={Link} href="/pools">
             New Position
           </Button>
-          <Button onClick={() => claimAll()} isDisabled={claimAllDisabled} isLoading={isLoading}>
+          <Button onClick={handleClaimAll} isDisabled={claimAllDisabled}>
             Claim All
           </Button>
         </div>
@@ -91,7 +91,7 @@ const Dashboard: React.FC = () => {
       <UserPools
         pools={filteredPools}
         isLoading={isPoolLoading}
-        refreshUserPools={refreshUserPools}
+        refreshUserPools={() => {}}
       />
     </div>
   );
