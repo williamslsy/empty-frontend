@@ -1,16 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 import { Button } from "~/app/components/atoms/Button";
 import BasicModal from "~/app/components/templates/BasicModal";
-
 import IconCoins from "~/app/components/atoms/icons/IconCoins";
 import Divider from "~/app/components/atoms/Divider";
-
-import type { PoolInfo } from "@towerfi/types";
-import { useAccount } from "@cosmi/react";
-import { ModalTypes } from "~/types/modal";
-import { useModal } from "~/app/providers/ModalProvider";
-import { SingleSideAddLiquidity } from "../SingleSideAddLiquidity";
-import { DoubleSideAddLiquidity } from "../DoubleSideAddLiquidity";
 import { FormProvider, useForm } from "react-hook-form";
 import { Tab, TabList, Tabs } from "../../atoms/Tabs";
 import AssetsStacked from "../../atoms/AssetsStacked";
@@ -19,8 +11,26 @@ import MaxSlippageSwitcher from "../MaxSlippageSwitcher";
 import { IconSettingsFilled } from "@tabler/icons-react";
 import { twMerge } from "~/utils/twMerge";
 
+// Mock types
+interface Token {
+  symbol: string;
+  denom: string;
+  decimals: number;
+  logoURI: string;
+}
+
+interface MockPool {
+  poolAddress: string;
+  name: string;
+  poolType: "stable" | "weighted" | "concentrated";
+  assets: Token[];
+  config: {
+    fee: number;
+  };
+}
+
 interface Props {
-  pool: PoolInfo;
+  pool: MockPool;
   successAction?: () => void;
   className?: string;
   classNameContainer?: string;
@@ -42,6 +52,16 @@ const defaultWrapperProps = {
   },
 };
 
+// Mock wallet hook
+const useMockWallet = () => {
+  return {
+    isConnected: true,
+    address: "0x1234...5678",
+    connect: () => console.log("Connecting wallet..."),
+    disconnect: () => console.log("Disconnecting wallet..."),
+  };
+};
+
 export const ModalAddLiquidity: React.FC<Props> = ({
   pool,
   successAction,
@@ -51,11 +71,9 @@ export const ModalAddLiquidity: React.FC<Props> = ({
   wrapperProps = {},
 }) => {
   const { name } = pool;
-
-  const { showModal } = useModal();
   const [side, setSide] = useState<"double" | "single">("double");
   const [slipageTolerance, setSlipageTolerance] = useState("0.04");
-  const { isConnected } = useAccount();
+  const { isConnected } = useMockWallet();
   const submitRef = useRef<{ onSubmit: (data: DepositFormData) => Promise<void> } | null>(null);
   const methods = useForm({ mode: "onChange" });
   const { errors, isSubmitting, isValid } = methods.formState;
@@ -72,7 +90,7 @@ export const ModalAddLiquidity: React.FC<Props> = ({
   }, [isValid, methods.formState]);
 
   const onSubmit = methods.handleSubmit(async (data) => {
-    await submitRef.current?.onSubmit({
+    console.log("Submitting form data:", {
       ...data,
       slipageTolerance: (
         Number(slipageTolerance === "auto" ? "0.05" : slipageTolerance) / 100
@@ -120,7 +138,7 @@ export const ModalAddLiquidity: React.FC<Props> = ({
                   <AssetsStacked assets={pool.assets} />
                   <span>{name}</span>
                 </div>
-                {/* {pool.poolType === "concentrated" && (
+                {pool.poolType === "concentrated" && (
                   <div className="flex gap-2 lg:py-1 lg:px-[6px]">
                     <Tabs
                       color="orange"
@@ -134,17 +152,17 @@ export const ModalAddLiquidity: React.FC<Props> = ({
                       </TabList>
                     </Tabs>
                   </div>
-                )} */}
+                )}
               </div>
 
               <div className="flex flex-col gap-2">
                 <p className="text-white/50 text-sm">Deposit Amount</p>
                 <div className="flex gap-4 flex-col">
-                  {/* {side === "single" && pool.poolType === "concentrated" ? (
-                    <SingleSideAddLiquidity submitRef={submitRef} pool={pool} />
-                  ) : ( */}
-                  <DoubleSideAddLiquidity submitRef={submitRef} pool={pool} />
-                  {/* )} */}
+                  {/* Mock deposit form would go here */}
+                  <div className="bg-white/5 rounded-xl p-4">
+                    <p className="text-white/50 text-sm">Mock Deposit Form</p>
+                    <p className="text-sm">This is where the deposit form would be</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -166,7 +184,7 @@ export const ModalAddLiquidity: React.FC<Props> = ({
                 className="w-full text-base"
                 size="md"
                 type="button"
-                onClick={() => showModal(ModalTypes.connect_wallet)}
+                onClick={() => console.log("Connect wallet clicked")}
               >
                 Connect Wallet
               </Button>
@@ -176,7 +194,7 @@ export const ModalAddLiquidity: React.FC<Props> = ({
                 <IconCoins className="h-4 w-4" />
                 <p>Fee</p>
               </div>
-              <p className="text-white">-</p>
+              <p className="text-white">{pool.config.fee * 100}%</p>
             </div>
           </div>
         </form>

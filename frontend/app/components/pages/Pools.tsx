@@ -2,10 +2,6 @@
 import Input from "../atoms/Input";
 import { Button } from "../atoms/Button";
 import { twMerge } from "~/utils/twMerge";
-import { useModal } from "~/app/providers/ModalProvider";
-import { ModalTypes } from "~/types/modal";
-import { trpc } from "~/trpc/client";
-
 import type React from "react";
 import PoolsSkeleton from "../molecules/skeletons/PoolsSkeleton";
 import { CellPoolName } from "../atoms/cells/CellPoolName";
@@ -13,24 +9,141 @@ import { CellTVL } from "../atoms/cells/CellTVL";
 import { Table, TableRow } from "../atoms/Table";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { Pagination } from "../atoms/Pagination";
-import { blockedPoolAddresses } from "~/utils/consts";
-import type { PoolMetricSerialized } from "@towerfi/types";
 import { CellVolume } from "../atoms/cells/CellVolume";
 import { CellPoints } from "../atoms/cells/CellPoints";
-import { usePrices } from "~/app/hooks/usePrices";
-import { convertMicroDenomToDenom } from "~/utils/intl";
 import CellApr from "../atoms/cells/CellApr";
 import { useRouter } from "next/navigation";
 import { PeriodToggle, type Period } from "../atoms/PeriodToggle";
+import type { PoolType } from "../atoms/PoolPill";
+import type { Incentive } from "../atoms/PoolPill";
+
+// Mock data types
+interface Token {
+  symbol: string;
+  denom: string;
+  decimals: number;
+  logoURI: string;
+}
+
+interface MockPool {
+  poolAddress: string;
+  name: string;
+  poolType: PoolType;
+  poolLiquidity: number;
+  assets: Token[];
+  config: {
+    fee: number;
+  };
+}
+
+interface MockMetric {
+  tvl_usd: number;
+  average_apr: number;
+  token0_swap_volume: number;
+  token1_swap_volume: number;
+  token0_decimals: number;
+  token1_decimals: number;
+  token0_denom: string;
+  token1_denom: string;
+}
+
+interface MockIncentive {
+  rewards_per_second: number;
+  token_decimals: number;
+  reward_token: string;
+}
+
+// Mock data
+const mockPools: MockPool[] = [
+  {
+    poolAddress: "0x1234...5678",
+    name: "ETH/USDC",
+    poolType: "stable",
+    poolLiquidity: 1000000,
+    assets: [
+      {
+        symbol: "ETH",
+        denom: "ETH",
+        decimals: 18,
+        logoURI: "https://raw.githubusercontent.com/quasar-finance/quasar-resources/main/assets/tokens/eth.webp"
+      },
+      {
+        symbol: "USDC",
+        denom: "USDC",
+        decimals: 6,
+        logoURI: "https://raw.githubusercontent.com/quasar-finance/quasar-resources/main/assets/tokens/usdc.webp"
+      }
+    ],
+    config: {
+      fee: 0.003
+    }
+  },
+  {
+    poolAddress: "0x8765...4321",
+    name: "WBTC/ETH",
+    poolType: "weighted",
+    poolLiquidity: 2000000,
+    assets: [
+      {
+        symbol: "WBTC",
+        denom: "WBTC",
+        decimals: 8,
+        logoURI: "https://raw.githubusercontent.com/quasar-finance/quasar-resources/main/assets/tokens/wbtc.webp"
+      },
+      {
+        symbol: "ETH",
+        denom: "ETH",
+        decimals: 18,
+        logoURI: "https://raw.githubusercontent.com/quasar-finance/quasar-resources/main/assets/tokens/eth.webp"
+      }
+    ],
+    config: {
+      fee: 0.003
+    }
+  }
+];
+
+const mockMetrics: Record<string, MockMetric> = {
+  "0x1234...5678": {
+    tvl_usd: 1000000,
+    average_apr: 0.05,
+    token0_swap_volume: 100000,
+    token1_swap_volume: 100000,
+    token0_decimals: 18,
+    token1_decimals: 6,
+    token0_denom: "ETH",
+    token1_denom: "USDC"
+  },
+  "0x8765...4321": {
+    tvl_usd: 2000000,
+    average_apr: 0.06,
+    token0_swap_volume: 200000,
+    token1_swap_volume: 200000,
+    token0_decimals: 8,
+    token1_decimals: 18,
+    token0_denom: "WBTC",
+    token1_denom: "ETH"
+  }
+};
+
+const mockIncentives: Record<string, Incentive> = {
+  "0x1234...5678": {
+    symbol: "ETH",
+    amount: 100,
+    startDate: new Date("2024-01-01"),
+    endDate: new Date("2024-12-31")
+  },
+  "0x8765...4321": {
+    symbol: "ETH",
+    amount: 200,
+    startDate: new Date("2024-01-01"),
+    endDate: new Date("2024-12-31")
+  }
+};
 
 const Pools: React.FC = () => {
-  const { showModal } = useModal();
-  const { getPrice } = usePrices();
   const router = useRouter();
   const gridClass = "grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-4";
-  const { data: pools = [], isLoading } = trpc.local.pools.getPools.useQuery({
-    limit: 100,
-  });
 
   const [searchText, setSearchText] = useState("");
   const [aprTimeframe, setAprTimeframe] = useState<Period>("7d");
@@ -43,64 +156,6 @@ const Pools: React.FC = () => {
   const [sortField, setSortField] = useState<"poolLiquidity" | "apr" | "volume">("poolLiquidity");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
-  const poolAddresses = useMemo(() => [...pools.map((pool) => pool.poolAddress)].sort(), [pools]);
-
-  const startDate = useMemo(() => {
-    const date = new Date();
-    date.setUTCDate(date.getUTCDate() - (aprTimeframe === "7d" ? 7 : 1));
-    return date.toUTCString();
-  }, [aprTimeframe]);
-
-  const queryInput = useMemo(
-    () => ({
-      addresses: poolAddresses,
-      startDate,
-    }),
-    [poolAddresses, startDate],
-  );
-
-  const { data: metrics, isLoading: isMetricLoading } =
-    trpc.edge.indexer.getPoolMetricsByAddresses.useQuery(queryInput, {
-      refetchOnWindowFocus: false,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      enabled: poolAddresses.length > 0,
-      staleTime: 1000 * 60 * 5, // 5 minutes
-    });
-
-  const { data: incentiveAprs } = trpc.edge.indexer.getPoolIncentivesByAddresses.useQuery({
-    addresses: poolAddresses,
-    interval: aprTimeframe === "7d" ? 7 : 1,
-  });
-
-  // Calculate total APR including incentives
-  const calculateTotalApr = (metric: PoolMetricSerialized | null | undefined, incentive: any) => {
-    if (!metric) return 0;
-
-    const swapApr = metric.average_apr || 0;
-    const yearInSeconds = 31557600;
-    const total_incentives = incentive?.rewards_per_second
-      ? incentive.rewards_per_second * yearInSeconds
-      : 0;
-    const incentives_apr =
-      incentive?.rewards_per_second && metric.tvl_usd
-        ? (getPrice(
-            convertMicroDenomToDenom(
-              total_incentives || 0,
-              incentive?.token_decimals || 0,
-              incentive?.token_decimals || 0,
-              false,
-            ),
-            incentive?.reward_token || "",
-            { format: false },
-          ) /
-            metric.tvl_usd) *
-          100
-        : 0;
-
-    return swapApr + incentives_apr;
-  };
-
   const columns = [
     { key: "name", title: "Pool", className: "col-span-2 lg:col-span-1" },
     { key: "poolLiquidity", title: "TVL", sortable: true },
@@ -110,9 +165,9 @@ const Pools: React.FC = () => {
     { key: "actions", title: "" },
   ];
 
-  const filteredPools = pools
-    .filter((pool) => !blockedPoolAddresses.includes(pool.poolAddress))
-    .filter((pool) => pool.name.toLowerCase().includes(searchText.toLowerCase()));
+  const filteredPools = mockPools.filter((pool) => 
+    pool.name.toLowerCase().includes(searchText.toLowerCase())
+  );
 
   useEffect(() => {
     setCurrentPage(0);
@@ -123,75 +178,23 @@ const Pools: React.FC = () => {
   const totalPools = Math.ceil(filteredPools.length / numberPerPage);
 
   const sortedPools = [...filteredPools].sort((a, b) => {
-    if (isMetricLoading || !metrics) {
-      // Default sort by poolLiquidity when metrics aren't loaded
-      return sortDirection === "desc"
-        ? Number(b.poolLiquidity) - Number(a.poolLiquidity)
-        : Number(a.poolLiquidity) - Number(b.poolLiquidity);
-    }
-
-    const metricA = metrics[a.poolAddress];
-    const metricB = metrics[b.poolAddress];
-    const incentiveA = incentiveAprs?.[a.poolAddress];
-    const incentiveB = incentiveAprs?.[b.poolAddress];
+    const metricA = mockMetrics[a.poolAddress];
+    const metricB = mockMetrics[b.poolAddress];
+    const incentiveA = mockIncentives[a.poolAddress];
+    const incentiveB = mockIncentives[b.poolAddress];
 
     let valueA: number;
     let valueB: number;
 
     switch (sortField) {
       case "apr":
-        valueA = calculateTotalApr(metricA, incentiveA);
-        valueB = calculateTotalApr(metricB, incentiveB);
+        valueA = (metricA?.average_apr || 0) + (incentiveA?.amount || 0);
+        valueB = (metricB?.average_apr || 0) + (incentiveB?.amount || 0);
         break;
-      // TODO once the token price is fetched from the indexer, use that to sort
-      case "volume": {
-        // Convert token0 volume to USD
-        const token0VolumeA = getPrice(
-          convertMicroDenomToDenom(
-            metricA?.token0_swap_volume || 0,
-            metricA?.token0_decimals || 0,
-            metricA?.token0_decimals || 0,
-            false,
-          ),
-          metricA?.token0_denom || "",
-          { format: false },
-        );
-        const token0VolumeB = getPrice(
-          convertMicroDenomToDenom(
-            metricB?.token0_swap_volume || 0,
-            metricB?.token0_decimals || 0,
-            metricB?.token0_decimals || 0,
-            false,
-          ),
-          metricB?.token0_denom || "",
-          { format: false },
-        );
-        // Convert token1 volume to USD
-        const token1VolumeA = getPrice(
-          convertMicroDenomToDenom(
-            metricA?.token1_swap_volume || 0,
-            metricA?.token1_decimals || 0,
-            metricA?.token1_decimals || 0,
-            false,
-          ),
-          metricA?.token1_denom || "",
-          { format: false },
-        );
-        const token1VolumeB = getPrice(
-          convertMicroDenomToDenom(
-            metricB?.token1_swap_volume || 0,
-            metricB?.token1_decimals || 0,
-            metricB?.token1_decimals || 0,
-            false,
-          ),
-          metricB?.token1_denom || "",
-          { format: false },
-        );
-        // Sum USD volumes
-        valueA = token0VolumeA + token1VolumeA;
-        valueB = token0VolumeB + token1VolumeB;
+      case "volume":
+        valueA = (metricA?.token0_swap_volume || 0) + (metricA?.token1_swap_volume || 0);
+        valueB = (metricB?.token0_swap_volume || 0) + (metricB?.token1_swap_volume || 0);
         break;
-      }
       case "poolLiquidity":
         valueA = metricA?.tvl_usd || 0;
         valueB = metricB?.tvl_usd || 0;
@@ -211,6 +214,11 @@ const Pools: React.FC = () => {
       setSortField(field);
       setSortDirection("desc");
     }
+  };
+
+  const handleAddLiquidity = (pool: MockPool) => {
+    console.log('Adding liquidity to pool:', pool.name);
+    alert(`Adding liquidity to ${pool.name} pool`);
   };
 
   return (
@@ -247,7 +255,6 @@ const Pools: React.FC = () => {
         }))}
         gridClass={gridClass}
       >
-        {isLoading && <PoolsSkeleton className={twMerge("grid", gridClass)} />}
         {sortedPools
           .slice(currentPage * numberPerPage, currentPage * numberPerPage + numberPerPage)
           .map((pool, i) => (
@@ -260,35 +267,31 @@ const Pools: React.FC = () => {
                 assets={pool.assets}
                 name={pool.name}
                 poolType={pool.poolType}
-                config={pool.config}
-                incentives={incentiveAprs?.[pool.poolAddress]}
+                fee={pool.config.fee}
+                incentive={mockIncentives[pool.poolAddress]}
                 className="w-full pr-4"
               />
               <CellTVL
-                poolLiquidity={pool.poolLiquidity}
-                poolAddress={pool.poolAddress}
-                assets={pool.assets}
+                tvl={pool.poolLiquidity}
                 className="w-full pl-4"
               />
               <CellApr
                 title={`APR (${aprTimeframe})`}
-                metrics={metrics?.[pool.poolAddress]}
-                incentives={incentiveAprs?.[pool.poolAddress]}
-                isLoading={isMetricLoading}
+                feeApr={mockMetrics[pool.poolAddress]?.average_apr || 0}
+                incentiveApr={mockIncentives[pool.poolAddress]?.amount || 0}
                 className="w-full px-4"
               />
               <CellVolume
                 title={`Volume ${aprTimeframe === "1d" ? "24h" : "7d"}`}
-                metrics={metrics?.[pool.poolAddress]}
-                assets={pool.assets}
-                timeframe={aprTimeframe}
+                volume={(mockMetrics[pool.poolAddress]?.token0_swap_volume || 0) + (mockMetrics[pool.poolAddress]?.token1_swap_volume || 0)}
+                timeframe={aprTimeframe === "1d" ? "24h" : "7d"}
                 className="w-full px-4"
               />
               <CellPoints assets={pool.assets} poolType={pool.poolType} className="w-full px-1" />
               <div className="flex items-end justify-end w-full px-4">
                 <Button
                   variant="flat"
-                  onPress={() => showModal(ModalTypes.add_liquidity, false, { pool })}
+                  onPress={() => handleAddLiquidity(pool)}
                 >
                   Add Liquidity
                 </Button>

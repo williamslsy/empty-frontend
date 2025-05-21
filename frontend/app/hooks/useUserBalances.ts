@@ -1,40 +1,73 @@
-import { useAccount, usePublicClient } from "@cosmi/react";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 
-import type { Currency, WithAmount } from "@towerfi/types";
-import { getCw20Balance } from "~/actions/getCw20Balance";
+// Mock types
+interface Token {
+  symbol: string;
+  decimals: number;
+  type: "native" | "erc20";
+  address?: string;
+}
 
-export type UseUserBalancesParameters = {
-  assets: Currency[];
+// Mock token data
+const mockTokens: Token[] = [
+  {
+    symbol: "ETH",
+    decimals: 18,
+    type: "native"
+  },
+  {
+    symbol: "USDC",
+    decimals: 6,
+    type: "erc20",
+    address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+  },
+  {
+    symbol: "WBTC",
+    decimals: 8,
+    type: "erc20",
+    address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"
+  }
+];
+
+// Mock balance data
+const mockBalances: Record<string, string> = {
+  ETH: "1000000000000000000", // 1 ETH
+  USDC: "1000000", // 1 USDC
+  WBTC: "100000000" // 1 WBTC
 };
 
-export type UseUserBalancesReturnType = UseQueryResult<WithAmount<Currency>[]>;
+export type UseUserBalancesParameters = {
+  assets: Token[];
+  address?: string;
+};
+
+export type UseUserBalancesReturnType = UseQueryResult<(Token & { amount: string })[]>;
+
+// Mock wallet hook
+const useMockWallet = () => {
+  return {
+    address: "0x1234...5678",
+    isConnected: true
+  };
+};
 
 export function useUserBalances(parameters: UseUserBalancesParameters): UseUserBalancesReturnType {
   const { assets } = parameters;
-  const { address } = useAccount();
-  const publicClient = usePublicClient();
+  const { address } = useMockWallet();
 
   return useQuery({
     enabled: !!address,
     queryKey: ["balances", address, assets],
-    queryFn: async () =>
-      await Promise.all(
-        assets.map(async (asset) => {
-          if (asset.type !== "cw-20") {
-            const balance = await publicClient.queryBalance({
-              address: address as string,
-              denom: asset.denom,
-            });
-            return { ...asset, amount: balance?.amount || "0" };
-          }
-
-          const { balance } = await getCw20Balance(publicClient, {
-            address: asset.denom,
-            owner: address as string,
-          });
-          return { ...asset, amount: balance };
-        }),
-      ),
+    queryFn: async () => {
+      // In a real implementation, this would fetch from a blockchain
+      // For now, we'll use mock data
+      return assets.map(asset => ({
+        ...asset,
+        amount: mockBalances[asset.symbol] || "0"
+      }));
+    },
+    // Add some randomness to simulate real-world conditions
+    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 15000, // Consider data stale after 15 seconds
   });
 }
