@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { useModal } from '~/app/providers/ModalProvider';
 import { useToast } from '~/app/hooks';
 import { useConnect, useAccount } from 'wagmi';
-import { mainnet } from 'wagmi/chains';
+import { sepolia } from 'wagmi/chains';
 
 import type React from 'react';
 import { useEffect, useState } from 'react';
@@ -80,7 +80,7 @@ const ModalConnectWallet: React.FC = () => {
     <BasicModal title="Connect Wallet" classNames={{ wrapper: 'max-w-sm' }}>
       <div className="grid grid-cols-2 gap-3">
         {availableConnectors.length > 0 ? (
-          availableConnectors.map((connector) => <ConnectorButton key={connector.uid} connector={connector} onClick={() => connect({ connector, chainId: mainnet.id })} />)
+          availableConnectors.map((connector) => <ConnectorButton key={connector.uid} connector={connector} onClick={() => connect({ connector, chainId: sepolia.id })} />)
         ) : (
           <div className="col-span-2 text-center py-4">
             <p className="text-white/60">No wallets detected</p>

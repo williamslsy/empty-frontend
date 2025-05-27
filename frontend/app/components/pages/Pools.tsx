@@ -14,6 +14,7 @@ import type { PoolMetricSerialized } from '@towerfi/types';
 import { useRouter } from 'next/navigation';
 import { PeriodToggle, type Period } from '../atoms/PeriodToggle';
 import { getAllPools, type TMockPool } from '~/lib/mockPools';
+import { NetworkAlert } from '../molecules/NetworkAlert';
 
 const uniV3Pools = getAllPools();
 
@@ -136,6 +137,9 @@ const Pools: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-8 px-4 pb-20 max-w-[120rem] mx-auto w-full min-h-[65vh] lg:pt-8">
+      {/* Network Alert */}
+      <NetworkAlert />
+
       <div className="flex gap-3 justify-between items-center lg:pl-3 lg:pr-2 pl-3">
         <h1 className="text-xl">Pools</h1>
         <div className="flex gap-3 h-[42px] items-center px-2">

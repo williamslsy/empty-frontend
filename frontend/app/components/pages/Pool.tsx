@@ -22,6 +22,7 @@ import Link from 'next/link';
 import AssetsStacked from '../atoms/AssetsStacked';
 import { Metrics } from '../organisms/pool/Metrics';
 import { Overview } from '../organisms/pool/Overview';
+import { NetworkAlert } from '../molecules/NetworkAlert';
 
 const mockMetrics: Record<string, any> = {
   '0x5878d73d8a6306270ae6556a02ffdc2810ef999f': {
@@ -144,6 +145,9 @@ const Pool: React.FC<{
       <div>
         <BackButton text="Pools" returnToURL="/pools" />
       </div>
+
+      {/* Network Alert */}
+      <NetworkAlert className="mb-4" />
 
       {isLoading && <PoolSkeleton />}
       {!isLoading && (
