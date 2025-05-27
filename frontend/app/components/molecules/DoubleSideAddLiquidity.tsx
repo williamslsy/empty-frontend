@@ -23,8 +23,8 @@ interface Position {
 
 interface Props {
   pool: TMockPool;
-  position?: Position; // Optional position for increasing liquidity
-  isIncreasingLiquidity?: boolean; // Flag to determine if this is for increasing liquidity
+  position?: Position;
+  isIncreasingLiquidity?: boolean;
   minPrice: number;
   maxPrice: number;
   slippageTolerance: string;

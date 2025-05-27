@@ -150,7 +150,7 @@ export function useHistoricalPrices(token0Symbol: string, token1Symbol: string, 
       return generateRealisticMockData(token0Symbol, token1Symbol, currentPrice || 0, 7);
     },
     {
-      staleTime: 5 * 60 * 1000,
+      staleTime: 10 * 60 * 1000,
       cacheTime: 10 * 60 * 1000,
       retry: 1,
       enabled: !!currentPrice && currentPrice > 0, // Only run when we have a valid current price

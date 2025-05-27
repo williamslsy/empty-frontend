@@ -21,8 +21,44 @@ import { UserPositions } from '../organisms/pool/UserPositions';
 import Link from 'next/link';
 import AssetsStacked from '../atoms/AssetsStacked';
 import { Metrics } from '../organisms/pool/Metrics';
-import { PeriodToggle } from '../atoms/PeriodToggle';
 import { Overview } from '../organisms/pool/Overview';
+
+const mockMetrics: Record<string, any> = {
+  '0x5878d73d8a6306270ae6556a02ffdc2810ef999f': {
+    average_apr: 12.5,
+    tvl_usd: 30000000,
+    token0_swap_volume: 150000000000000000,
+    token1_swap_volume: 1250000000000,
+    token0_decimals: 18,
+    token1_decimals: 6,
+    token0_denom: '0x7b79995e5f793a07bc00c21412e50ecae098e7f9',
+    token1_denom: '0xf40e9240464482db4b0e95beacb14c3de04c5715',
+    pool_address: '0x5878d73d8a6306270ae6556a02ffdc2810ef999f',
+    token0_price: 2000,
+    token1_price: 1,
+    total_incentives: '',
+  },
+  '0x935c8743827a2a72c8e7c8e989ac1a9e16e94395': {
+    average_apr: 8.2,
+    tvl_usd: 10000000,
+    token0_swap_volume: 850000000000000000,
+    token1_swap_volume: 850000000000000000,
+    token0_decimals: 18,
+    token1_decimals: 18,
+    token0_denom: '0x8427ca5ac3d8c857239d6a8767ce57741e253569',
+    token1_denom: '0xfe8668d7a038aea654964199e16b19454cfc2b50',
+    pool_address: '0x935c8743827a2a72c8e7c8e989ac1a9e16e94395',
+    token0_price: 1,
+    token1_price: 1,
+    total_incentives: '',
+  },
+};
+
+const mockIncentiveApr = {
+  rewards_per_second: 0.5,
+  token_decimals: 18,
+  reward_token: '0x7b79995e5f793a07bc00c21412e50ecae098e7f9',
+};
 
 const Pool: React.FC<{
   address: string;
@@ -103,43 +139,6 @@ const Pool: React.FC<{
     [setAprTimeframe]
   );
 
-  const mockMetrics: Record<string, any> = {
-    '0x5878d73d8a6306270ae6556a02ffdc2810ef999f': {
-      average_apr: 12.5,
-      tvl_usd: 30000000,
-      token0_swap_volume: 150000000000000000,
-      token1_swap_volume: 1250000000000,
-      token0_decimals: 18,
-      token1_decimals: 6,
-      token0_denom: '0x7b79995e5f793a07bc00c21412e50ecae098e7f9',
-      token1_denom: '0xf40e9240464482db4b0e95beacb14c3de04c5715',
-      pool_address: '0x5878d73d8a6306270ae6556a02ffdc2810ef999f',
-      token0_price: 2000,
-      token1_price: 1,
-      total_incentives: '',
-    },
-    '0x935c8743827a2a72c8e7c8e989ac1a9e16e94395': {
-      average_apr: 8.2,
-      tvl_usd: 10000000,
-      token0_swap_volume: 850000000000000000,
-      token1_swap_volume: 850000000000000000,
-      token0_decimals: 18,
-      token1_decimals: 18,
-      token0_denom: '0x8427ca5ac3d8c857239d6a8767ce57741e253569',
-      token1_denom: '0xfe8668d7a038aea654964199e16b19454cfc2b50',
-      pool_address: '0x935c8743827a2a72c8e7c8e989ac1a9e16e94395',
-      token0_price: 1,
-      token1_price: 1,
-      total_incentives: '',
-    },
-  };
-
-  const mockIncentiveApr = {
-    rewards_per_second: 0.5,
-    token_decimals: 18,
-    reward_token: '0x7b79995e5f793a07bc00c21412e50ecae098e7f9',
-  };
-
   return (
     <div className="flex flex-col gap-8 px-4 pb-20 max-w-[84.5rem] mx-auto w-full min-h-[65vh] lg:pt-8">
       <div>
@@ -175,6 +174,7 @@ const Pool: React.FC<{
                 {userAddress && (
                   <Button variant="flat" size="sm" onPress={handleRefreshPositions} className="gap-2" isIconOnly isDisabled={isRefreshing}>
                     <IconRefresh size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                    <span className="hidden lg:block ml-1">Refresh</span>
                   </Button>
                 )}
               </div>

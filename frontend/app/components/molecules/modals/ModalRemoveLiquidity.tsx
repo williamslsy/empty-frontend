@@ -101,7 +101,7 @@ const ModalRemoveLiquidity: React.FC<ModalRemoveLiquidityProps> = ({ pool, posit
     );
 
     try {
-      const success = await decreaseLiquidity(position.tokenId, pool.id, percentage, 0.005);
+      const success = await decreaseLiquidity(position.tokenId, pool.id, percentage);
 
       if (success) {
         const actionText = percentage === 100 ? 'Position closed' : 'Liquidity removed';
