@@ -1,51 +1,49 @@
-import { twMerge } from "~/utils/twMerge";
+import type React from 'react';
+import { twMerge } from '~/utils/twMerge';
 
-import type { Currency } from "@towerfi/types";
-import type React from "react";
-interface Props {
-  assets?: Currency[];
-  size?: "sm" | "md" | "lg";
+interface Asset {
+  symbol: string;
+  logoURI: string;
 }
 
-const sizes = {
-  sm: { stackGap: 2, asset: "min-w-6 min-h-6 w-6 h-6" },
-  md: { stackGap: 4, asset: "min-w-8 min-h-8 w-8 h-8" },
-  lg: { stackGap: 4, asset: "min-w-10 min-h-10 w-10 h-10" },
-};
+interface Props {
+  assets: Asset[];
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+}
 
-const AssetsStacked: React.FC<Props> = ({ assets, size = "md" }) => {
-  if (!assets) {
-    return (
-      <div className="flex">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <img
-            key={`asset-${i}-${crypto.randomUUID()}`}
-            src="/assets/default.png"
-            alt="default-asset"
-            className={twMerge(
-              `z-${10 - i}} relative rounded-full border-[3px] border-tw-bg bg-tw-bg animate-pulse select-none`,
-              i > 0 && `-ml-${i * sizes[size].stackGap}`,
-              sizes[size].asset,
-            )}
-          />
-        ))}
-      </div>
-    );
-  }
+const AssetsStacked: React.FC<Props> = ({ assets, size = 'md', className }) => {
+  const sizeClasses = {
+    sm: 'w-6 h-6',
+    md: 'w-8 h-8',
+    lg: 'w-10 h-10',
+  };
+
+  const offsetClasses = {
+    sm: '-ml-2',
+    md: '-ml-3',
+    lg: '-ml-4',
+  };
 
   return (
-    <div className="flex">
-      {assets.map((pair, i) => (
-        <img
-          key={pair.symbol + i}
-          src={pair.logoURI}
-          alt={pair.symbol}
-          className={twMerge(
-            `z-${10 - i} relative rounded-full border-[3px] border-tw-bg min-w-8 min-h-8 w-8 h-8 bg-tw-bg select-none`,
-            i > 0 && `-ml-${i * sizes[size].stackGap}`,
-            sizes[size].asset,
-          )}
-        />
+    <div className={twMerge('flex items-center', className)}>
+      {assets.map((asset, index) => (
+        <div
+          key={index}
+          className={twMerge('relative rounded-full border-2 border-tw-bg bg-tw-bg overflow-hidden', sizeClasses[size], index > 0 && offsetClasses[size])}
+          style={{ zIndex: assets.length - index }}
+        >
+          <img
+            src="/assets/default.png"
+            // alt={asset.symbol}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              // Fallback to a default token icon if image fails to load
+              const target = e.target as HTMLImageElement;
+              target.src = '/assets/default.png';
+            }}
+          />
+        </div>
       ))}
     </div>
   );

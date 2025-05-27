@@ -1,116 +1,193 @@
-import type { PoolInfo } from "@towerfi/types";
-import { useMemo } from "react";
-import { trpc } from "~/trpc/client";
-import Skeleton from "../../atoms/Skeleton";
-import { useModal } from "~/app/providers/ModalProvider";
-import { Button } from "../../atoms/Button";
-import { ModalTypes } from "~/types/modal";
-import { IconRefresh } from "@tabler/icons-react";
-import { CellDataToken } from "../../atoms/cells/CellDataToken";
-import { CellClaimRewards } from "../../atoms/cells/CellClaimRewards";
-import clsx from "clsx";
+import { useState, useCallback } from 'react';
+import Skeleton from '../../atoms/Skeleton';
+import UserPositionSkeleton from '../../atoms/UserPositionSkeleton';
+import { useModal } from '~/app/providers/ModalProvider';
+import { Button } from '../../atoms/Button';
+import { ModalTypes } from '~/types/modal';
+import { IconRefresh } from '@tabler/icons-react';
+import clsx from 'clsx';
+import { TMockPool } from '~/lib/mockPools';
+import { useManagePosition } from '~/app/hooks/useManagePosition';
+import { useUserPositions } from '~/app/hooks/useUserPositions';
+import { useToast } from '~/app/hooks';
+import { getPositionDetails } from '~/utils/convertLiquidityToTokenAmounts';
+import { useTokenPrices } from '~/app/hooks/useTokenPrices';
 
 export const UserPositions: React.FC<{
   userAddress: string;
-  pool: PoolInfo;
-}> = ({ userAddress, pool }) => {
-  const {
-    data: userPools = [],
-    isLoading: isUserPoolLoading,
-    isRefetching: isUserPoolRefetching,
-    refetch: refetchUserPools,
-  } = trpc.local.pools.getUserPools.useQuery({
-    address: userAddress,
-  });
-
-  const usersPosition = useMemo(
-    () =>
-      userPools.find((userPool) => {
-        return userPool.poolInfo.poolAddress === pool.poolAddress;
-      }),
-    [userPools],
-  );
-
+  pool: TMockPool;
+  isRefreshing?: boolean;
+}> = ({ userAddress, pool, isRefreshing = false }) => {
+  const { positions, isLoading, refetch } = useUserPositions();
+  const { collectFees } = useManagePosition();
+  const [isRefetching, setIsRefetching] = useState(false);
+  const [claimingFees, setClaimingFees] = useState<number | null>(null);
   const { showModal } = useModal();
+  const { toast } = useToast();
+  const { getTokenPriceOnly, formatPrice } = useTokenPrices();
 
-  const refreshButton = useMemo(
-    () => (
-      <button
-        type="button"
-        onClick={() => {
-          if (isUserPoolRefetching) {
-            return;
-          }
+  const handleClaimFees = useCallback(
+    async (tokenId: number) => {
+      if (claimingFees === tokenId) return;
 
-          refetchUserPools();
-        }}
-      >
-        <IconRefresh
-          size={20}
-          className={clsx(
-            "text-tw-orange-400 transition-transform-colors",
-            isUserPoolRefetching && "animate-[spin_1.5s_linear_infinite_reverse] text-white/50",
-          )}
-        />
-      </button>
-    ),
-    [isUserPoolRefetching, refetchUserPools],
+      setClaimingFees(tokenId);
+
+      try {
+        const success = await collectFees(tokenId, pool.id, userAddress);
+
+        if (success) {
+          toast.success({
+            title: 'Fees claimed successfully',
+            description: `Claimed fees for position #${tokenId}`,
+          });
+          refetch();
+        }
+      } catch (error) {
+        console.error('Error claiming fees:', error);
+        toast.error({
+          title: 'Failed to claim fees',
+          description: 'Please try again',
+        });
+      } finally {
+        setClaimingFees(null);
+      }
+    },
+    [claimingFees, collectFees, pool.id, userAddress, toast, refetch]
   );
+
+  const token0PriceUSD = getTokenPriceOnly(pool.token0.id);
+  const token1PriceUSD = getTokenPriceOnly(pool.token1.id);
+
+  if (isLoading || isRefreshing) {
+    return (
+      <div className="space-y-6">
+        <UserPositionSkeleton />
+        <UserPositionSkeleton />
+      </div>
+    );
+  }
+
+  if (!isLoading && !positions.length) {
+    return (
+      <div className="border border-white/10 p-6 rounded-xl">
+        <div className="flex items-center justify-between w-full">
+          <span className="text-white/75">No positions found</span>
+          <button type="button" onClick={refetch} disabled={isRefetching}>
+            <IconRefresh size={20} className={clsx('text-tw-orange-400 transition-transform-colors', isRefetching && 'animate-[spin_1.5s_linear_infinite_reverse] text-white/50')} />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <div className="p-4 text-sm text-white/50 hidden lg:flex">
-        <div className="flex-1">Total Value</div>
-        <div className="flex-1">Claimable Incentives</div>
-        <div className="flex-1"></div>
-      </div>
+    <div className="space-y-6">
+      {positions.map((position) => {
+        const positionDetails = getPositionDetails(
+          pool,
+          {
+            tokenId: position.tokenId,
+            liquidity: position.liquidity,
+            tickLower: position.tickLower,
+            tickUpper: position.tickUpper,
+          },
+          {
+            decimals: pool.token0.decimals,
+            symbol: pool.token0.symbol,
+          },
+          {
+            decimals: pool.token1.decimals,
+            symbol: pool.token1.symbol,
+          },
+          token0PriceUSD,
+          token1PriceUSD
+        );
 
-      <div className="flex-col flex lg:flex-row lg:space-y-0 space-y-4 items-center flex-wrap border border-white/10 p-4 rounded-xl">
-        {isUserPoolLoading && <Skeleton className="h-8 w-full" />}
-        {!isUserPoolLoading && !usersPosition && (
-          <div className="flex items-center justify-between w-full h-full">
-            <p className="text-white/75">No positions found</p>
-            {refreshButton}
+        const hasClaimableFees = position.tokensOwed0 !== '0' || position.tokensOwed1 !== '0';
+        const claimableFeesUSD = parseFloat(position.tokensOwed0) * token0PriceUSD + parseFloat(position.tokensOwed1) * token1PriceUSD;
+
+        return (
+          <div key={position.tokenId} className="border border-white/10 p-6 rounded-xl">
+            <div className="grid grid-cols-3 gap-6 mb-6">
+              <div className="text-white/50 text-sm font-medium">Total Value</div>
+              <div className="text-white/50 text-sm font-medium text-center">Claimable Incentives</div>
+              <div className="text-white/50 text-sm font-medium text-right">Actions</div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-6 items-center">
+              <div className="relative group">
+                <div className="text-white text-2xl font-semibold cursor-help">{formatPrice(positionDetails.totalUSD)}</div>
+                <div className="absolute bottom-full left-0 mb-3 p-4 bg-black/90 border border-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 min-w-[240px]">
+                  <div className="text-white/50 text-xs mb-3 font-medium uppercase tracking-wide">Total Token Value</div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <img src="/assets/default.png" alt={pool.token0.symbol} className="w-4 h-4" />
+                        <span className="text-white font-medium">{pool.token0.symbol}</span>
+                        <span className="text-white/80">{positionDetails.amount0Formatted.toFixed(4)}</span>
+                      </div>
+                      <span className="text-white/75 font-medium">{formatPrice(positionDetails.amount0USD)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <img src="/assets/default.png" alt={pool.token1.symbol} className="w-4 h-4" />
+                        <span className="text-white font-medium">{pool.token1.symbol}</span>
+                        <span className="text-white/80">{positionDetails.amount1Formatted.toFixed(4)}</span>
+                      </div>
+                      <span className="text-white/75 font-medium">{formatPrice(positionDetails.amount1USD)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center gap-3">
+                <div className="text-white text-2xl font-semibold">{formatPrice(claimableFeesUSD)}</div>
+                <Button
+                  variant="flat"
+                  size="sm"
+                  onPress={() => handleClaimFees(position.tokenId)}
+                  isLoading={claimingFees === position.tokenId}
+                  isDisabled={claimingFees !== null || !hasClaimableFees}
+                  className="px-4 py-2"
+                >
+                  Claim
+                </Button>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <Button
+                  variant="flat"
+                  size="sm"
+                  onPress={() => {
+                    showModal(ModalTypes.add_liquidity, true, {
+                      pool,
+                      position,
+                      isIncreasingLiquidity: true,
+                    });
+                  }}
+                  className="w-full py-2.5"
+                >
+                  Add Liquidity
+                </Button>
+                <Button
+                  variant="flat"
+                  size="sm"
+                  onPress={() => {
+                    showModal(ModalTypes.remove_liquidity, false, {
+                      pool,
+                      position,
+                      refreshUserPools: refetch,
+                    });
+                  }}
+                  className="w-full py-2.5"
+                >
+                  Remove Liquidity
+                </Button>
+              </div>
+            </div>
           </div>
-        )}
-        {!isUserPoolLoading && usersPosition && (
-          <>
-            <div className="flex-1">
-              <CellDataToken
-                title="Total Value"
-                poolAddress={pool.poolAddress}
-                amount={usersPosition.userBalance.staked_share_amount}
-                tokens={pool.assets}
-                className="w-full"
-              />
-            </div>
-            <div className="flex-1">
-              <CellClaimRewards
-                title="Claimable Incentives"
-                rewards={usersPosition.incentives}
-                poolToken={usersPosition.userBalance.lpToken}
-                stakedAmount={usersPosition.userBalance.staked_share_amount}
-                className="w-full"
-              />
-            </div>
-            <div className="flex-1 md:w-26 items-center flex lg:justify-end gap-2">
-              {refreshButton}
-              <Button
-                variant="flat"
-                onPress={() => {
-                  showModal(ModalTypes.remove_liquidity, false, {
-                    pool,
-                    balance: usersPosition.userBalance,
-                    refreshUserPools: () => setTimeout(() => refetchUserPools(), 2000),
-                  });
-                }}
-              >
-                Remove
-              </Button>
-            </div>
-          </>
-        )}
-      </div>
-    </>
+        );
+      })}
+    </div>
   );
 };
