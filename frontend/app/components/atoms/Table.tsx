@@ -18,7 +18,7 @@ interface TableProps {
 export const Table: React.FC<TableProps> = ({ columns, children, gridClass, className }) => {
   return (
     <div className={twMerge('flex flex-col gap-3', className)}>
-      <div className={twMerge('hidden lg:grid px-4 text-xs text-white/50', gridClass)}>
+      <div className={twMerge('hidden lg:grid px-4 text-xs text-white/50', gridClass) || 'hidden lg:grid px-4 text-xs text-white/50'}>
         {columns.map((col) => (
           <div key={col.key} className={col.className}>
             {col.title}

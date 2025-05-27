@@ -1,26 +1,26 @@
-import type React from "react";
-import { twMerge } from "~/utils/twMerge";
-import Skeleton from "../../atoms/Skeleton";
-import AssetsStacked from "../../atoms/AssetsStacked";
-import Pill from "../../atoms/Pill";
-import { Button } from "../../atoms/Button";
-import { TableRow } from "../../atoms/Table";
-import { IconDots } from "@tabler/icons-react";
+import type React from 'react';
+import { twMerge } from '~/utils/twMerge';
+import Skeleton from '../../atoms/Skeleton';
+import AssetsStacked from '../../atoms/AssetsStacked';
+import Pill from '../../atoms/Pill';
+import { Button } from '../../atoms/Button';
+import { TableRow } from '../../atoms/Table';
+import { IconDots } from '@tabler/icons-react';
 
 interface Props {
   className?: string;
 }
 
-const PoolsDashboardSkeleton: React.FC<Props> = ({ className = "" }) => {
+const PoolsDashboardSkeleton: React.FC<Props> = ({ className = '' }) => {
   return (
     <>
       {Array.from({ length: 2 }).map((_, i) => {
         return (
-          <TableRow key={"skeleton" + i} gridClass={twMerge("flex flex-wrap lg:grid ", className)}>
+          <TableRow key={'skeleton' + i} gridClass={twMerge('flex flex-wrap lg:grid ', className) || 'flex flex-wrap lg:grid'}>
             <div className="flex flex-col gap-2 order-1 col-span-1 w-[80%] lg:w-auto">
               <div className=" flex items-center  justify-between gap-3">
                 <div className="flex items-center gap-3 w-full">
-                  <AssetsStacked />
+                  <AssetsStacked assets={[{ symbol: 'TOKEN0' }, { symbol: 'TOKEN1' }]} />
                   <Skeleton className="w-full flex-1 h-6 min-w-[3rem]" />
                 </div>
                 <Pill className="animate-pulse ">type</Pill>
