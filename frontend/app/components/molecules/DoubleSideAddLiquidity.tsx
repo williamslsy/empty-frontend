@@ -41,7 +41,7 @@ export const DoubleSideAddLiquidity: React.FC<Props> = ({ pool, position, isIncr
     setValue,
     formState: { errors },
   } = useFormContext();
-  const { showModal } = useModal();
+  const { showModal, hideModal } = useModal();
   const { getBalanceAsNumber, isLoading: isLoadingBalances } = useWalletBalances();
   const { mintPosition, increaseLiquidity } = useManagePosition();
   const { address } = useAccount();
@@ -212,13 +212,13 @@ export const DoubleSideAddLiquidity: React.FC<Props> = ({ pool, position, isIncr
       if (success) {
         setValue(token0.symbol, '');
         setValue(token1.symbol, '');
-
-        showModal(ModalTypes.deposit_completed, true, {
-          tokens: [
-            { amount: token0Amount, ...token0 },
-            { amount: token1Amount, ...token1 },
-          ],
-        });
+        hideModal();
+        // showModal(ModalTypes.deposit_completed, true, {
+        //   tokens: [
+        //     { amount: token0Amount, ...token0 },
+        //     { amount: token1Amount, ...token1 },
+        //   ],
+        // });
 
         toast.success({
           title: isIncreasingLiquidity ? 'Liquidity increased successfully' : 'Position created successfully',

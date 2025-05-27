@@ -234,23 +234,23 @@ export function useManagePosition() {
           maxPriorityFeePerGas: parseGwei(MAX_PRIORITY_FEE_PER_GAS),
           gas: BigInt(500000),
         });
-
-        if (hash) {
-          toast.success({
-            title: 'Position minted successfully',
-            description: `Transaction: ${hash}`,
-          });
-          return true;
-        }
+        //  TODO: handle all success messages to trigger user position refetch
+        // if (hash) {
+        //   toast.success({
+        //     title: 'Position minted successfully',
+        //     description: `Transaction: ${hash}`,
+        //   });
+        //   return true;
+        // }
 
         return false;
       } catch (error) {
         console.error('Mint position error:', error);
         const message = error instanceof Error ? error.message : 'Unknown error occurred';
-        toast.error({
-          title: 'Failed to mint position',
-          description: message,
-        });
+        // toast.error({
+        //   title: 'Failed to mint position',
+        //   description: message,
+        // });
         return false;
       } finally {
         setIsLoading(false);
@@ -354,17 +354,17 @@ export function useManagePosition() {
           gas: BigInt(500000),
         });
 
-        toast.success({
-          title: 'Liquidity increased successfully',
-          description: `Transaction: ${hash}`,
-        });
+        // toast.success({
+        //   title: 'Liquidity increased successfully',
+        //   description: `Transaction: ${hash}`,
+        // });
         return true;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error occurred';
-        toast.error({
-          title: 'Failed to increase liquidity',
-          description: message,
-        });
+        // toast.error({
+        //   title: 'Failed to increase liquidity',
+        //   description: message,
+        // });
         console.error('Increase liquidity error:', error);
         return false;
       } finally {
@@ -444,17 +444,17 @@ export function useManagePosition() {
           gas: BigInt(800000),
         });
 
-        toast.success({
-          title: 'Liquidity removed successfully',
-          description: `Tokens have been returned to your wallet. Transaction: ${hash}`,
-        });
+        // toast.success({
+        //   title: 'Liquidity removed successfully',
+        //   description: `Tokens have been returned to your wallet. Transaction: ${hash}`,
+        // });
         return true;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error occurred';
-        toast.error({
-          title: 'Failed to remove liquidity',
-          description: message,
-        });
+        // toast.error({
+        //   title: 'Failed to remove liquidity',
+        //   description: message,
+        // });
         console.error('Remove liquidity error:', error);
         return false;
       } finally {

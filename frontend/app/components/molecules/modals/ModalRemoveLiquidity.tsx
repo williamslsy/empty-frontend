@@ -26,10 +26,10 @@ interface Position {
 interface ModalRemoveLiquidityProps {
   pool: TMockPool;
   position: Position;
-  refreshUserPools?: () => void;
+  refetchUserPositions?: () => void;
 }
 
-const ModalRemoveLiquidity: React.FC<ModalRemoveLiquidityProps> = ({ pool, position, refreshUserPools }) => {
+const ModalRemoveLiquidity: React.FC<ModalRemoveLiquidityProps> = ({ pool, position, refetchUserPositions }) => {
   const { token0, token1 } = pool;
   const name = `${token0.symbol} / ${token1.symbol}`;
   const { toast } = useToast();
@@ -37,7 +37,6 @@ const ModalRemoveLiquidity: React.FC<ModalRemoveLiquidityProps> = ({ pool, posit
   const { address } = useAccount();
   const { decreaseLiquidity } = useManagePosition();
   const { getTokenPriceOnly, formatPrice } = useTokenPrices();
-  const { refetch: refetchUserPositions } = useUserPositions();
 
   const [percentage, setPercentage] = useState(50);
   const [isLoading, setIsLoading] = useState(false);
@@ -103,6 +102,11 @@ const ModalRemoveLiquidity: React.FC<ModalRemoveLiquidityProps> = ({ pool, posit
     try {
       const success = await decreaseLiquidity(position.tokenId, pool.id, percentage);
 
+      setTimeout(() => {
+        refetchUserPositions?.();
+        console.log('refetched');
+      }, 5000);
+
       if (success) {
         const actionText = percentage === 100 ? 'Position closed' : 'Liquidity removed';
         const descriptionText =
@@ -116,7 +120,6 @@ const ModalRemoveLiquidity: React.FC<ModalRemoveLiquidityProps> = ({ pool, posit
         });
 
         hideModal();
-        refetchUserPositions();
       }
     } catch (error: unknown) {
       console.error('Remove liquidity error:', error);

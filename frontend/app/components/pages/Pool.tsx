@@ -23,6 +23,7 @@ import AssetsStacked from '../atoms/AssetsStacked';
 import { Metrics } from '../organisms/pool/Metrics';
 import { Overview } from '../organisms/pool/Overview';
 import { NetworkAlert } from '../molecules/NetworkAlert';
+import { usePoolInfo } from '~/app/hooks/usePoolInfo';
 
 const mockMetrics: Record<string, any> = {
   '0x5878d73d8a6306270ae6556a02ffdc2810ef999f': {
@@ -139,7 +140,6 @@ const Pool: React.FC<{
     },
     [setAprTimeframe]
   );
-
   return (
     <div className="flex flex-col gap-8 px-4 pb-20 max-w-[84.5rem] mx-auto w-full min-h-[65vh] lg:pt-8">
       <div>

@@ -41,11 +41,11 @@ export const mockPools = {
           name: 'USD Coin',
           decimals: 6, // converted to number
         },
-        feeTier: 100, // converted to number
-        tick: -23, // converted to number
+        feeTier: 500, // converted to number
+        tick: -353700, // converted to number
         sqrtPriceX96: '1773452964481733236174240000000',
         liquidity: '15000000000000000000000',
-        tickSpacing: 1, // 0.01% pools use tickSpacing 1
+        tickSpacing: 100, // 0.01% pools use tickSpacing 1
         volume24h: '1250000000000',
         tvl: '30000000000000',
         apr: 12.5,
@@ -116,11 +116,11 @@ export const mockPools = {
           name: 'Dai Stablecoin',
           decimals: 18,
         },
-        feeTier: 100, // 0.01%
-        tick: -276350, // Approximately $2000 per ETH
+        feeTier: 500,
+        tick: -353700, // Approximately $2000 per ETH
         sqrtPriceX96: '1773452964481733236174240000000',
         liquidity: '8000000000000000000000', // 8,000 ETH equivalent
-        tickSpacing: 1,
+        tickSpacing: 100,
         volume24h: '750000000000', // $750K
         tvl: '16000000000000', // $16M
         apr: 9.3,

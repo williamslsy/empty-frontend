@@ -172,7 +172,7 @@ export const UserPositions: React.FC<{
                     showModal(ModalTypes.remove_liquidity, false, {
                       pool,
                       position,
-                      refreshUserPools: refetch,
+                      refreshUserPositions: refetch,
                     });
                   }}
                   className="w-full py-2.5"
