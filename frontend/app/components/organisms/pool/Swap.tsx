@@ -2,15 +2,12 @@ import type React from 'react';
 import { useEffect, useState, useMemo } from 'react';
 import RotateButton from '../../atoms/RotateButton';
 import { useFormContext, FormProvider, useForm } from 'react-hook-form';
-import { convertDenomToMicroDenom, convertMicroDenomToDenom } from '~/utils/intl';
-import { AssetInput } from '../../atoms/AssetInput';
 import type { PoolInfo } from '@towerfi/types';
 import { usePrices } from '~/app/hooks/usePrices';
 import { SwapPriceImpactWarning } from '../../molecules/Swap/SlippageImpactWarning';
-import { TMockPool } from './Pool';
 
 interface SwapProps {
-  pool: TMockPool;
+  pool: PoolInfo;
   onSubmittedTx: () => void;
 }
 
@@ -97,16 +94,16 @@ const SwapInternal: React.FC<SwapProps> = ({ pool, onSubmittedTx }) => {
 
   return (
     <div className="flex flex-col gap-2 w-full items-center justify-center">
-      <AssetInput
+      {/* <AssetInput
         name="fromAmount"
         control={control}
         assets={[fromToken, toToken]}
         disabled={isSubmitting || (isLoading && activeInput === 'to')}
         onSelect={setFromToken}
         onFocus={() => setActiveInput('from')}
-      />
+      /> */}
       <RotateButton onClick={onRotate} />
-      <AssetInput
+      {/* <AssetInput
         name="toAmount"
         control={control}
         assets={[toToken, fromToken]}
@@ -114,7 +111,7 @@ const SwapInternal: React.FC<SwapProps> = ({ pool, onSubmittedTx }) => {
         onSelect={setToToken}
         onFocus={() => setActiveInput('to')}
         validateBalance={false}
-      />
+      /> */}
       <SwapPriceImpactWarning priceImpact={priceImpact} isLoading={isLoading} />
     </div>
   );
