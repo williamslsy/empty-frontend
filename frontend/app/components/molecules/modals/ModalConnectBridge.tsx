@@ -1,65 +1,19 @@
 import BasicModal from "~/app/components/templates/BasicModal";
 import { Button } from "~/app/components/atoms/Button";
 import Image from "next/image";
+import { useModal } from "~/app/providers/ModalProvider";
+import { useToast } from "~/app/hooks";
+
 import type React from "react";
-import { useState } from "react";
+import { useAccount, useConnectors } from "@cosmi/react";
+import { babylon } from "~/config/chains/babylon";
+import { useEffect, useState } from "react";
 import CopyMessage from "../../atoms/CopyMessage";
+import { IntlAddress } from "~/utils/intl";
 import { IconCopy, IconLogout } from "@tabler/icons-react";
+import { set } from "react-hook-form";
 
-// Mock types
-interface MockConnector {
-  id: string;
-  name: string;
-  isInstalled: boolean;
-  uid: string;
-}
-
-// Mock data
-const mockConnectors: MockConnector[] = [
-  {
-    id: "metamask",
-    name: "MetaMask",
-    isInstalled: true,
-    uid: "metamask-1"
-  },
-  {
-    id: "walletconnect",
-    name: "WalletConnect",
-    isInstalled: true,
-    uid: "walletconnect-1"
-  },
-  {
-    id: "coinbase",
-    name: "Coinbase",
-    isInstalled: true,
-    uid: "coinbase-1"
-  }
-];
-
-// Mock wallet hook
-const useMockWallet = () => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [address, setAddress] = useState("");
-
-  const connect = () => {
-    setIsConnected(true);
-    setAddress("0x1234...5678");
-  };
-
-  const disconnect = () => {
-    setIsConnected(false);
-    setAddress("");
-  };
-
-  return {
-    isConnected,
-    address,
-    connect,
-    disconnect
-  };
-};
-
-function ConnectorButton({ connector, onClick }: { connector: MockConnector; onClick: () => void }) {
+function ConnectorButton({ connector, onClick }: { connector: any; onClick: () => void }) {
   const { name, id, isInstalled } = connector;
 
   return (
@@ -78,7 +32,7 @@ function ConnectorButton({ connector, onClick }: { connector: MockConnector; onC
           src={`https://raw.githubusercontent.com/quasar-finance/quasar-resources/main/assets/wallet/${id}.webp`}
           width={40}
           height={40}
-          alt={`wallet-${name}-${id}`}
+          alt={`chain-${name}-${id}`}
           priority
         />
       </div>
@@ -88,8 +42,20 @@ function ConnectorButton({ connector, onClick }: { connector: MockConnector; onC
 }
 
 const ModalConnectBridge: React.FC = () => {
-  const { isConnected: isEVMConnected, address: evmAddress, connect: connectEVM, disconnect: disconnectEVM } = useMockWallet();
-  const { isConnected: isCosmosConnected, address: cosmosAddress, connect: connectCosmos, disconnect: disconnectCosmos } = useMockWallet();
+  /*  const connectors = useConnectors();
+  const { isConnected } = useAccount();
+  const { toast } = useToast();
+  const { hideModal } = useModal();
+
+  useEffect(() => {
+    if (isConnected) hideModal();
+  }, [isConnected]); */
+
+  const { address = "", connector, chain, isConnected: isCosmosConnected } = useAccount();
+  const connectors = useConnectors();
+  const [isEVMConnected, setIsEVMConnected] = useState(false);
+
+  const handleDisconnect = () => connector?.disconnect?.();
 
   return (
     <BasicModal title="Bridge Connector" classNames={{ wrapper: "max-w-sm", container: "p-2" }}>
@@ -101,24 +67,24 @@ const ModalConnectBridge: React.FC = () => {
               <div className="flex items-center justify-between gap-2 w-full">
                 <div className="flex gap-2 items-center">
                   <img
-                    src="https://raw.githubusercontent.com/quasar-finance/quasar-resources/main/assets/wallet/keplr.webp"
+                    src={`https://raw.githubusercontent.com/quasar-finance/quasar-resources/main/assets/wallet/${connector?.id}.webp`}
                     alt="wallet"
                     className="w-10 h-10"
                   />
                   <div className="flex flex-col">
                     <p className="text-xs">
-                      <span className="text-tw-orange-400">Keplr Wallet</span>
+                      <span className="text-tw-orange-400">{connector?.name} Wallet</span>
                     </p>
-                    <CopyMessage textToCopy={cosmosAddress}>
+                    <CopyMessage textToCopy={address}>
                       <p className="flex gap-2 items-center">
-                        {cosmosAddress} <IconCopy className="w-4 h-4" />
+                        {IntlAddress(address)} <IconCopy className="w-4 h-4" />
                       </p>
                     </CopyMessage>
                   </div>
                 </div>
                 <Button
                   color="secondary"
-                  onClick={disconnectCosmos}
+                  onClick={handleDisconnect}
                   className="w-10 h-10 rounded-xl p-1"
                   isIconOnly
                 >
@@ -128,11 +94,11 @@ const ModalConnectBridge: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-3">
-              {mockConnectors.map((connector) => (
+              {connectors.map((connector) => (
                 <ConnectorButton
                   key={connector.uid}
                   connector={connector}
-                  onClick={connectCosmos}
+                  onClick={() => connector.connect({ chainId: babylon.id })}
                 />
               ))}
             </div>
@@ -145,24 +111,27 @@ const ModalConnectBridge: React.FC = () => {
               <div className="flex items-center justify-between gap-2 w-full">
                 <div className="flex gap-2 items-center">
                   <img
-                    src="https://raw.githubusercontent.com/quasar-finance/quasar-resources/main/assets/wallet/metamask.webp"
+                    src={
+                      "https://raw.githubusercontent.com/quasar-finance/quasar-resources/main/assets/wallet/metamask.webp"
+                    }
                     alt="wallet"
                     className="w-10 h-10"
                   />
                   <div className="flex flex-col">
                     <p className="text-xs">
-                      <span className="text-tw-orange-400">MetaMask Wallet</span>
+                      <span className="text-tw-orange-400">Metamask Wallet</span>
                     </p>
-                    <CopyMessage textToCopy={evmAddress}>
-                      <p className="flex gap-2 items-center">
-                        {evmAddress} <IconCopy className="w-4 h-4" />
+                    <CopyMessage textToCopy={"0xCe8cb15036F11084cA5d587D6962722978100456"}>
+                      <p className="flex gap-2">
+                        {IntlAddress("0xCe8cb15036F11084cA5d587D6962722978100456")}{" "}
+                        <IconCopy className="w-4 h-4" />
                       </p>
                     </CopyMessage>
                   </div>
                 </div>
                 <Button
                   color="secondary"
-                  onClick={disconnectEVM}
+                  onClick={() => setIsEVMConnected(false)}
                   className="w-10 h-10 rounded-xl p-1"
                   isIconOnly
                 >
@@ -172,11 +141,11 @@ const ModalConnectBridge: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-3">
-              {mockConnectors.map((connector) => (
+              {connectors.map((connector) => (
                 <ConnectorButton
                   key={connector.uid}
                   connector={connector}
-                  onClick={connectEVM}
+                  onClick={() => setIsEVMConnected(true)}
                 />
               ))}
             </div>

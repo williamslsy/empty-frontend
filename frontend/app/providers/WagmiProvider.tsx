@@ -6,6 +6,7 @@ import { http } from 'viem';
 import { mainnet, sepolia } from 'viem/chains';
 import { createConfig } from 'wagmi';
 import { coinbaseWallet, injected, metaMask, walletConnect } from 'wagmi/connectors';
+import { useState, useEffect } from 'react';
 
 const config = createConfig({
   chains: [sepolia, mainnet],
@@ -19,5 +20,19 @@ const config = createConfig({
 const queryClient = new QueryClient();
 
 export function WagmiProvider({ children }: { children: React.ReactNode }) {
-  return <WagmiProviderBase config={config}>{children}</WagmiProviderBase>;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <WagmiProviderBase config={config}>{children}</WagmiProviderBase>
+    </QueryClientProvider>
+  );
 }

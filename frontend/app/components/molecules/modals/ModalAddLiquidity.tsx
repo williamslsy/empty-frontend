@@ -76,7 +76,7 @@ export const ModalAddLiquidity: React.FC<Props> = ({
 
   const { isDisabled, text } = useMemo(() => {
     if (Object.keys(errors).length) return { isDisabled: true, text: 'Insufficient Balance' };
-    if (isValid) return { isDisabled: false, text: isIncreasingLiquidity ? 'Increase Liquidity' : 'Deposit & Stake' };
+    if (isValid) return { isDisabled: false, text: isIncreasingLiquidity ? 'Increase Liquidity' : 'Deposit Liquidity' };
     return { isDisabled: true, text: 'Choose Amount' };
   }, [isValid, errors, isIncreasingLiquidity]);
 

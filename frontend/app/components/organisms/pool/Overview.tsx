@@ -1,102 +1,143 @@
-import type { PoolInfo } from "@towerfi/types";
-import { useSwapSimulation } from "~/app/hooks/useSwapSimulation";
-import { convertDenomToMicroDenom, convertMicroDenomToDenom } from "~/utils/intl";
-import Skeleton from "../../atoms/Skeleton";
-import { CellPoints } from "../../atoms/cells/CellPoints";
-import { trpc } from "~/trpc/client";
-import { type Period, periodToNumber } from "../../atoms/PeriodToggle";
-import { IncentivesOverview } from "./IncentivesOverview";
-import { addressShorten } from "~/utils/masks";
-import { IconCopy, IconExternalLink } from "@tabler/icons-react";
-import { copyToClipboard } from "~/utils/browser";
-import { useToast } from "~/app/hooks";
+import type { PoolInfo } from '@towerfi/types';
+import { useState, useEffect } from 'react';
+import { convertMicroDenomToDenom } from '~/utils/intl';
+import Skeleton from '../../atoms/Skeleton';
+import { CellPoints } from '../../atoms/cells/CellPoints';
+import { type Period } from '../../atoms/PeriodToggle';
+import { IncentivesOverview } from './IncentivesOverview';
+import { addressShorten } from '~/utils/masks';
+import { IconCopy, IconExternalLink } from '@tabler/icons-react';
+import { copyToClipboard } from '~/utils/browser';
+import { useToast } from '~/app/hooks';
+import { TMockPool } from '~/lib/mockPools';
 
-export const Overview: React.FC<{ pool: PoolInfo; aprTimeframe: Period }> = ({
-  pool,
-  aprTimeframe,
-}) => {
-  const swap = useSwapSimulation({
-    poolAddress: pool.poolAddress,
-    assets: pool.assets,
-    amount: convertDenomToMicroDenom(1, pool.assets[0].decimals),
-  });
+interface OverviewProps {
+  pool: TMockPool;
+  aprTimeframe: Period;
+  incentiveApr?: any;
+  metrics: any;
+}
 
-  const { data: incentiveApr, isLoading: incentiveAprsIsLoading } =
-    trpc.edge.indexer.getPoolIncentivesByAddresses.useQuery(
-      {
-        addresses: [pool.poolAddress],
-        interval: periodToNumber(aprTimeframe),
-      },
-      {
-        select: (data) => {
-          return data?.[pool.poolAddress];
-        },
-      },
-    );
-
+export const Overview: React.FC<OverviewProps> = ({ pool, aprTimeframe, incentiveApr, metrics }) => {
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const poolMetric = metrics?.[pool.id];
+
+  const price = poolMetric ? poolMetric.token1_price / poolMetric.token0_price : 1;
+
+  const assets = [
+    {
+      name: pool.token0.symbol,
+      symbol: pool.token0.symbol,
+      decimals: pool.token0.decimals,
+      denom: pool.token0.id,
+      logoURI: `/tokens/${pool.token0.symbol.toLowerCase()}.svg`,
+      type: 'ibc' as const,
+      portId: 'transfer',
+      channelId: 'channel-0',
+      coingeckoId: pool.token0.symbol.toLowerCase(),
+      origin: {
+        type: 'erc20' as const,
+        chain: 'ethereum',
+        contract: pool.token0.id,
+      },
+    },
+    {
+      name: pool.token1.symbol,
+      symbol: pool.token1.symbol,
+      decimals: pool.token1.decimals,
+      denom: pool.token1.id,
+      logoURI: `/tokens/${pool.token1.symbol.toLowerCase()}.svg`,
+      type: 'ibc' as const,
+      portId: 'transfer',
+      channelId: 'channel-0',
+      coingeckoId: pool.token1.symbol.toLowerCase(),
+      origin: {
+        type: 'erc20' as const,
+        chain: 'ethereum',
+        contract: pool.token1.id,
+      },
+    },
+  ];
 
   return (
     <div className="grid items-start grid-cols-[1fr] lg:grid-cols-[max-content_1fr] gap-y-2 lg:gap-y-8 gap-x-4">
       <span className="text-sm font-medium text-white/50">Price:</span>
-      <span className="text-sm ">
-        {swap.isLoading ? (
+      <span className="text-sm">
+        {isLoading ? (
           <Skeleton className="h-4 w-1/2" />
         ) : (
           <span>
-            1 {pool.assets[0].symbol} ={" "}
-            {convertMicroDenomToDenom(swap.data?.return_amount, pool.assets[1].decimals, 2)}{" "}
-            {pool.assets[1].symbol}
+            1 {pool.token0.symbol} = {price.toFixed(2)} {pool.token1.symbol}
           </span>
         )}
       </span>
 
       <span className="text-sm font-medium text-white/50">Points:</span>
-      <span className="text-sm ">
-        <CellPoints assets={pool.assets} poolType={pool.poolType} />
+      <span className="text-sm">
+        {/* Custom points display to match the image */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <img
+              src="/tower/2x.svg"
+              alt="2x"
+              className="w-auto h-6"
+              onError={(e) => {
+                e.currentTarget.src = '/favicon.svg';
+              }}
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <img
+              src="/union/2.5x.svg"
+              alt="2.5x"
+              className="w-auto h-6"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <img
+              src="/escher/1.25x.svg"
+              alt="1.25x"
+              className="w-auto h-6"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          </div>
+        </div>
       </span>
-
-      {incentiveAprsIsLoading ? (
-        <>
-          <span className="text-sm font-medium text-white/50">Incentives:</span>
-          <Skeleton className="h-4 w-1/2" />
-        </>
-      ) : incentiveApr ? (
-        <>
-          <span className="text-sm font-medium text-white/50">Incentives:</span>
-          <IncentivesOverview incentives={incentiveApr} />
-        </>
-      ) : (
-        <></>
-      )}
 
       <span className="text-sm font-medium text-white/50">Pool Contract:</span>
       <span className="text-sm flex items-center">
-        {addressShorten(pool.poolAddress)}
-        <span
+        {addressShorten(pool.id)}
+        <button
+          type="button"
           className="ml-2 hover:cursor-pointer text-white/50 hover:text-white"
           onClick={() => {
-            copyToClipboard(pool.poolAddress);
-            console.log("Copied to clipboard", pool.poolAddress);
+            copyToClipboard(pool.id);
             toast.info(
               {
-                description: "Copied to clipboard",
+                description: 'Copied to clipboard',
               },
               {
                 removeDelay: 100,
-              },
+              }
             );
           }}
         >
-          <IconCopy />
-        </span>
-        <a
-          href={"https://www.mintscan.io/babylon/wasm/contract/" + pool.poolAddress}
-          className="ml-2 hover:cursor-pointer text-white/50 hover:text-white"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <IconExternalLink />
+          <IconCopy size={16} />
+        </button>
+        <a href={`https://sepolia.etherscan.io/address/${pool.id}`} className="ml-2 hover:cursor-pointer text-white/50 hover:text-white" target="_blank" rel="noreferrer">
+          <IconExternalLink size={16} />
         </a>
       </span>
     </div>

@@ -18,7 +18,7 @@ export const UserPositions: React.FC<{
   pool: TMockPool;
   isRefreshing?: boolean;
 }> = ({ userAddress, pool, isRefreshing = false }) => {
-  const { positions, isLoading, refetch } = useUserPositions();
+  const { positions, isLoading, refetch } = useUserPositions(pool.id);
   const { collectFees } = useManagePosition();
   const [isRefetching, setIsRefetching] = useState(false);
   const [claimingFees, setClaimingFees] = useState<number | null>(null);
@@ -62,7 +62,6 @@ export const UserPositions: React.FC<{
     return (
       <div className="space-y-6">
         <UserPositionSkeleton />
-        <UserPositionSkeleton />
       </div>
     );
   }
@@ -72,9 +71,6 @@ export const UserPositions: React.FC<{
       <div className="border border-white/10 p-6 rounded-xl">
         <div className="flex items-center justify-between w-full">
           <span className="text-white/75">No positions found</span>
-          <button type="button" onClick={refetch} disabled={isRefetching}>
-            <IconRefresh size={20} className={clsx('text-tw-orange-400 transition-transform-colors', isRefetching && 'animate-[spin_1.5s_linear_infinite_reverse] text-white/50')} />
-          </button>
         </div>
       </div>
     );

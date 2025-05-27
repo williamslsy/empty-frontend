@@ -1,11 +1,13 @@
 import type React from "react";
 import { CellData } from "./CellData";
 import Tooltip from "../Tooltip";
+import type { PoolIncentive, PoolMetricSerialized } from "@towerfi/types";
+import { useAPR } from "~/app/hooks/useAPR";
 
 interface Props {
   title: string;
-  feeApr?: number;
-  incentiveApr?: number;
+  metrics?: PoolMetricSerialized | null;
+  incentives?: PoolIncentive | null;
   isLoading?: boolean;
   className?: string;
 }
@@ -35,10 +37,11 @@ export const CellAprBreakDown: React.FC<{
   );
 };
 
-const CellApr: React.FC<Props> = ({ title, feeApr = 0, incentiveApr = 0, isLoading, className }) => {
-  const formattedApr = isLoading ? "..." : `${feeApr.toFixed(2)}%`;
-  const formattedIncentives = isLoading ? "..." : `${incentiveApr.toFixed(2)}%`;
-  const formatted_total_apr = isLoading ? "..." : `${(feeApr + incentiveApr).toFixed(2)}%`;
+const CellApr: React.FC<Props> = ({ title, metrics, incentives, isLoading, className }) => {
+  const apr = useAPR(metrics, incentives);
+  const formattedApr = isLoading || !metrics ? "..." : `${apr.fee_apr.toFixed(2)}%`;
+  const formattedIncentives = isLoading ? "..." : `${apr.incentives_apr.toFixed(2)}%`;
+  const formatted_total_apr = isLoading ? "..." : `${apr.total_apr.toFixed(2)}%`;
 
   const tooltipContent = (
     <CellAprBreakDown

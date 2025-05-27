@@ -18,54 +18,33 @@ import { type TMockPool } from '~/lib/mockPools';
 import { getPoolById } from '~/lib/mockPools';
 import { useUserPositions } from '~/app/hooks/useUserPositions';
 import { UserPositions } from '../organisms/pool/UserPositions';
-
-const mockIncentiveApr = {
-  rewards_per_second: '0.5',
-  token_decimals: 6,
-  reward_token: 'uatom',
-  start_ts: Math.floor(Date.now() / 1000) - 86400 * 7,
-  end_ts: Math.floor(Date.now() / 1000) + 86400 * 30,
-};
-
-const mockMetrics = {
-  average_apr: 12.5,
-  tvl_usd: 2500000,
-  token0_swap_volume: 150000000000,
-  token1_swap_volume: 180000000000,
-  token0_decimals: 6,
-  token1_decimals: 6,
-  token0_denom: 'uatom',
-  token1_denom: 'uosmo',
-  pool_address: 'pool1_address_123',
-  height: '1000000',
-  token0_balance: '2500000000000',
-  token0_price: 8.5,
-  token1_balance: '1800000000000',
-  token1_price: 0.35,
-  lp_token_address: 'lp_token_1',
-  total_incentives: '50000000000',
-  metric_start_height: 999000,
-  metric_end_height: 1000000,
-};
+import Link from 'next/link';
+import AssetsStacked from '../atoms/AssetsStacked';
+import { Metrics } from '../organisms/pool/Metrics';
+import { PeriodToggle } from '../atoms/PeriodToggle';
+import { Overview } from '../organisms/pool/Overview';
 
 const Pool: React.FC<{
   address: string;
 }> = ({ address }) => {
-  const pool = getPoolById('0x935c8743827a2a72c8e7c8e989ac1a9e16e94395');
+  const pool = getPoolById(address);
+
+  if (!pool) {
+    return (
+      <div className="flex flex-col gap-3 justify-center items-center lg:pl-3 lg:pr-2 pl-3">
+        <h1 className="text-3xl">
+          Pool not found, return to <Link href="/pools">Pools</Link>
+        </h1>
+      </div>
+    );
+  }
 
   const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 1000);
     return () => clearTimeout(timer);
   }, []);
-
-  const [aprTimeframe, setAprTimeframe] = useState<Period>('7d');
-  const onAprTimeframeChange = useCallback(
-    (period: Period) => {
-      setAprTimeframe(period);
-    },
-    [setAprTimeframe]
-  );
 
   const { address: userAddress } = useAccount();
   const { showModal } = useModal();
@@ -116,6 +95,51 @@ const Pool: React.FC<{
     }
   };
 
+  const [aprTimeframe, setAprTimeframe] = useState<Period>('7d');
+  const onAprTimeframeChange = useCallback(
+    (period: Period) => {
+      setAprTimeframe(period);
+    },
+    [setAprTimeframe]
+  );
+
+  const mockMetrics: Record<string, any> = {
+    '0x5878d73d8a6306270ae6556a02ffdc2810ef999f': {
+      average_apr: 12.5,
+      tvl_usd: 30000000,
+      token0_swap_volume: 150000000000000000,
+      token1_swap_volume: 1250000000000,
+      token0_decimals: 18,
+      token1_decimals: 6,
+      token0_denom: '0x7b79995e5f793a07bc00c21412e50ecae098e7f9',
+      token1_denom: '0xf40e9240464482db4b0e95beacb14c3de04c5715',
+      pool_address: '0x5878d73d8a6306270ae6556a02ffdc2810ef999f',
+      token0_price: 2000,
+      token1_price: 1,
+      total_incentives: '',
+    },
+    '0x935c8743827a2a72c8e7c8e989ac1a9e16e94395': {
+      average_apr: 8.2,
+      tvl_usd: 10000000,
+      token0_swap_volume: 850000000000000000,
+      token1_swap_volume: 850000000000000000,
+      token0_decimals: 18,
+      token1_decimals: 18,
+      token0_denom: '0x8427ca5ac3d8c857239d6a8767ce57741e253569',
+      token1_denom: '0xfe8668d7a038aea654964199e16b19454cfc2b50',
+      pool_address: '0x935c8743827a2a72c8e7c8e989ac1a9e16e94395',
+      token0_price: 1,
+      token1_price: 1,
+      total_incentives: '',
+    },
+  };
+
+  const mockIncentiveApr = {
+    rewards_per_second: 0.5,
+    token_decimals: 18,
+    reward_token: '0x7b79995e5f793a07bc00c21412e50ecae098e7f9',
+  };
+
   return (
     <div className="flex flex-col gap-8 px-4 pb-20 max-w-[84.5rem] mx-auto w-full min-h-[65vh] lg:pt-8">
       <div>
@@ -128,30 +152,21 @@ const Pool: React.FC<{
           <div className="flex flex-col lg:flex-row lg:space-x-14 space-y-6">
             <div className="flex-1 lg:p-4">
               <div className="flex items-center mb-4">
-                {/* <AssetsStacked assets={mockPool.assets} size="lg" /> */}
+                <AssetsStacked assets={[token0, token1]} size="lg" />
                 <h1 className="text-3xl">
                   {token0.symbol} / {token1.symbol}
                 </h1>
               </div>
-              <div className="flex flex-col lg:flex-row justify-between mb-8 items-center space-y-4 lg:space-y-0">
-                {/* <div className="flex flex-wrap gap-1">
-                  <PoolTypePill poolType={mockPool.poolType} config={mockPool.config} />
-                  <PoolFeePill poolType={mockPool.poolType} config={mockPool.config} />
-                  <PoolIncentivesPill incentives={mockIncentiveApr} />
-                </div> */}
-                {/* <div className="flex">
-                  <PeriodToggle onChange={onAprTimeframeChange} defaultPeriod={aprTimeframe} />
-                </div> */}
-              </div>
+              <div className="flex flex-col lg:flex-row justify-between mb-8 items-center space-y-4 lg:space-y-0"></div>
 
               <div className="w-full flex-1 flex items-center justify-center border border-white/10 rounded-2xl p-4 lg:py-6 lg:px-10 flex-col mb-10">
-                {/* <div className="flex w-full space-x-4 justify-between">
-                  <Metrics pool={mockPool} aprTimeframe={aprTimeframe} metrics={mockMetrics} />
-                </div> */}
+                <div className="flex w-full space-x-4 justify-between">
+                  <Metrics pool={pool as TMockPool} aprTimeframe={aprTimeframe} metrics={mockMetrics} />
+                </div>
               </div>
-              {/* <div className="border border-white/10 rounded-2xl p-6 lg:p-10">
-                <Overview pool={mockPool} aprTimeframe={aprTimeframe} incentiveApr={mockIncentiveApr} metrics={mockMetrics} />
-              </div> */}
+              <div className="border border-white/10 rounded-2xl p-6 lg:p-10">
+                <Overview pool={pool as TMockPool} aprTimeframe={aprTimeframe} incentiveApr={mockIncentiveApr} metrics={mockMetrics} />
+              </div>
             </div>
 
             <div className="flex-1">
@@ -184,16 +199,6 @@ const Pool: React.FC<{
                   <IconPlus size={18} />
                   New Position
                 </Button>
-
-                {/* <Button
-                  variant={selectedUserAction === 'swap' ? 'solid' : 'flat'}
-                  size="lg"
-                  onPress={() => {
-                    toggleUserAction('swap');
-                  }}
-                >
-                  Swap
-                </Button> */}
               </div>
 
               <div>
@@ -211,9 +216,6 @@ const Pool: React.FC<{
                     }}
                   />
                 </FadeInOut>
-                {/* <FadeInOut isVisible={selectedUserAction === 'swap'} duration={toggleDuration}>
-                  <Swap pool={mockPool} onSubmittedTx={() => {}} />
-                </FadeInOut> */}
               </div>
             </div>
           </div>

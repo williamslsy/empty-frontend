@@ -26,6 +26,33 @@ export const InteractivePriceChart = ({ width, height, historicalData, className
   const chartWidth = dynamicWidth - margin.left - margin.right;
   const chartHeight = height - margin.top - margin.bottom;
 
+  const formatPrice = (price: number): string => {
+    let maxDecimals: number;
+
+    if (price >= 1000) {
+      maxDecimals = 2;
+    } else if (price >= 1) {
+      maxDecimals = 4;
+    } else if (price >= 0.01) {
+      maxDecimals = 6;
+    } else {
+      maxDecimals = 8;
+    }
+
+    const formatted = price.toFixed(maxDecimals);
+    const withoutTrailingZeros = parseFloat(formatted);
+
+    return withoutTrailingZeros.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: maxDecimals,
+    });
+  };
+
+  const getLabelWidth = (price: number): number => {
+    const formattedPrice = formatPrice(price);
+    return Math.max(50, formattedPrice.length * 7 + 10);
+  };
+
   const drawChart = useCallback(() => {
     if (!svgRef.current || !historicalData || !Array.isArray(historicalData) || historicalData.length === 0) return;
 
@@ -153,18 +180,27 @@ export const InteractivePriceChart = ({ width, height, historicalData, className
 
       const currentPriceLabel = currentPriceGroup.append('g').attr('transform', `translate(${chartWidth - 10}, ${yScale(currentPrice)})`);
 
-      currentPriceLabel.append('rect').attr('x', -70).attr('y', -12).attr('width', 65).attr('height', 20).attr('fill', 'rgba(245, 158, 11, 0.9)').attr('rx', 4).attr('filter', 'url(#shadow)');
+      const currentPriceLabelWidth = getLabelWidth(currentPrice);
+      currentPriceLabel
+        .append('rect')
+        .attr('x', -currentPriceLabelWidth + 5)
+        .attr('y', -12)
+        .attr('width', currentPriceLabelWidth - 5)
+        .attr('height', 20)
+        .attr('fill', 'rgba(245, 158, 11, 0.9)')
+        .attr('rx', 4)
+        .attr('filter', 'url(#shadow)');
 
       currentPriceLabel
         .append('text')
-        .attr('x', -37.5)
+        .attr('x', -(currentPriceLabelWidth / 2) + 2.5)
         .attr('y', 3)
         .attr('text-anchor', 'middle')
         .attr('fill', 'white')
         .attr('font-size', '11px')
         .attr('font-weight', '600')
         .attr('font-family', 'system-ui, -apple-system, sans-serif')
-        .text(`${currentPrice.toFixed(4)}`);
+        .text(formatPrice(currentPrice));
     }
 
     if (minPrice > 0 && maxPrice > 0) {
@@ -227,7 +263,16 @@ export const InteractivePriceChart = ({ width, height, historicalData, className
 
         const minLabel = minGroup.append('g').attr('transform', `translate(${chartWidth - 50}, ${yScale(minPrice) + 20})`);
 
-        minLabel.append('rect').attr('x', -25).attr('y', -10).attr('width', 50).attr('height', 18).attr('fill', 'rgba(239, 68, 68, 0.9)').attr('rx', 4).attr('filter', 'url(#shadow)');
+        const minLabelWidth = getLabelWidth(minPrice);
+        minLabel
+          .append('rect')
+          .attr('x', -minLabelWidth / 2)
+          .attr('y', -10)
+          .attr('width', minLabelWidth)
+          .attr('height', 18)
+          .attr('fill', 'rgba(239, 68, 68, 0.9)')
+          .attr('rx', 4)
+          .attr('filter', 'url(#shadow)');
 
         minLabel
           .append('text')
@@ -237,7 +282,7 @@ export const InteractivePriceChart = ({ width, height, historicalData, className
           .attr('font-size', '10px')
           .attr('font-weight', '600')
           .attr('font-family', 'system-ui, -apple-system, sans-serif')
-          .text(`${minPrice.toFixed(4)}`);
+          .text(formatPrice(minPrice));
       }
 
       if (yScale(maxPrice) >= 0 && yScale(maxPrice) <= chartHeight) {
@@ -267,7 +312,16 @@ export const InteractivePriceChart = ({ width, height, historicalData, className
 
         const maxLabel = maxGroup.append('g').attr('transform', `translate(${chartWidth - 50}, ${yScale(maxPrice) - 12})`);
 
-        maxLabel.append('rect').attr('x', -25).attr('y', -10).attr('width', 50).attr('height', 18).attr('fill', 'rgba(16, 185, 129, 0.9)').attr('rx', 4).attr('filter', 'url(#shadow)');
+        const maxLabelWidth = getLabelWidth(maxPrice);
+        maxLabel
+          .append('rect')
+          .attr('x', -maxLabelWidth / 2)
+          .attr('y', -10)
+          .attr('width', maxLabelWidth)
+          .attr('height', 18)
+          .attr('fill', 'rgba(16, 185, 129, 0.9)')
+          .attr('rx', 4)
+          .attr('filter', 'url(#shadow)');
 
         maxLabel
           .append('text')
@@ -277,7 +331,7 @@ export const InteractivePriceChart = ({ width, height, historicalData, className
           .attr('font-size', '10px')
           .attr('font-weight', '600')
           .attr('font-family', 'system-ui, -apple-system, sans-serif')
-          .text(`${maxPrice.toFixed(4)}`);
+          .text(formatPrice(maxPrice));
       }
     }
 
@@ -321,11 +375,15 @@ export const InteractivePriceChart = ({ width, height, historicalData, className
             if (parentGroup) {
               d3.select(parentGroup).select('line').attr('y1', newY).attr('y2', newY);
 
-              d3.select(parentGroup)
-                .select('g:last-child')
-                .attr('transform', `translate(${chartWidth - 50}, ${type === 'min' ? newY + 20 : newY - 12})`)
-                .select('text')
-                .text(`${newPrice.toFixed(4)}`);
+              const labelGroup = d3.select(parentGroup).select('g:last-child');
+              labelGroup.attr('transform', `translate(${chartWidth - 50}, ${type === 'min' ? newY + 20 : newY - 12})`);
+
+              const newLabelWidth = getLabelWidth(newPrice);
+              labelGroup
+                .select('rect')
+                .attr('x', -newLabelWidth / 2)
+                .attr('width', newLabelWidth);
+              labelGroup.select('text').text(formatPrice(newPrice));
             }
 
             const currentMin = type === 'min' ? newPrice : minPrice;
@@ -379,7 +437,7 @@ export const InteractivePriceChart = ({ width, height, historicalData, className
     const yAxis = d3
       .axisLeft(yScale)
       .ticks(6)
-      .tickFormat((d) => (d as number).toFixed(3))
+      .tickFormat((d) => formatPrice(d as number))
       .tickSize(-chartWidth)
       .tickPadding(10);
 
@@ -425,8 +483,6 @@ export const InteractivePriceChart = ({ width, height, historicalData, className
       }}
     >
       <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-r from-slate-800/60 to-slate-700/40 backdrop-blur-md border-b border-slate-600/30 flex items-center justify-between px-4 z-10">
-        {/* <div className="flex items-center space-x-2"></div> */}
-
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-3 text-slate-400">
             <div className="flex items-center space-x-1">

@@ -1,173 +1,114 @@
-"use client";
-import Input from "../atoms/Input";
-import { Button } from "../atoms/Button";
-import { twMerge } from "~/utils/twMerge";
-import type React from "react";
-import PoolsSkeleton from "../molecules/skeletons/PoolsSkeleton";
-import { CellPoolName } from "../atoms/cells/CellPoolName";
-import { CellTVL } from "../atoms/cells/CellTVL";
-import { Table, TableRow } from "../atoms/Table";
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { Pagination } from "../atoms/Pagination";
-import { CellVolume } from "../atoms/cells/CellVolume";
-import { CellPoints } from "../atoms/cells/CellPoints";
-import CellApr from "../atoms/cells/CellApr";
-import { useRouter } from "next/navigation";
-import { PeriodToggle, type Period } from "../atoms/PeriodToggle";
-import type { PoolType } from "../atoms/PoolPill";
-import type { Incentive } from "../atoms/PoolPill";
+'use client';
+import Input from '../atoms/Input';
+import { Button } from '../atoms/Button';
+import { twMerge } from '~/utils/twMerge';
+import { useModal } from '~/app/providers/ModalProvider';
+import { ModalTypes } from '~/types/modal';
 
-// Mock data types
-interface Token {
-  symbol: string;
-  denom: string;
-  decimals: number;
-  logoURI: string;
-}
+import type React from 'react';
+import { Table, TableRow } from '../atoms/Table';
+import { useEffect, useState, useMemo, useCallback } from 'react';
+import { Pagination } from '../atoms/Pagination';
+import { blockedPoolAddresses } from '~/utils/consts';
+import type { PoolMetricSerialized } from '@towerfi/types';
+import { useRouter } from 'next/navigation';
+import { PeriodToggle, type Period } from '../atoms/PeriodToggle';
+import { getAllPools, type TMockPool } from '~/lib/mockPools';
 
-interface MockPool {
-  poolAddress: string;
-  name: string;
-  poolType: PoolType;
-  poolLiquidity: number;
-  assets: Token[];
-  config: {
-    fee: number;
-  };
-}
+const uniV3Pools = getAllPools();
 
-interface MockMetric {
-  tvl_usd: number;
-  average_apr: number;
-  token0_swap_volume: number;
-  token1_swap_volume: number;
-  token0_decimals: number;
-  token1_decimals: number;
-  token0_denom: string;
-  token1_denom: string;
-}
-
-interface MockIncentive {
-  rewards_per_second: number;
-  token_decimals: number;
-  reward_token: string;
-}
-
-// Mock data
-const mockPools: MockPool[] = [
-  {
-    poolAddress: "0x1234...5678",
-    name: "ETH/USDC",
-    poolType: "stable",
-    poolLiquidity: 1000000,
-    assets: [
-      {
-        symbol: "ETH",
-        denom: "ETH",
-        decimals: 18,
-        logoURI: "https://raw.githubusercontent.com/quasar-finance/quasar-resources/main/assets/tokens/eth.webp"
-      },
-      {
-        symbol: "USDC",
-        denom: "USDC",
-        decimals: 6,
-        logoURI: "https://raw.githubusercontent.com/quasar-finance/quasar-resources/main/assets/tokens/usdc.webp"
-      }
-    ],
-    config: {
-      fee: 0.003
-    }
-  },
-  {
-    poolAddress: "0x8765...4321",
-    name: "WBTC/ETH",
-    poolType: "weighted",
-    poolLiquidity: 2000000,
-    assets: [
-      {
-        symbol: "WBTC",
-        denom: "WBTC",
-        decimals: 8,
-        logoURI: "https://raw.githubusercontent.com/quasar-finance/quasar-resources/main/assets/tokens/wbtc.webp"
-      },
-      {
-        symbol: "ETH",
-        denom: "ETH",
-        decimals: 18,
-        logoURI: "https://raw.githubusercontent.com/quasar-finance/quasar-resources/main/assets/tokens/eth.webp"
-      }
-    ],
-    config: {
-      fee: 0.003
-    }
-  }
-];
-
-const mockMetrics: Record<string, MockMetric> = {
-  "0x1234...5678": {
-    tvl_usd: 1000000,
-    average_apr: 0.05,
-    token0_swap_volume: 100000,
-    token1_swap_volume: 100000,
+const mockMetrics: Record<string, PoolMetricSerialized> = {
+  '0x5878d73d8a6306270ae6556a02ffdc2810ef999f': {
+    average_apr: 12.5,
+    tvl_usd: 30000000,
+    token0_swap_volume: 150000000000000000,
+    token1_swap_volume: 1250000000000,
     token0_decimals: 18,
     token1_decimals: 6,
-    token0_denom: "ETH",
-    token1_denom: "USDC"
+    token0_denom: '0x7b79995e5f793a07bc00c21412e50ecae098e7f9',
+    token1_denom: '0xf40e9240464482db4b0e95beacb14c3de04c5715',
+    pool_address: '0x5878d73d8a6306270ae6556a02ffdc2810ef999f',
+    height: '',
+    token0_balance: '',
+    token0_price: 2000,
+    token1_balance: '',
+    token1_price: 1,
+    lp_token_address: '',
+    total_incentives: '',
+    metric_start_height: null,
+    metric_end_height: null,
   },
-  "0x8765...4321": {
-    tvl_usd: 2000000,
-    average_apr: 0.06,
-    token0_swap_volume: 200000,
-    token1_swap_volume: 200000,
-    token0_decimals: 8,
+  '0x935c8743827a2a72c8e7c8e989ac1a9e16e94395': {
+    average_apr: 8.2,
+    tvl_usd: 10000000,
+    token0_swap_volume: 850000000000000000,
+    token1_swap_volume: 850000000000000000,
+    token0_decimals: 18,
     token1_decimals: 18,
-    token0_denom: "WBTC",
-    token1_denom: "ETH"
-  }
+    token0_denom: '0x8427ca5ac3d8c857239d6a8767ce57741e253569',
+    token1_denom: '0xfe8668d7a038aea654964199e16b19454cfc2b50',
+    pool_address: '0x935c8743827a2a72c8e7c8e989ac1a9e16e94395',
+    height: '',
+    token0_balance: '',
+    token0_price: 1,
+    token1_balance: '',
+    token1_price: 1,
+    lp_token_address: '',
+    total_incentives: '',
+    metric_start_height: null,
+    metric_end_height: null,
+  },
 };
 
-const mockIncentives: Record<string, Incentive> = {
-  "0x1234...5678": {
-    symbol: "ETH",
-    amount: 100,
-    startDate: new Date("2024-01-01"),
-    endDate: new Date("2024-12-31")
+const mockIncentiveAprs: Record<string, any> = {
+  '0x5878d73d8a6306270ae6556a02ffdc2810ef999f': {
+    rewards_per_second: 0.5,
+    token_decimals: 18,
+    reward_token: '0x7b79995e5f793a07bc00c21412e50ecae098e7f9',
   },
-  "0x8765...4321": {
-    symbol: "ETH",
-    amount: 200,
-    startDate: new Date("2024-01-01"),
-    endDate: new Date("2024-12-31")
-  }
 };
 
 const Pools: React.FC = () => {
+  const { showModal } = useModal();
   const router = useRouter();
-  const gridClass = "grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-4";
+  const gridClass = 'grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-4';
 
-  const [searchText, setSearchText] = useState("");
-  const [aprTimeframe, setAprTimeframe] = useState<Period>("7d");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMetricLoading, setIsMetricLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+      setIsMetricLoading(false);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const pools = uniV3Pools;
+  const metrics = mockMetrics;
+  const incentiveAprs = mockIncentiveAprs;
+
+  const [searchText, setSearchText] = useState('');
+  const [aprTimeframe, setAprTimeframe] = useState<Period>('7d');
   const onAprTimeframeChange = useCallback(
     (period: Period) => {
       setAprTimeframe(period);
     },
-    [setAprTimeframe],
+    [setAprTimeframe]
   );
-  const [sortField, setSortField] = useState<"poolLiquidity" | "apr" | "volume">("poolLiquidity");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   const columns = [
-    { key: "name", title: "Pool", className: "col-span-2 lg:col-span-1" },
-    { key: "poolLiquidity", title: "TVL", sortable: true },
-    { key: "apr", title: "APR", sortable: true },
-    { key: "volume", title: `Volume ${aprTimeframe === "1d" ? "24h" : "7d"}`, sortable: true },
-    { key: "points", title: "Points" },
-    { key: "actions", title: "" },
+    { key: 'name', title: 'Pool', className: 'col-span-2 lg:col-span-1' },
+    { key: 'poolLiquidity', title: 'TVL' },
+    { key: 'apr', title: 'APR' },
+    { key: 'volume', title: `Volume ${aprTimeframe === '1d' ? '24h' : '7d'}` },
+    { key: 'points', title: 'Points' },
+    { key: 'actions', title: '' },
   ];
 
-  const filteredPools = mockPools.filter((pool) => 
-    pool.name.toLowerCase().includes(searchText.toLowerCase())
-  );
+  const filteredPools = pools
+    .filter((pool: TMockPool) => !blockedPoolAddresses.includes(pool.id))
+    .filter((pool: TMockPool) => `${pool.token0.symbol}/${pool.token1.symbol}`.toLowerCase().includes(searchText.toLowerCase()));
 
   useEffect(() => {
     setCurrentPage(0);
@@ -178,47 +119,19 @@ const Pools: React.FC = () => {
   const totalPools = Math.ceil(filteredPools.length / numberPerPage);
 
   const sortedPools = [...filteredPools].sort((a, b) => {
-    const metricA = mockMetrics[a.poolAddress];
-    const metricB = mockMetrics[b.poolAddress];
-    const incentiveA = mockIncentives[a.poolAddress];
-    const incentiveB = mockIncentives[b.poolAddress];
-
-    let valueA: number;
-    let valueB: number;
-
-    switch (sortField) {
-      case "apr":
-        valueA = (metricA?.average_apr || 0) + (incentiveA?.amount || 0);
-        valueB = (metricB?.average_apr || 0) + (incentiveB?.amount || 0);
-        break;
-      case "volume":
-        valueA = (metricA?.token0_swap_volume || 0) + (metricA?.token1_swap_volume || 0);
-        valueB = (metricB?.token0_swap_volume || 0) + (metricB?.token1_swap_volume || 0);
-        break;
-      case "poolLiquidity":
-        valueA = metricA?.tvl_usd || 0;
-        valueB = metricB?.tvl_usd || 0;
-        break;
-      default:
-        valueA = Number(a.poolLiquidity);
-        valueB = Number(b.poolLiquidity);
-    }
-
-    return sortDirection === "desc" ? valueB - valueA : valueA - valueB;
+    const nameA = `${a.token0.symbol}/${a.token1.symbol}`;
+    const nameB = `${b.token0.symbol}/${b.token1.symbol}`;
+    return nameA.localeCompare(nameB);
   });
 
-  const handleSort = (field: "poolLiquidity" | "apr" | "volume") => {
-    if (field === sortField) {
-      setSortDirection(sortDirection === "desc" ? "asc" : "desc");
-    } else {
-      setSortField(field);
-      setSortDirection("desc");
+  const formatNumber = (value: number) => {
+    if (value >= 1000000) {
+      return `$${(value / 1000000).toFixed(1)}M`;
     }
-  };
-
-  const handleAddLiquidity = (pool: MockPool) => {
-    console.log('Adding liquidity to pool:', pool.name);
-    alert(`Adding liquidity to ${pool.name} pool`);
+    if (value >= 1000) {
+      return `$${(value / 1000).toFixed(1)}K`;
+    }
+    return `$${value.toFixed(2)}`;
   };
 
   return (
@@ -227,85 +140,123 @@ const Pools: React.FC = () => {
         <h1 className="text-xl">Pools</h1>
         <div className="flex gap-3 h-[42px] items-center px-2">
           <PeriodToggle onChange={onAprTimeframeChange} defaultPeriod={aprTimeframe} />
-          <Input
-            isSearch
-            placeholder="Search"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-          />
+          <Input isSearch placeholder="Search" value={searchText} onChange={(e) => setSearchText(e.target.value)} />
         </div>
       </div>
 
-      <Table
-        columns={columns.map((col) => ({
-          ...col,
-          title: col.sortable ? (
-            <div
-              className="flex items-center gap-2 cursor-pointer hover:text-white"
-              onClick={() => handleSort(col.key as "poolLiquidity" | "apr" | "volume")}
-            >
-              {col.title}
-              {col.sortable && sortField === col.key && (
-                <span>{sortDirection === "desc" ? "↓" : "↑"}</span>
-              )}
-            </div>
-          ) : (
-            col.title
-          ),
-        }))}
-        gridClass={gridClass}
-      >
-        {sortedPools
-          .slice(currentPage * numberPerPage, currentPage * numberPerPage + numberPerPage)
-          .map((pool, i) => (
-            <TableRow
-              key={i}
-              gridClass={twMerge("grid cursor-pointer hover:bg-white/5", gridClass)}
-              onClick={() => router.push(`/pools/${pool.poolAddress}`)}
-            >
-              <CellPoolName
-                assets={pool.assets}
-                name={pool.name}
-                poolType={pool.poolType}
-                fee={pool.config.fee}
-                incentive={mockIncentives[pool.poolAddress]}
-                className="w-full pr-4"
-              />
-              <CellTVL
-                tvl={pool.poolLiquidity}
-                className="w-full pl-4"
-              />
-              <CellApr
-                title={`APR (${aprTimeframe})`}
-                feeApr={mockMetrics[pool.poolAddress]?.average_apr || 0}
-                incentiveApr={mockIncentives[pool.poolAddress]?.amount || 0}
-                className="w-full px-4"
-              />
-              <CellVolume
-                title={`Volume ${aprTimeframe === "1d" ? "24h" : "7d"}`}
-                volume={(mockMetrics[pool.poolAddress]?.token0_swap_volume || 0) + (mockMetrics[pool.poolAddress]?.token1_swap_volume || 0)}
-                timeframe={aprTimeframe === "1d" ? "24h" : "7d"}
-                className="w-full px-4"
-              />
-              <CellPoints assets={pool.assets} poolType={pool.poolType} className="w-full px-1" />
+      <Table columns={columns} gridClass={gridClass}>
+        {sortedPools.slice(currentPage * numberPerPage, currentPage * numberPerPage + numberPerPage).map((pool, i) => {
+          const poolName = `${pool.token0.symbol}/${pool.token1.symbol}`;
+          const metric = metrics?.[pool.id];
+          const incentive = incentiveAprs?.[pool.id];
+
+          return (
+            <TableRow key={i} gridClass={twMerge('grid cursor-pointer hover:bg-white/5', gridClass) || ''} onClick={() => router.push(`/pools/${pool.id}`)}>
+              <div className="col-span-2 lg:col-span-1 flex flex-col gap-2 w-full pr-4">
+                <p className="text-xs text-white/50 lg:hidden">Pool</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center -space-x-2">
+                      <img
+                        src={`/assets/default.png`}
+                        alt={pool.token0.symbol}
+                        className="w-8 h-8 rounded-full border-2 border-slate-800 bg-slate-700"
+                        onError={(e) => {
+                          e.currentTarget.src = '/assets/default.png';
+                        }}
+                      />
+                      <img
+                        src={`/assets/default.png`}
+                        alt={pool.token1.symbol}
+                        className="w-8 h-8 rounded-full border-2 border-slate-800 bg-slate-700"
+                        onError={(e) => {
+                          e.currentTarget.src = '/assets/default.png';
+                        }}
+                      />
+                    </div>
+                    <span className="text-white">{poolName}</span>
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">Concentrated</span>
+                  <span className="px-2 py-1 bg-gray-500/20 text-gray-400 text-xs rounded-full">{(pool.feeTier / 10000).toFixed(2)}%</span>
+                  {incentive && <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">⚡ Incentivized</span>}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 w-full px-4">
+                <p className="text-xs text-white/50 lg:hidden">TVL</p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-white">{isMetricLoading ? '...' : formatNumber(metric?.tvl_usd || 0)}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 w-full px-4">
+                <p className="text-xs text-white/50 lg:hidden">APR ({aprTimeframe})</p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-white">{isMetricLoading ? '...' : `${(metric?.average_apr || 0).toFixed(2)}%`}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 w-full px-4">
+                <p className="text-xs text-white/50 lg:hidden">Volume {aprTimeframe === '7d' ? '7D' : '24h'}</p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-white">
+                    {isMetricLoading ? '...' : formatNumber(1250000)} {/* Mock volume */}
+                  </p>
+                </div>
+              </div>
+
+              <div className="w-full px-1">
+                <div className="flex flex-wrap items-center gap-1">
+                  <img
+                    src="/tower/2x.svg"
+                    alt="TowerFi"
+                    className="w-auto h-7"
+                    onError={(e) => {
+                      e.currentTarget.src = '/favicon.svg';
+                    }}
+                  />
+
+                  {poolName.includes('WETH') && (
+                    <img
+                      src="/union/1.5x.svg"
+                      alt="Union"
+                      className="h-6 w-auto"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+
               <div className="flex items-end justify-end w-full px-4">
                 <Button
                   variant="flat"
-                  onPress={() => handleAddLiquidity(pool)}
+                  isDisabled={true}
+                  onPress={() =>
+                    showModal(ModalTypes.add_liquidity, false, {
+                      pool: {
+                        poolAddress: pool.id,
+                        token0: pool.token0,
+                        token1: pool.token1,
+                        name: poolName,
+                        poolType: 'concentrated',
+                        config: { fee: `${pool.feeTier / 10000}%` },
+                      },
+                    })
+                  }
                 >
                   Add Liquidity
                 </Button>
               </div>
             </TableRow>
-          ))}
+          );
+        })}
       </Table>
       {filteredPools.length > numberPerPage && (
-        <Pagination
-          total={totalPools}
-          onPageChange={(page) => setCurrentPage(page - 1)}
-          initialPage={currentPage + 1}
-          className={{ base: "self-center backdrop-blur-xl rounded-3xl p-1" }}
-        />
+        <Pagination total={totalPools} onPageChange={(page) => setCurrentPage(page - 1)} initialPage={currentPage + 1} className={{ base: 'self-center backdrop-blur-xl rounded-3xl p-1' }} />
       )}
     </div>
   );

@@ -1,32 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-
-// Mock types
-interface Token {
-  symbol: string;
-  decimals: number;
-  coingeckoId: string;
-}
-
-// Mock token data
-const mockTokens: Record<string, Token> = {
-  ETH: {
-    symbol: "ETH",
-    decimals: 18,
-    coingeckoId: "ethereum"
-  },
-  USDC: {
-    symbol: "USDC",
-    decimals: 6,
-    coingeckoId: "usd-coin"
-  },
-  WBTC: {
-    symbol: "WBTC",
-    decimals: 8,
-    coingeckoId: "wrapped-bitcoin"
-  }
-};
+import { Assets } from "~/config";
+import type { Currency } from "@towerfi/types";
+import type { Prettify } from "cosmi/types";
+import { convertMicroDenomToDenom } from "~/utils/intl";
 
 export type FormatNumberOptions = {
   language: string;
@@ -38,7 +16,7 @@ export type FormatNumberOptions = {
   useGrouping?: boolean;
 };
 
-export type Prices = Record<string, { symbol: string; decimals: number; prices: Record<string, number> }>;
+export type Prices = Record<string, Prettify<Currency & { prices: Record<string, number> }>>;
 
 export function formatNumber(_amount_: number | bigint | string, options: FormatNumberOptions) {
   const {
@@ -75,13 +53,6 @@ type FormatOptions<T> = {
   format?: T;
 };
 
-// Mock price data
-const mockPrices: Record<string, Record<string, number>> = {
-  ethereum: { usd: 3000, eur: 2800 },
-  "usd-coin": { usd: 1, eur: 0.95 },
-  "wrapped-bitcoin": { usd: 60000, eur: 57000 }
-};
-
 export function usePrices(parameters: UsePricesParameters = {}) {
   const {
     defaultCurrency = "USD",
@@ -97,7 +68,7 @@ export function usePrices(parameters: UsePricesParameters = {}) {
 
   function getPrice<T extends boolean = false>(
     amount: number | string,
-    symbol: string,
+    denom: string,
     options?: FormatOptions<T>,
   ): T extends true ? string : number {
     const {
@@ -105,11 +76,10 @@ export function usePrices(parameters: UsePricesParameters = {}) {
       formatOptions = defaultFormatOptions,
       format = true,
     } = options || {};
-
     const price = (() => {
-      const token = mockTokens[symbol];
-      if (!token || !data?.[symbol]?.prices?.[currency.toLowerCase()]) return 0;
-      return Number(amount) * data[symbol].prices[currency.toLowerCase()];
+      const indexCurrency = currency.toLowerCase();
+      if (!data || !data?.[denom]?.prices?.[indexCurrency]) return 0;
+      return Number(amount) * data[denom].prices[indexCurrency];
     })();
 
     return (format ? formatter(price, { ...formatOptions, currency }) : price) as T extends true
@@ -126,20 +96,15 @@ export function usePrices(parameters: UsePricesParameters = {}) {
       formatOptions = defaultFormatOptions,
       format = false,
     } = options || {};
-
-    const totalValue = Object.entries(balances).reduce((total, [symbol, amount]) => {
-      const token = mockTokens[symbol];
-      if (!token) return total;
-      
-      const normalizedAmount = Number(amount) / Math.pow(10, token.decimals);
-      const price = getPrice(normalizedAmount, symbol, {
+    const totalValue = Object.entries(balances).reduce((total, [denom, amount]) => {
+      const price = getPrice(convertMicroDenomToDenom(amount, Assets[denom].decimals), denom, {
         currency,
         formatOptions,
         format: false,
       });
-      return total + price;
+      total += price;
+      return total;
     }, 0);
-
     return (
       format ? formatter(totalValue, { ...formatOptions, currency }) : totalValue
     ) as T extends true ? string : number;
@@ -149,17 +114,30 @@ export function usePrices(parameters: UsePricesParameters = {}) {
     enabled: typeof window !== "undefined",
     queryKey: ["prices", currencies],
     queryFn: async () => {
-      // In a real implementation, this would fetch from an API
-      // For now, we'll use mock data
-      const prices = Object.entries(mockTokens).reduce((acc, [symbol, token]) => {
-        const tokenPrices = mockPrices[token.coingeckoId] || { usd: 0, eur: 0 };
-        acc[symbol] = { 
-          symbol: token.symbol, 
-          decimals: token.decimals, 
-          prices: tokenPrices 
-        };
+      const coinsByCoingeckoId = Object.fromEntries(
+        Object.values(Assets).map((c) => [c.coingeckoId, c]),
+      );
+
+      const coinPrices = await (async () => {
+        // if (window.location.protocol !== "https:") {
+        //   return Object.keys(coinsByCoingeckoId).reduce((acc, key) => {
+        //     const usd = Math.random() * 100_000;
+        //     acc[key] = { usd, eur: usd * 0.95 };
+        //     return acc;
+        //   }, Object.create({}));
+        // }
+        const response = await fetch(
+          `https://api.coingecko.com/api/v3/simple/price?ids=${Object.keys(coinsByCoingeckoId).join(",")}&vs_currencies=${currencies.join(",")}`,
+        );
+        const coinPrices: Record<string, Record<string, number>> = await response.json();
+        return coinPrices;
+      })();
+
+      const prices = Object.entries(Assets).reduce((acc, [denom, info]) => {
+        const prices = coinPrices[info.coingeckoId || ""] || { usd: 0, eur: 0 };
+        acc[denom] = { ...info, prices: prices };
         return acc;
-      }, {} as Prices);
+      }, Object.create({}));
 
       localStorage.setItem("prices", JSON.stringify(prices));
       return prices;

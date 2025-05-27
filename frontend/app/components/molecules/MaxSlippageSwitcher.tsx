@@ -1,5 +1,7 @@
-import { motion } from "motion/react";
-import { twMerge } from "~/utils/twMerge";
+import type React from 'react';
+import { useState } from 'react';
+import { Button } from '../atoms/Button';
+import { twMerge } from '~/utils/twMerge';
 
 interface Props {
   maxSlippage: string;
@@ -7,35 +9,45 @@ interface Props {
 }
 
 const MaxSlippageSwitcher: React.FC<Props> = ({ maxSlippage, setMaxSlippage }) => {
-  const isCustom = maxSlippage === "auto";
+  const [isCustom, setIsCustom] = useState(false);
+  const presetValues = ['0.01', '0.04', '0.1'];
 
   return (
-    <motion.div className="bg-white/5 p-1 relative flex h-[38px] rounded-full">
-      <motion.button
-        onClick={() => setMaxSlippage("auto")}
-        className={twMerge(
-          "rounded-full px-3 transition-all duration-300",
-          isCustom ? "text-tw-orange-400 bg-orange-400/10" : "text-white/50",
-        )}
-      >
-        Auto
-      </motion.button>
-      <motion.button
-        className={twMerge(
-          "rounded-full flex gap-1 items-center px-2 transition-all duration-300",
-          !isCustom ? "text-tw-orange-400 bg-orange-400/10" : "text-white/50",
-        )}
-      >
-        <input
-          type="number"
-          onFocus={() => setMaxSlippage(isCustom ? "0.5" : maxSlippage)}
-          value={isCustom ? "0.5" : maxSlippage}
-          onChange={(e) => setMaxSlippage(e.target.value)}
-          className="bg-transparent outline-none focus:border-none max-w-[2rem] text-right"
-        />
-        <p>%</p>
-      </motion.button>
-    </motion.div>
+    <div className="flex items-center gap-2">
+      <div className="flex gap-1">
+        {presetValues.map((value) => (
+          <Button
+            key={value}
+            size="sm"
+            variant={maxSlippage === value ? 'solid' : 'flat'}
+            onPress={() => {
+              setMaxSlippage(value);
+              setIsCustom(false);
+            }}
+            className="text-xs px-2 py-1"
+          >
+            {(Number(value) * 100).toFixed(value === '0.01' ? 1 : 0)}%
+          </Button>
+        ))}
+        <Button size="sm" variant={isCustom ? 'solid' : 'flat'} onPress={() => setIsCustom(true)} className="text-xs px-2 py-1">
+          Custom
+        </Button>
+      </div>
+      {isCustom && (
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            value={Number(maxSlippage) * 100}
+            onChange={(e) => setMaxSlippage((Number(e.target.value) / 100).toString())}
+            className="w-16 px-2 py-1 text-xs bg-white/5 border border-white/10 rounded outline-none"
+            step="0.1"
+            min="0"
+            max="50"
+          />
+          <span className="text-xs text-white/50">%</span>
+        </div>
+      )}
+    </div>
   );
 };
 

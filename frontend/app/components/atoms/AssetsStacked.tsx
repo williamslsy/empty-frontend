@@ -3,7 +3,6 @@ import { twMerge } from '~/utils/twMerge';
 
 interface Asset {
   symbol: string;
-  logoURI: string;
 }
 
 interface Props {

@@ -1,45 +1,30 @@
-import { Tooltip as NextTooltip, type TooltipProps } from "@heroui/react";
-import type React from "react";
-import type { PropsWithChildren } from "react";
-import { twMerge } from "~/utils/twMerge";
+import { Tooltip as NextTooltip, type TooltipProps } from '@heroui/react';
+import type React from 'react';
+import { useState } from 'react';
+import type { PropsWithChildren } from 'react';
+import { twMerge } from '~/utils/twMerge';
 
-type Props = {
-  content: string | React.ReactNode;
-  isDisabled?: boolean;
+interface Props {
+  content: React.ReactNode;
+  children: React.ReactNode;
   className?: string;
-} & TooltipProps;
+}
 
-const Tooltip: React.FC<PropsWithChildren<Props>> = ({
-  children,
-  content,
-  isDisabled,
-  className,
-  ...rest
-}) => {
-  if (!content) {
-    return <>{children}</>;
-  }
+const Tooltip: React.FC<Props> = ({ content, children, className }) => {
+  const [isVisible, setIsVisible] = useState(false);
 
   return (
-    <NextTooltip
-      showArrow={false}
-      content={content}
-      isDisabled={isDisabled}
-      classNames={{
-        base: [
-          "before:content-[''] before:absolute before:-top-2 before:left-1/2 before:-translate-x-[50%] ",
-          "before:border-l-8 before:border-r-8 before:border-b-8",
-          "before:border-l-transparent before:border-r-transparent before:border-b-white/10",
-        ],
-        arrow: "",
-        content: [twMerge("p-4 border border-white/10 bg-tw-bg", className)],
-      }}
-      radius="lg"
-      placement="bottom"
-      {...rest}
-    >
-      {children}
-    </NextTooltip>
+    <div className="relative inline-block">
+      <div onMouseEnter={() => setIsVisible(true)} onMouseLeave={() => setIsVisible(false)} className="cursor-pointer">
+        {children}
+      </div>
+      {isVisible && (
+        <div className={twMerge('absolute z-50 bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-tw-gray-900 border border-white/10 rounded-lg shadow-lg min-w-max', className)}>
+          {content}
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-tw-gray-900" />
+        </div>
+      )}
+    </div>
   );
 };
 

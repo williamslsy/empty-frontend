@@ -1,110 +1,77 @@
-import type { PoolInfo } from "@towerfi/types";
-import { useTVL } from "~/app/hooks/useTVL";
-import Skeleton from "../../atoms/Skeleton";
-import { periodToNumber, type Period } from "../../atoms/PeriodToggle";
-import { useAPR } from "~/app/hooks/useAPR";
-import { trpc } from "~/trpc/client";
-import { useMemo } from "react";
-import { useVolume } from "~/app/hooks/useVolume";
-import { formatNumber } from "~/app/hooks/usePrices";
-import Tooltip from "../../atoms/Tooltip";
-import { CellAprBreakDown } from "../../atoms/cells/CellApr";
+import type { PoolInfo } from '@towerfi/types';
+import Skeleton from '../../atoms/Skeleton';
+import { type Period } from '../../atoms/PeriodToggle';
+import { useEffect, useMemo, useState } from 'react';
+import { formatNumber } from '~/app/hooks/usePrices';
+import Tooltip from '../../atoms/Tooltip';
+import { CellAprBreakDown } from '../../atoms/cells/CellApr';
+import { TMockPool } from '~/lib/mockPools';
 
-export const Metrics: React.FC<{ pool: PoolInfo; aprTimeframe: Period }> = ({
-  pool,
-  aprTimeframe,
-}) => {
-  const {
-    TVL,
-    query: { isLoading: isTVLLoading },
-  } = useTVL(pool);
+interface MetricsProps {
+  pool: TMockPool;
+  aprTimeframe: Period;
+  metrics: any;
+}
 
-  const startDate = useMemo(() => {
-    const date = new Date();
-    date.setUTCDate(date.getUTCDate() - periodToNumber(aprTimeframe));
+export const Metrics: React.FC<MetricsProps> = ({ pool, aprTimeframe, metrics }) => {
+  const [isLoading, setIsLoading] = useState(true);
 
-    return date.toUTCString();
-  }, [aprTimeframe]);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
-  const queryInput = useMemo(
-    () => ({
-      addresses: [pool.poolAddress],
-      startDate,
-    }),
-    [pool.poolAddress, startDate],
-  );
+  const poolMetric = metrics?.[pool.id];
 
-  const { data: metrics, isLoading: isMetricsLoading } =
-    trpc.edge.indexer.getPoolMetricsByAddresses.useQuery(queryInput, {
-      refetchOnWindowFocus: false,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      select: (data) => {
-        return data?.[pool.poolAddress];
-      },
-    });
+  const apr = useMemo(() => {
+    const feeApr = poolMetric?.average_apr || 0;
+    const incentivesApr = poolMetric?.total_incentives ? (Number(poolMetric.total_incentives) / poolMetric.tvl_usd) * 100 : 0;
 
-  const { data: incentives, isLoading: isIncentivesLoading } =
-    trpc.edge.indexer.getPoolIncentivesByAddresses.useQuery(
-      {
-        addresses: [pool.poolAddress],
-        interval: periodToNumber(aprTimeframe),
-      },
-      {
-        select: (data) => {
-          return data?.[pool.poolAddress];
-        },
-      },
-    );
+    return {
+      fee_apr: feeApr,
+      incentives_apr: incentivesApr,
+      total_apr: feeApr + incentivesApr,
+    };
+  }, [poolMetric]);
 
-  const apr = useAPR(metrics, incentives);
-  const volume = useVolume(pool.assets, metrics);
+  const volume = useMemo(() => {
+    if (!poolMetric) return 0;
+    const token0Volume = (poolMetric.token0_swap_volume * poolMetric.token0_price) / Math.pow(10, poolMetric.token0_decimals);
+    const token1Volume = (poolMetric.token1_swap_volume * poolMetric.token1_price) / Math.pow(10, poolMetric.token1_decimals);
+    return token0Volume + token1Volume;
+  }, [poolMetric]);
+
+  const formatValue = (value: number) => {
+    if (value >= 1000000) {
+      return `$${(value / 1000000).toFixed(2)}M`;
+    }
+    if (value >= 1000) {
+      return `$${(value / 1000).toFixed(2)}K`;
+    }
+    return `$${value.toFixed(2)}`;
+  };
 
   return (
     <>
       <div className="flex-1 flex flex-col space-y-4">
         <span className="text-white/50">TVL</span>
-        {isTVLLoading ? (
-          <Skeleton className="h-8 w-1/2" />
-        ) : (
-          <span className="text-2xl text-white">
-            {formatNumber(TVL, {
-              currency: "USD",
-              language: navigator.language,
-            })}
-          </span>
-        )}
+        {isLoading ? <Skeleton className="h-8 w-1/2" /> : <span className="text-2xl text-white">{formatValue(poolMetric?.tvl_usd || 0)}</span>}
       </div>
       <div className="flex-1 flex flex-col space-y-4">
         <span className="text-white/50">APR</span>
-        {isMetricsLoading || isIncentivesLoading ? (
+        {isLoading ? (
           <Skeleton className="h-8 w-1/2" />
         ) : (
           <Tooltip
-            content={
-              <CellAprBreakDown
-                formattedApr={apr.fee_apr.toFixed(2)}
-                formattedIncentives={apr.incentives_apr.toFixed(2)}
-                formatted_total_apr={apr.total_apr.toFixed(2)}
-              />
-            }
+            content={<CellAprBreakDown formattedApr={`${apr.fee_apr.toFixed(2)}%`} formattedIncentives={`${apr.incentives_apr.toFixed(2)}%`} formatted_total_apr={`${apr.total_apr.toFixed(2)}%`} />}
           >
-            <span className="text-2xl text-white whitespace-nowrap">
-              {apr?.total_apr.toFixed(2)} %
-            </span>
+            <span className="text-2xl text-white whitespace-nowrap">{apr?.total_apr.toFixed(2)} %</span>
           </Tooltip>
         )}
       </div>
       <div className="flex-1 flex flex-col space-y-4">
         <span className="text-white/50">Volume</span>
-        {isMetricsLoading ? (
-          <Skeleton className="h-8 w-1/2" />
-        ) : (
-          <span className="text-2xl text-white">
-            {formatNumber(volume, { currency: "USD", language: navigator.language })}
-          </span>
-        )}
+        {isLoading ? <Skeleton className="h-8 w-1/2" /> : <span className="text-2xl text-white">{formatValue(volume)}</span>}
       </div>
     </>
   );

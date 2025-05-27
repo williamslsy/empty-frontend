@@ -42,7 +42,7 @@ export const mockPools = {
           decimals: 6, // converted to number
         },
         feeTier: 100, // converted to number
-        tick: -276325, // converted to number
+        tick: -23, // converted to number
         sqrtPriceX96: '1773452964481733236174240000000',
         liquidity: '15000000000000000000000',
         tickSpacing: 1, // 0.01% pools use tickSpacing 1
