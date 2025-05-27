@@ -94,24 +94,6 @@ const SwapInternal: React.FC<SwapProps> = ({ pool, onSubmittedTx }) => {
 
   return (
     <div className="flex flex-col gap-2 w-full items-center justify-center">
-      {/* <AssetInput
-        name="fromAmount"
-        control={control}
-        assets={[fromToken, toToken]}
-        disabled={isSubmitting || (isLoading && activeInput === 'to')}
-        onSelect={setFromToken}
-        onFocus={() => setActiveInput('from')}
-      /> */}
-      <RotateButton onClick={onRotate} />
-      {/* <AssetInput
-        name="toAmount"
-        control={control}
-        assets={[toToken, fromToken]}
-        disabled={isSubmitting || (isLoading && activeInput === 'from')}
-        onSelect={setToToken}
-        onFocus={() => setActiveInput('to')}
-        validateBalance={false}
-      /> */}
       <SwapPriceImpactWarning priceImpact={priceImpact} isLoading={isLoading} />
     </div>
   );
