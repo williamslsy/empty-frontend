@@ -2,6 +2,7 @@
 
 import BackButton from '../atoms/BackButton';
 import PoolSkeleton from '../molecules/skeletons/PoolSkeleton';
+import { TransactionsTable } from '../TransactionsTable';
 
 import { Fragment, useCallback, useState, useEffect } from 'react';
 
@@ -169,6 +170,17 @@ const Pool: React.FC<{
               </div>
               <div className="border border-white/10 rounded-2xl p-6 lg:p-10">
                 <Overview pool={pool as TMockPool} aprTimeframe={aprTimeframe} incentiveApr={mockIncentiveApr} metrics={mockMetrics} />
+              </div>
+
+              {/* Transactions Table */}
+              <div className="mt-8">
+                <TransactionsTable
+                  pool={{
+                    token0: { symbol: token0.symbol, decimals: token0.decimals || 18 },
+                    token1: { symbol: token1.symbol, decimals: token1.decimals || 6 },
+                    address: pool.id,
+                  }}
+                />
               </div>
             </div>
 

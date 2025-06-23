@@ -25,14 +25,27 @@ interface PriceRangeState {
   setPool: (pool: TMockPool) => void;
   validateAndUpdateRange: (min: number, max: number) => boolean;
   calculateRangeForType: (type: RangeType, currentPrice: number) => { min: number; max: number };
+  isStablecoinPair: () => boolean;
 }
 
-const RANGE_MULTIPLIERS = {
-  'Full Range': { min: 0.01, max: 2.0 },
-  Wide: { min: 0.5, max: 1.5 },
-  Common: { min: 0.8, max: 1.25 },
-  Narrow: { min: 0.95, max: 1.05 },
+// Range multipliers for volatile token pairs (ETH/USDC, BTC/ETH, etc.)
+const VOLATILE_RANGE_MULTIPLIERS = {
+  'Full Range': { min: 0.0001, max: 10000 }, // Essentially 0 to infinity (like V2)
+  Wide: { min: 0.5, max: 2.0 }, // -50% to +100% range
+  Common: { min: 0.8, max: 1.25 }, // -20% to +25% range
+  Narrow: { min: 0.9, max: 1.1 }, // -10% to +10% range
 };
+
+// Range multipliers for stablecoin pairs (USDC/USDT, DAI/USDC, etc.)
+const STABLECOIN_RANGE_MULTIPLIERS = {
+  'Full Range': { min: 0.0001, max: 10000 }, // Full range even for stables
+  Wide: { min: 0.99, max: 1.01 }, // ±1%
+  Common: { min: 0.995, max: 1.005 }, // ±0.5%
+  Narrow: { min: 0.999, max: 1.001 }, // ±0.1%
+};
+
+// List of common stablecoin symbols
+const STABLECOIN_SYMBOLS = ['USDC', 'USDT', 'DAI', 'FRAX', 'BUSD', 'TUSD', 'LUSD', 'MIM', 'FIEI', 'SUSD'];
 
 export const usePriceRangeStore = create<PriceRangeState>((set, get) => ({
   rangeType: 'Common',
@@ -44,6 +57,13 @@ export const usePriceRangeStore = create<PriceRangeState>((set, get) => ({
   isDragging: false,
   dragType: null,
   pool: null,
+
+  isStablecoinPair: () => {
+    const { pool } = get();
+    if (!pool?.token0?.symbol || !pool?.token1?.symbol) return false;
+
+    return STABLECOIN_SYMBOLS.includes(pool.token0.symbol) && STABLECOIN_SYMBOLS.includes(pool.token1.symbol);
+  },
 
   setRangeType: (type: RangeType) => {
     const { currentPrice } = get();
@@ -138,8 +158,9 @@ export const usePriceRangeStore = create<PriceRangeState>((set, get) => ({
       return false;
     }
 
-    if (min < currentPrice * 0.001 || max > currentPrice * 1000) {
-      console.warn('Price range is very extreme compared to current price');
+    // More lenient validation for extreme ranges (especially for Full Range)
+    if (min < currentPrice * 0.000001 || max > currentPrice * 1000000) {
+      console.warn('Price range is extremely wide compared to current price');
     }
 
     if (currentPrice < min || currentPrice > max) {
@@ -150,7 +171,21 @@ export const usePriceRangeStore = create<PriceRangeState>((set, get) => ({
   },
 
   calculateRangeForType: (type: RangeType, currentPrice: number) => {
-    const multiplier = RANGE_MULTIPLIERS[type];
+    const state = get();
+    const isStablePair = state.isStablecoinPair();
+
+    // Choose appropriate multipliers based on pair type
+    const multipliers = isStablePair ? STABLECOIN_RANGE_MULTIPLIERS : VOLATILE_RANGE_MULTIPLIERS;
+    const multiplier = multipliers[type];
+
+    // Handle Full Range specially
+    if (type === 'Full Range') {
+      return {
+        min: currentPrice * multiplier.min,
+        max: currentPrice * multiplier.max,
+      };
+    }
+
     return {
       min: currentPrice * multiplier.min,
       max: currentPrice * multiplier.max,
